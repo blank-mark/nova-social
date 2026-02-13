@@ -478,8 +478,13 @@ function formatTime(d){
 
 /* ---------- Показать окно при загрузке (если уже вошли) ---------- */
 if(auth.currentUser){ /* onAuthStateChanged обработает */ } else { openAuth(); }
+  document.querySelector('#btnRegister').addEventListener('click', registerUser);
+document.querySelector('#btnLogin').addEventListener('click', loginUser);
+document.querySelector('#btnGuest').addEventListener('click', showGuest);
+
 
 </script>
 
 </body>
 </html>
+
