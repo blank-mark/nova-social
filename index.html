@@ -1,21 +1,21 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nova Prospect Chat</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Nova Prospect — DM chat (username)</title>
 <style>
-  body { margin:0; font-family: Arial,sans-serif; display:flex; height:100vh; }
-  #sidebar { width:300px; border-right:1px solid #ccc; padding:10px; box-sizing:border-box; overflow:auto; }
-  #main { flex:1; display:flex; flex-direction:column; }
-  input, button, textarea { width:100%; padding:8px; margin:4px 0; box-sizing:border-box; }
-  #messages { flex:1; padding:10px; overflow:auto; background:#f9f9f9; }
-  .msg { background:#fff; padding:6px 10px; margin-bottom:8px; border-radius:6px; box-shadow:0 1px 0 #ddd; }
-  .meta { font-size:12px; color:#666; margin-bottom:4px; }
-  .room-item { padding:6px; margin-bottom:6px; cursor:pointer; border-radius:6px; background:#eee; }
-  .room-item.active { background:#cce0ff; }
-  .hidden { display:none; }
-  #profilePic { width:48px; height:48px; border-radius:50%; object-fit:cover; }
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;display:flex;height:100vh}
+  #sidebar{width:320px;border-right:1px solid #ddd;padding:12px;box-sizing:border-box;overflow:auto}
+  #main{flex:1;display:flex;flex-direction:column}
+  input,button,textarea{width:100%;padding:8px;margin:6px 0;box-sizing:border-box}
+  #messages{flex:1;padding:12px;overflow:auto;background:#fafafa}
+  .msg{background:#fff;padding:8px;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 0 #eee}
+  .meta{font-size:12px;color:#666;margin-bottom:6px}
+  .user-item{padding:8px;border-radius:6px;background:#f2f2f2;margin-bottom:6px;cursor:pointer}
+  .hidden{display:none}
+  #profilePic{width:48px;height:48px;border-radius:50%;object-fit:cover}
+  .small{font-size:13px;color:#444}
 </style>
 </head>
 <body>
@@ -23,12 +23,13 @@
 <div id="sidebar">
   <h3>Аккаунт</h3>
   <div id="signed-out">
-    <button id="googleSignInBtn">Войти через Google</button>
+    <button id="googleSignInBtn">Войти через Google (popup)</button>
     <hr>
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Пароль">
+    <input id="signupUsername" placeholder="Желаемый username (при регистрации)">
     <button id="emailSignUpBtn">Зарегистрироваться</button>
-    <button id="emailSignInBtn">Войти</button>
+    <button id="emailSignInBtn">Войти (email)</button>
   </div>
 
   <div id="signed-in" class="hidden">
@@ -36,27 +37,35 @@
     <strong id="profileName"></strong><br>
     <small id="profileEmail"></small><br>
     <button id="signOutBtn">Выйти</button>
+    <div id="chooseUsernameDiv" class="hidden">
+      <hr>
+      <div class="small">Выбери уникальный username (латиница, цифры, underscore)</div>
+      <input id="pickUsernameInput" placeholder="username">
+      <button id="pickUsernameBtn">Забронировать username</button>
+    </div>
+
     <hr>
     <h4>Профиль</h4>
-    <input id="displayNameInput" placeholder="Имя">
-    <input id="photoURLInput" placeholder="Ссылка на аватар">
-    <button id="saveProfileBtn">Сохранить</button>
+    <input id="displayNameInput" placeholder="Отображаемое имя">
+    <input id="photoURLInput" placeholder="Ссылка на аватар (опционально)">
+    <button id="saveProfileBtn">Сохранить профиль</button>
   </div>
 
   <hr>
-  <h3>Комнаты</h3>
-  <div id="roomsList"></div>
-  <input id="newRoomName" placeholder="Новая комната">
-  <button id="createRoomBtn">Создать комнату</button>
+  <h3>Поиск пользователя</h3>
+  <input id="searchInput" placeholder="Искать по username">
+  <div id="searchResults"></div>
 </div>
 
 <div id="main">
-  <div style="padding:10px; border-bottom:1px solid #ccc;">
-    <strong id="currentRoomTitle">Выберите комнату</strong>
+  <div style="padding:10px;border-bottom:1px solid #ddd;">
+    <strong id="currentThreadTitle">Выберите пользователя или начните чат</strong>
   </div>
+
   <div id="messages"></div>
-  <div style="padding:10px; border-top:1px solid #ccc;">
-    <textarea id="messageInput" rows="2" placeholder="Напишите сообщение..."></textarea>
+
+  <div style="padding:10px;border-top:1px solid #ddd;">
+    <textarea id="messageInput" rows="2" placeholder="Сообщение..."></textarea>
     <button id="sendBtn">Отправить</button>
   </div>
 </div>
@@ -65,9 +74,11 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
-  import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+  import {
+    getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, getDocs, runTransaction
+  } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-  // --- Firebase config ---
+  // --- Твоя конфигурация (из сообщения) ---
   const firebaseConfig = {
     apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
     authDomain: "nova-prospect-chat.firebaseapp.com",
@@ -83,7 +94,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // --- UI ---
+  // UI
   const googleSignInBtn = document.getElementById('googleSignInBtn');
   const emailSignUpBtn = document.getElementById('emailSignUpBtn');
   const emailSignInBtn = document.getElementById('emailSignInBtn');
@@ -96,112 +107,247 @@
   const displayNameInput = document.getElementById('displayNameInput');
   const photoURLInput = document.getElementById('photoURLInput');
   const saveProfileBtn = document.getElementById('saveProfileBtn');
-  const roomsList = document.getElementById('roomsList');
-  const createRoomBtn = document.getElementById('createRoomBtn');
-  const newRoomName = document.getElementById('newRoomName');
-  const currentRoomTitle = document.getElementById('currentRoomTitle');
+  const chooseUsernameDiv = document.getElementById('chooseUsernameDiv');
+  const pickUsernameInput = document.getElementById('pickUsernameInput');
+  const pickUsernameBtn = document.getElementById('pickUsernameBtn');
+  const signupUsername = document.getElementById('signupUsername');
+
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+
+  const currentThreadTitle = document.getElementById('currentThreadTitle');
   const messagesDiv = document.getElementById('messages');
   const messageInput = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
 
-  let currentRoomId = null;
+  let currentThreadId = null;
+  let currentPeer = null; // { uid, username, displayName }
   let unsubscribeMessages = null;
 
-  // --- Auth ---
-  googleSignInBtn.onclick = async ()=>{ try { await signInWithPopup(auth,new GoogleAuthProvider()); } catch(e){alert(e.message);} };
-  emailSignUpBtn.onclick = async ()=>{ 
-    const email=document.getElementById('email').value;
-    const pw=document.getElementById('password').value;
-    try{
-      const userCred = await createUserWithEmailAndPassword(auth,email,pw);
-      await setDoc(doc(db,'profiles',userCred.user.uid),{displayName:userCred.user.email.split('@')[0],photoURL:null,createdAt:serverTimestamp()});
-    } catch(e){alert(e.message);}
+  // --- AUTH handlers ---
+  googleSignInBtn.onclick = async () => {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      // popup avoids iframe issues
+    } catch (e) { alert(e.message); }
   };
-  emailSignInBtn.onclick = async ()=>{ 
-    const email=document.getElementById('email').value;
-    const pw=document.getElementById('password').value;
-    try{ await signInWithEmailAndPassword(auth,email,pw); } catch(e){alert(e.message);}
-  };
-  signOutBtn.onclick = async ()=>{ await signOut(auth); };
 
-  onAuthStateChanged(auth, async (user)=>{
-    if(user){
-      signedInDiv.classList.remove('hidden'); signedOutDiv.classList.add('hidden');
-      profileName.textContent = user.displayName||'Без имени';
-      profileEmail.textContent = user.email||'';
+  emailSignUpBtn.onclick = async () => {
+    const email = document.getElementById('email').value.trim();
+    const pw = document.getElementById('password').value;
+    const desired = signupUsername.value.trim().toLowerCase();
+    if (!email || !pw) return alert('Email и пароль обязательны');
+    try {
+      const uc = await createUserWithEmailAndPassword(auth, email, pw);
+      // если пользователь сразу указал username — попробуем забронировать
+      if (desired) {
+        try {
+          await createUsernameForUid(desired, uc.user.uid, email.split('@')[0]);
+          alert('Зарегистрирован и username забронирован');
+        } catch(err){
+          console.warn('username error',err);
+          alert('Регистрация прошла, но username не удалось забронировать: ' + err);
+          // профиль создан, но username придётся выбрать после входа
+        }
+      } else {
+        alert('Зарегистрирован. Установите username в профиле.');
+      }
+    } catch (e) { alert(e.message); }
+  };
+
+  emailSignInBtn.onclick = async () => {
+    const email = document.getElementById('email').value.trim();
+    const pw = document.getElementById('password').value;
+    try {
+      await signInWithEmailAndPassword(auth, email, pw);
+    } catch (e) { alert(e.message); }
+  };
+
+  signOutBtn.onclick = async () => {
+    if (unsubscribeMessages) unsubscribeMessages();
+    await signOut(auth);
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      signedInDiv.classList.remove('hidden');
+      signedOutDiv.classList.add('hidden');
+      profileName.textContent = user.displayName || '(без имени)';
+      profileEmail.textContent = user.email || '';
       profilePic.src = user.photoURL || 'https://via.placeholder.com/48?text=?';
-      displayNameInput.value = user.displayName||'';
-      photoURLInput.value = user.photoURL||'';
-      loadRooms();
-    }else{
-      signedInDiv.classList.add('hidden'); signedOutDiv.classList.remove('hidden');
-      profileName.textContent = ''; profileEmail.textContent = ''; profilePic.src='';
-      roomsList.innerHTML=''; messagesDiv.innerHTML=''; currentRoomTitle.textContent='Выберите комнату';
+      displayNameInput.value = user.displayName || '';
+      photoURLInput.value = user.photoURL || '';
+      // загрузим профиль — если нет username — покажем выбор
+      const pSnap = await getDoc(doc(db, 'profiles', user.uid));
+      if (!pSnap.exists() || !pSnap.data().username) {
+        chooseUsernameDiv.classList.remove('hidden');
+      } else {
+        chooseUsernameDiv.classList.add('hidden');
+      }
+    } else {
+      signedInDiv.classList.add('hidden');
+      signedOutDiv.classList.remove('hidden');
+      profileName.textContent = ''; profileEmail.textContent = ''; profilePic.src = '';
+      chooseUsernameDiv.classList.add('hidden');
+      searchResults.innerHTML=''; messagesDiv.innerHTML=''; currentThreadTitle.textContent='Выберите пользователя или начните чат';
     }
   });
 
-  saveProfileBtn.onclick = async ()=>{
-    const user=auth.currentUser;
-    if(!user) return alert('Неавторизован');
-    const newName=displayNameInput.value.trim(); const newPhoto=photoURLInput.value.trim()||null;
-    await updateProfile(user,{displayName:newName,photoURL:newPhoto});
-    await setDoc(doc(db,'profiles',user.uid),{displayName:newName,photoURL:newPhoto,updatedAt:serverTimestamp()},{merge:true});
-    profileName.textContent=newName; profilePic.src=newPhoto||'https://via.placeholder.com/48?text=?'; alert('Профиль сохранён');
+  saveProfileBtn.onclick = async () => {
+    const user = auth.currentUser;
+    if (!user) return alert('Неавторизован');
+    const newName = displayNameInput.value.trim();
+    const newPhoto = photoURLInput.value.trim() || null;
+    try {
+      await updateProfile(user, { displayName: newName, photoURL: newPhoto });
+      await setDoc(doc(db, 'profiles', user.uid), {
+        displayName: newName,
+        photoURL: newPhoto,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      profileName.textContent = newName;
+      profilePic.src = newPhoto || 'https://via.placeholder.com/48?text=?';
+      alert('Профиль обновлён');
+    } catch (e) { alert(e.message); }
   };
 
-  // --- Rooms ---
-  async function loadRooms(){
-    roomsList.innerHTML='';
-    const q = query(collection(db,'rooms'),orderBy('createdAt','desc'));
-    const snap = await getDocs(q);
-    snap.forEach(docSnap=>{
-      const data=docSnap.data();
-      const el=document.createElement('div'); el.className='room-item'; el.textContent=data.name||'Безымянная';
-      el.onclick=()=>{ openRoom(docSnap.id,data.name); setActiveRoomElement(el); };
-      roomsList.appendChild(el);
-    });
+  // --- Username creation (transaction ensures uniqueness) ---
+  async function createUsernameForUid(usernameRaw, uid, displayName = null) {
+    const username = sanitizeUsername(usernameRaw);
+    if (!username) throw 'Неверный username';
+    const unameRef = doc(db, 'usernames', username);
+    const profileRef = doc(db, 'profiles', uid);
+    try {
+      await runTransaction(db, async (tx) => {
+        const unameSnap = await tx.get(unameRef);
+        if (unameSnap.exists()) throw new Error('USERNAME_TAKEN');
+        tx.set(unameRef, { owner: uid, createdAt: serverTimestamp() });
+        tx.set(profileRef, {
+          username,
+          displayName: displayName || null,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      });
+      return true;
+    } catch (e) {
+      if (String(e).includes('USERNAME_TAKEN')) throw 'Этот username уже занят';
+      throw e.message || e;
+    }
   }
 
-  createRoomBtn.onclick=async ()=>{
-    const name=newRoomName.value.trim(); if(!name) return alert('Введите имя комнаты');
-    const user=auth.currentUser; if(!user) return alert('Войдите');
-    const roomRef = await addDoc(collection(db,'rooms'),{name,owner:user.uid,createdAt:serverTimestamp()});
-    newRoomName.value=''; loadRooms(); openRoom(roomRef.id,name);
+  pickUsernameBtn.onclick = async () => {
+    const user = auth.currentUser;
+    if (!user) return alert('Войдите');
+    const desired = pickUsernameInput.value.trim().toLowerCase();
+    try {
+      await createUsernameForUid(desired, user.uid, user.displayName || user.email.split('@')[0]);
+      chooseUsernameDiv.classList.add('hidden');
+      alert('username успешно забронирован: ' + desired);
+    } catch (e) {
+      alert('Ошибка брони username: ' + e);
+    }
   };
 
-  function setActiveRoomElement(el){
-    document.querySelectorAll('.room-item').forEach(x=>x.classList.remove('active'));
-    el.classList.add('active');
+  function sanitizeUsername(s) {
+    if (!s) return null;
+    const low = s.toLowerCase();
+    if (!/^[a-z0-9_]{3,32}$/.test(low)) return null;
+    return low;
   }
 
-  function openRoom(roomId,roomName){
-    if(unsubscribeMessages) unsubscribeMessages();
-    currentRoomId=roomId;
-    currentRoomTitle.textContent=roomName||'Комната';
-    messagesDiv.innerHTML='';
-    const msgsCol=collection(db,'rooms',roomId,'messages');
-    const q=query(msgsCol,orderBy('createdAt','asc'));
-    unsubscribeMessages=onSnapshot(q,snapshot=>{
-      messagesDiv.innerHTML='';
-      snapshot.forEach(docSnap=>{
-        const m=docSnap.data();
-        const el=document.createElement('div'); el.className='msg';
-        el.innerHTML=`<div class="meta"><strong>${escapeHtml(m.displayName||m.senderId)}</strong> · ${new Date(m.createdAt?.toMillis?m.createdAt.toMillis():Date.now()).toLocaleString()}</div><div>${escapeHtml(m.text)}</div>`;
+  // --- Поиск по username ---
+  searchInput.oninput = async (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    searchResults.innerHTML = '';
+    if (!q) return;
+    // простая попытка: ищем doc в usernames/q
+    try {
+      const unameSnap = await getDoc(doc(db, 'usernames', q));
+      if (unameSnap.exists()) {
+        const owner = unameSnap.data().owner;
+        const prof = await getDoc(doc(db, 'profiles', owner));
+        const data = prof.exists() ? prof.data() : {};
+        const el = document.createElement('div');
+        el.className = 'user-item';
+        el.innerHTML = `<strong>${q}</strong> <div class="small">${data.displayName||''}</div><div class="small">${owner}</div><button data-uid="${owner}" data-username="${q}">Написать</button>`;
+        el.querySelector('button').onclick = () => {
+          openDirectChat({ uid: owner, username: q, displayName: data.displayName||q });
+        };
+        searchResults.appendChild(el);
+      } else {
+        searchResults.innerHTML = '<div class="small">Пользователь не найден</div>';
+      }
+    } catch (e) { console.warn(e); searchResults.innerHTML = '<div class="small">Ошибка поиска</div>'; }
+  };
+
+  // --- Создание/открытие DM потока ---
+  function threadIdFor(u1, u2) {
+    const ids = [u1, u2].sort();
+    return ids[0] + '_' + ids[1];
+  }
+
+  async function openDirectChat(peer) {
+    const user = auth.currentUser;
+    if (!user) return alert('Войдите');
+    if (!peer || !peer.uid) return;
+    currentPeer = peer;
+    currentThreadTitle.textContent = 'Чат с ' + (peer.username || peer.displayName || 'пользователем');
+    const tId = threadIdFor(user.uid, peer.uid);
+    const threadRef = doc(db, 'dmThreads', tId);
+    // Создадим документ потока, если нет
+    try {
+      await runTransaction(db, async (tx) => {
+        const tSnap = await tx.get(threadRef);
+        if (!tSnap.exists()) {
+          tx.set(threadRef, { participants: [user.uid, peer.uid], createdAt: serverTimestamp() });
+        }
+      });
+    } catch (e) { console.warn('thread create tx err', e); }
+    // Подпишемся на сообщения
+    if (unsubscribeMessages) unsubscribeMessages();
+    const msgsCol = collection(db, 'dmThreads', tId, 'messages');
+    const q = query(msgsCol, orderBy('createdAt', 'asc'));
+    unsubscribeMessages = onSnapshot(q, (snapshot) => {
+      messagesDiv.innerHTML = '';
+      snapshot.forEach(docSnap => {
+        const m = docSnap.data();
+        const el = document.createElement('div');
+        el.className = 'msg';
+        el.innerHTML = `<div class="meta"><strong>${escapeHtml(m.displayName||m.senderId)}</strong> · ${new Date(m.createdAt?.toMillis?m.createdAt.toMillis():Date.now()).toLocaleString()}</div><div>${escapeHtml(m.text)}</div>`;
         messagesDiv.appendChild(el);
       });
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     });
+    currentThreadId = tId;
   }
 
-  sendBtn.onclick=async ()=>{
-    const text=messageInput.value.trim(); if(!text) return; if(!currentRoomId) return alert('Выберите комнату');
-    const user=auth.currentUser; if(!user) return alert('Войдите');
-    const msgsCol=collection(db,'rooms',currentRoomId,'messages');
-    await addDoc(msgsCol,{senderId:user.uid,displayName:user.displayName||user.email.split('@')[0],text,createdAt:serverTimestamp()});
-    messageInput.value='';
+  sendBtn.onclick = async () => {
+    const text = messageInput.value.trim();
+    if (!text) return;
+    const user = auth.currentUser;
+    if (!user) return alert('Войдите');
+    if (!currentThreadId) return alert('Откройте чат с пользователем');
+    const msgsCol = collection(db, 'dmThreads', currentThreadId, 'messages');
+    try {
+      await addDoc(msgsCol, {
+        senderId: user.uid,
+        displayName: user.displayName || user.email.split('@')[0],
+        text,
+        createdAt: serverTimestamp()
+      });
+      messageInput.value = '';
+    } catch (e) { alert('Ошибка отправки: ' + e.message); }
   };
 
-  function escapeHtml(str){ if(!str) return ''; return String(str).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+
+  // quick helper - show current user profile if logged in
+  (async () => {
+    // prefetch nothing heavy
+  })();
 
 </script>
 </body>
