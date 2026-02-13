@@ -451,6 +451,18 @@ window.STATE = {
 };
 /* локальная алиас-переменная для удобства (используем обе — window.STATE и STATE) */
 const STATE = window.STATE;
+// -------------------------
+// FIX: проверка текущего пользователя
+// -------------------------
+if(STATE.current){
+  const exists = STATE.users.find(u => u.username === STATE.current.username);
+  if(!exists){
+    // пользователь удалён — сбросим только его
+    STATE.current = null;
+    localStorage.setItem('nn_current', null);
+    toast('Текущий пользователь удалён, выполните вход заново');
+  }
+}
 
 /* -------------------------
    Helpers
@@ -1527,3 +1539,4 @@ if (typeof auth !== 'undefined' && auth && typeof db !== 'undefined' && db) {
 </body>
 </html>
 ```
+
