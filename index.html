@@ -1,540 +1,208 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>NovaTalk — простой мессенджер (Firebase)</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova Prospect Chat</title>
 <style>
-  :root{ --bg:#0f1724; --panel:#0b1220; --text:#e6eef6; --muted:#9aa6b2; --accent:#1d9bf0; --card-radius:12px; font-family:Inter,system-ui,Arial; }
-  body{ margin:0; min-height:100vh; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; padding:18px; }
-  .wrap{ max-width:1100px; margin:0 auto; display:grid; grid-template-columns:320px 1fr; gap:18px; align-items:start; }
-  .card{ background:linear-gradient(180deg,#07101a,#0b1226); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.03); box-shadow:0 8px 30px rgba(0,0,0,0.6); }
-  h1{ margin:0 0 10px 0; font-size:20px }
-  .muted{ color:var(--muted); font-size:13px }
-  input,textarea,button,select{ font-family:inherit; }
-  .input{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px }
-  input[type="text"], input[type="email"], input[type="password"], textarea {
-    background:transparent; border:1px solid rgba(255,255,255,0.06); padding:10px; border-radius:8px; color:var(--text);
-  }
-  button { background:linear-gradient(90deg,var(--accent),#60a5fa); border:none; color:white; padding:10px 12px; border-radius:8px; cursor:pointer }
-  .small{ padding:8px 10px; font-size:14px }
-  .center{ text-align:center }
-  /* layout */
-  .left{ display:flex; flex-direction:column; gap:12px; }
-  .chats-list{ max-height:60vh; overflow:auto; display:flex; flex-direction:column; gap:8px; margin-top:8px }
-  .chat-item{ padding:10px; border-radius:8px; background:rgba(255,255,255,0.01); cursor:pointer; display:flex; justify-content:space-between; align-items:center }
-  .chat-item.active{ outline:2px solid rgba(29,155,240,0.12) }
-  .messages{ height:60vh; overflow:auto; display:flex; flex-direction:column; gap:8px; padding:8px; background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); border-radius:8px }
-  .msg { max-width:70%; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.02) }
-  .msg.me{ margin-left:auto; background:linear-gradient(90deg,var(--accent),#60a5fa); color:white }
-  .chat-header{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px }
-  .row{ display:flex; gap:8px; align-items:center }
-  .hidden{ display:none !important }
-  .linklike{ background:transparent; border:1px dashed rgba(255,255,255,0.04); padding:6px 8px; border-radius:8px; color:var(--muted) }
-  footer{ margin-top:12px; font-size:13px; color:var(--muted) }
-  @media (max-width:900px){ .wrap{ grid-template-columns:1fr; } .left{ order:2 } }
+  body { margin:0; font-family: Arial,sans-serif; display:flex; height:100vh; }
+  #sidebar { width:300px; border-right:1px solid #ccc; padding:10px; box-sizing:border-box; overflow:auto; }
+  #main { flex:1; display:flex; flex-direction:column; }
+  input, button, textarea { width:100%; padding:8px; margin:4px 0; box-sizing:border-box; }
+  #messages { flex:1; padding:10px; overflow:auto; background:#f9f9f9; }
+  .msg { background:#fff; padding:6px 10px; margin-bottom:8px; border-radius:6px; box-shadow:0 1px 0 #ddd; }
+  .meta { font-size:12px; color:#666; margin-bottom:4px; }
+  .room-item { padding:6px; margin-bottom:6px; cursor:pointer; border-radius:6px; background:#eee; }
+  .room-item.active { background:#cce0ff; }
+  .hidden { display:none; }
+  #profilePic { width:48px; height:48px; border-radius:50%; object-fit:cover; }
 </style>
 </head>
 <body>
 
-<div class="wrap">
-
-  <!-- LEFT: auth / chats -->
-  <div class="left">
-
-    <!-- AUTH CARD -->
-    <div id="authCard" class="card">
-      <h1>NovaTalk — вход / регистрация</h1>
-
-      <div id="authForm">
-        <div class="input"><label class="muted">Email</label><input id="email" type="email" placeholder="you@example.com"></div>
-        <div class="input"><label class="muted">Пароль</label><input id="password" type="password" placeholder="пароль"></div>
-
-        <div style="display:flex;gap:8px">
-          <button id="btnRegister" class="small">Регистрация</button>
-          <button id="btnLogin" class="small">Войти</button>
-          <button id="btnGuest" class="small linklike">Гость</button>
-        </div>
-
-        <div style="height:10px"></div>
-        <div id="authMsg" class="muted center">Используй Email для облачной регистрации</div>
-      </div>
-
-      <div id="meCard" class="hidden" style="margin-top:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div id="meName" style="font-weight:700">—</div>
-            <div id="meEmail" class="muted" style="font-size:13px">—</div>
-          </div>
-          <div>
-            <button id="btnLogout" class="small">Выйти</button>
-          </div>
-        </div>
-      </div>
-
-      <div style="height:6px"></div>
-      <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
-        <div class="muted">Чаты</div>
-        <button id="btnNewChat" class="small">Новый чат</button>
-      </div>
-
-      <div id="chatsList" class="chats-list" aria-live="polite"></div>
-
-      <footer>Мессенджер на Firebase — MVP</footer>
-    </div>
-
+<div id="sidebar">
+  <h3>Аккаунт</h3>
+  <div id="signed-out">
+    <button id="googleSignInBtn">Войти через Google</button>
+    <hr>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Пароль">
+    <button id="emailSignUpBtn">Зарегистрироваться</button>
+    <button id="emailSignInBtn">Войти</button>
   </div>
 
-  <!-- RIGHT: conversation -->
-  <div class="card" id="chatCard">
-    <div class="chat-header">
-      <div>
-        <div id="chatTitle" style="font-weight:800">Выберите чат</div>
-        <div id="chatSub" class="muted" style="font-size:13px">—</div>
-      </div>
-      <div class="row">
-        <button id="btnLeaveChat" class="small linklike">Покинуть</button>
-        <button id="btnDeleteChat" class="small linklike">Удалить</button>
-      </div>
-    </div>
-
-    <div id="messages" class="messages">
-      <div class="muted">Нет выбранного чата</div>
-    </div>
-
-    <div style="height:12px"></div>
-    <div id="composerRow" style="display:flex;gap:8px;align-items:center">
-      <input id="msgInput" type="text" placeholder="Написать сообщение..." style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text)">
-      <button id="btnSend" class="small">Отправить</button>
-    </div>
-
+  <div id="signed-in" class="hidden">
+    <img id="profilePic" src="" alt="avatar"><br>
+    <strong id="profileName"></strong><br>
+    <small id="profileEmail"></small><br>
+    <button id="signOutBtn">Выйти</button>
+    <hr>
+    <h4>Профиль</h4>
+    <input id="displayNameInput" placeholder="Имя">
+    <input id="photoURLInput" placeholder="Ссылка на аватар">
+    <button id="saveProfileBtn">Сохранить</button>
   </div>
 
+  <hr>
+  <h3>Комнаты</h3>
+  <div id="roomsList"></div>
+  <input id="newRoomName" placeholder="Новая комната">
+  <button id="createRoomBtn">Создать комнату</button>
+</div>
+
+<div id="main">
+  <div style="padding:10px; border-bottom:1px solid #ccc;">
+    <strong id="currentRoomTitle">Выберите комнату</strong>
+  </div>
+  <div id="messages"></div>
+  <div style="padding:10px; border-top:1px solid #ccc;">
+    <textarea id="messageInput" rows="2" placeholder="Напишите сообщение..."></textarea>
+    <button id="sendBtn">Отправить</button>
+  </div>
 </div>
 
 <script type="module">
-/* ======================================================
-   NovaTalk — минимальный мессенджер на Firebase + Firestore
-   - регистрация / вход Email+Password
-   - users collection (profiles)
-   - chats collection { title, members:[uid], lastMessage, updatedAt }
-   - messages subcollection under chats: { senderUid, senderName, text, ts }
-   - real-time sync через onSnapshot
-   ====================================================== */
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+  import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-// -------- Firebase SDK (v9 modular)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+  // --- Firebase config ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
+    authDomain: "nova-prospect-chat.firebaseapp.com",
+    projectId: "nova-prospect-chat",
+    storageBucket: "nova-prospect-chat.firebasestorage.app",
+    messagingSenderId: "256806164650",
+    appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
+    measurementId: "G-9V0Q2E2FNB"
+  };
 
-// --------- Вставь сюда свой firebaseConfig если нужно (в примере использован твой прежний)
-const firebaseConfig = {
-  apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
-  authDomain: "nova-prospect-chat.firebaseapp.com",
-  projectId: "nova-prospect-chat",
-  storageBucket: "nova-prospect-chat.firebasestorage.app",
-  messagingSenderId: "256806164650",
-  appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
-  measurementId: "G-9V0Q2E2FNB"
-};
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-let app, auth, db;
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  console.log("Firebase initialized");
-} catch (e) {
-  console.error("Firebase init failed", e);
-  alert("Ошибка инициализации Firebase. Проверь конфиг и сеть.");
-}
+  // --- UI ---
+  const googleSignInBtn = document.getElementById('googleSignInBtn');
+  const emailSignUpBtn = document.getElementById('emailSignUpBtn');
+  const emailSignInBtn = document.getElementById('emailSignInBtn');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const signedInDiv = document.getElementById('signed-in');
+  const signedOutDiv = document.getElementById('signed-out');
+  const profileName = document.getElementById('profileName');
+  const profileEmail = document.getElementById('profileEmail');
+  const profilePic = document.getElementById('profilePic');
+  const displayNameInput = document.getElementById('displayNameInput');
+  const photoURLInput = document.getElementById('photoURLInput');
+  const saveProfileBtn = document.getElementById('saveProfileBtn');
+  const roomsList = document.getElementById('roomsList');
+  const createRoomBtn = document.getElementById('createRoomBtn');
+  const newRoomName = document.getElementById('newRoomName');
+  const currentRoomTitle = document.getElementById('currentRoomTitle');
+  const messagesDiv = document.getElementById('messages');
+  const messageInput = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
 
-/* ----- UI references ----- */
-const el = id => document.getElementById(id);
-const authCard = el('authCard');
-const authForm = el('authForm');
-const meCard = el('meCard');
-const meName = el('meName');
-const meEmail = el('meEmail');
-const authMsg = el('authMsg');
-const chatsList = el('chatsList');
-const chatTitle = el('chatTitle');
-const chatSub = el('chatSub');
-const messagesEl = el('messages');
-const composerRow = el('composerRow');
-const msgInput = el('msgInput');
-const btnSend = el('btnSend');
-const btnNewChat = el('btnNewChat');
-const btnLeaveChat = el('btnLeaveChat');
-const btnDeleteChat = el('btnDeleteChat');
+  let currentRoomId = null;
+  let unsubscribeMessages = null;
 
-/* ----- App state ----- */
-let me = null;                // { uid, email, name }
-let chatsUnsub = null;
-let messagesUnsub = null;
-let currentChatId = null;
+  // --- Auth ---
+  googleSignInBtn.onclick = async ()=>{ try { await signInWithPopup(auth,new GoogleAuthProvider()); } catch(e){alert(e.message);} };
+  emailSignUpBtn.onclick = async ()=>{ 
+    const email=document.getElementById('email').value;
+    const pw=document.getElementById('password').value;
+    try{
+      const userCred = await createUserWithEmailAndPassword(auth,email,pw);
+      await setDoc(doc(db,'profiles',userCred.user.uid),{displayName:userCred.user.email.split('@')[0],photoURL:null,createdAt:serverTimestamp()});
+    } catch(e){alert(e.message);}
+  };
+  emailSignInBtn.onclick = async ()=>{ 
+    const email=document.getElementById('email').value;
+    const pw=document.getElementById('password').value;
+    try{ await signInWithEmailAndPassword(auth,email,pw); } catch(e){alert(e.message);}
+  };
+  signOutBtn.onclick = async ()=>{ await signOut(auth); };
 
-/* -------------------------
-   HELPERS
-   ------------------------- */
-function show(elm) { if(elm) elm.classList.remove('hidden'); }
-function hide(elm) { if(elm) elm.classList.add('hidden'); }
-function clear(elm){ if(elm) elm.innerHTML = ''; }
-function showToast(t){ console.log('toast:',t); if(authMsg) authMsg.textContent = t; setTimeout(()=>{ if(authMsg) authMsg.textContent = '' },3000); }
-function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
-
-/* -------------------------
-   AUTH / PROFILE
-   ------------------------- */
-async function registerUser(){
-  const email = (el('email').value || '').trim();
-  const pass = (el('password').value || '').trim();
-  if(!email || !pass){ showToast('Введите email и пароль'); return; }
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    // create profile doc
-    const userDoc = doc(db, 'users', cred.user.uid);
-    await setDoc(userDoc, {
-      uid: cred.user.uid,
-      email,
-      displayName: email.split('@')[0],
-      createdAt: serverTimestamp()
-    });
-    showToast('Регистрация выполнена');
-    // onAuthStateChanged дальше обновит UI
-  } catch (err) {
-    console.error('registerUser', err);
-    showToast(err.message || 'Ошибка регистрации');
-  }
-}
-
-async function loginUser(){
-  const email = (el('email').value || '').trim();
-  const pass = (el('password').value || '').trim();
-  if(!email || !pass){ showToast('Введите email и пароль'); return; }
-  try {
-    await signInWithEmailAndPassword(auth, email, pass);
-    showToast('Вход выполнен');
-  } catch (err) {
-    console.error('loginUser', err);
-    showToast(err.message || 'Ошибка входа');
-  }
-}
-
-function showGuest(){
-  // простой гость: локально показываем интерфейс без Firebase Auth
-  me = { uid: 'guest_' + Date.now(), email: null, displayName: 'Гость' };
-  setupAfterLogin();
-  showToast('Вошли как гость (локально)');
-}
-
-/* -------------------------
-   ON AUTH STATE
-   ------------------------- */
-onAuthStateChanged(auth, async (user) => {
-  if(user){
-    // load profile
-    try {
-      const udoc = await getDoc(doc(db, 'users', user.uid));
-      const udata = udoc.exists() ? udoc.data() : { uid: user.uid, email: user.email, displayName: user.email?user.email.split('@')[0]:'User' };
-      me = { uid: udata.uid, email: udata.email || user.email, displayName: udata.displayName || user.email.split('@')[0] };
-      setupAfterLogin();
-      showToast(`Привет, ${me.displayName}`);
-    } catch(e){
-      console.error('authState load profile', e);
-      me = { uid: user.uid, email: user.email, displayName: user.email?user.email.split('@')[0]:'User' };
-      setupAfterLogin();
+  onAuthStateChanged(auth, async (user)=>{
+    if(user){
+      signedInDiv.classList.remove('hidden'); signedOutDiv.classList.add('hidden');
+      profileName.textContent = user.displayName||'Без имени';
+      profileEmail.textContent = user.email||'';
+      profilePic.src = user.photoURL || 'https://via.placeholder.com/48?text=?';
+      displayNameInput.value = user.displayName||'';
+      photoURLInput.value = user.photoURL||'';
+      loadRooms();
+    }else{
+      signedInDiv.classList.add('hidden'); signedOutDiv.classList.remove('hidden');
+      profileName.textContent = ''; profileEmail.textContent = ''; profilePic.src='';
+      roomsList.innerHTML=''; messagesDiv.innerHTML=''; currentRoomTitle.textContent='Выберите комнату';
     }
-  } else {
-    // signed out
-    me = null;
-    teardownAfterLogout();
-    openAuth();
-  }
-});
-
-/* -------------------------
-   UI state helpers
-   ------------------------- */
-function openAuth(){
-  show(authCard);
-  show(el('authForm'));
-  hide(meCard);
-  hide(el('btnLeaveChat')); hide(el('btnDeleteChat'));
-  chatTitle.textContent = 'Выберите чат';
-  chatSub.textContent = '';
-  clear(chatsList);
-  clear(messagesEl);
-  messagesEl.innerHTML = `<div class="muted">Нет выбранного чата</div>`;
-  composerRow.style.display = 'none';
-}
-
-function setupAfterLogin(){
-  // show profile block
-  hide(el('authForm'));
-  show(meCard);
-  meName.textContent = me.displayName || me.email || 'Пользователь';
-  meEmail.textContent = me.email || 'гость';
-  show(el('btnLogout'));
-  // show chat UI
-  composerRow.style.display = 'flex';
-  loadChats();
-}
-
-/* -------------------------
-   CHATS: load / listen
-   ------------------------- */
-async function loadChats(){
-  if(!me) return;
-  // unsubscribe previous
-  if(chatsUnsub) chatsUnsub();
-
-  // show user's chats: query chats where members array contains me.uid
-  const chatsColl = collection(db, 'chats');
-  const q = query(chatsColl, orderBy('updatedAt', 'desc'));
-  // note: for production filter by membership; for simple MVP show all chats
-  chatsUnsub = onSnapshot(q, snap => {
-    const arr = [];
-    snap.forEach(s=> {
-      const d = s.data();
-      arr.push({ id: s.id, ...d });
-    });
-    renderChatsList(arr);
-  }, err => {
-    console.error('chats onSnapshot', err);
   });
-}
 
-function renderChatsList(chats){
-  clear(chatsList);
-  if(!chats || chats.length===0){
-    chatsList.innerHTML = `<div class="muted">Чатов пока нет</div>`;
-    return;
-  }
-  chats.forEach(c=>{
-    const elChat = document.createElement('div');
-    elChat.className = 'chat-item' + (c.id===currentChatId ? ' active' : '');
-    elChat.innerHTML = `<div style="min-width:0"><div style="font-weight:700">${escapeHtml(c.title || ('Chat ' + c.id.slice(0,6)))}</div><div class="muted" style="font-size:12px">${escapeHtml(c.lastMessage?c.lastMessage:'—')}</div></div><div class="muted" style="font-size:12px">${c.updatedAt?timeAgo(new Date(c.updatedAt.seconds?c.updatedAt.seconds*1000:c.updatedAt)):''}</div>`;
-    elChat.onclick = ()=> openChat(c.id, c);
-    chatsList.appendChild(elChat);
-  });
-}
+  saveProfileBtn.onclick = async ()=>{
+    const user=auth.currentUser;
+    if(!user) return alert('Неавторизован');
+    const newName=displayNameInput.value.trim(); const newPhoto=photoURLInput.value.trim()||null;
+    await updateProfile(user,{displayName:newName,photoURL:newPhoto});
+    await setDoc(doc(db,'profiles',user.uid),{displayName:newName,photoURL:newPhoto,updatedAt:serverTimestamp()},{merge:true});
+    profileName.textContent=newName; profilePic.src=newPhoto||'https://via.placeholder.com/48?text=?'; alert('Профиль сохранён');
+  };
 
-/* -------------------------
-   OPEN CHAT: subscribe messages
-   ------------------------- */
-async function openChat(chatId, chatMeta){
-  currentChatId = chatId;
-  // mark UI
-  chatTitle.textContent = chatMeta.title || ('Chat ' + chatId.slice(0,6));
-  chatSub.textContent = `Участников: ${Array.isArray(chatMeta.members)?chatMeta.members.length:0}`;
-  // update active class
-  document.querySelectorAll('.chat-item').forEach(n=>n.classList.remove('active'));
-
-  // unsubscribe old messages
-  if(messagesUnsub) messagesUnsub();
-
-  // messages subcollection
-  const messagesColl = collection(db, 'chats', chatId, 'messages');
-  const q = query(messagesColl, orderBy('ts','asc'));
-  messagesUnsub = onSnapshot(q, snap => {
-    const arr = [];
-    snap.forEach(s => {
-      arr.push({ id: s.id, ...s.data() });
+  // --- Rooms ---
+  async function loadRooms(){
+    roomsList.innerHTML='';
+    const q = query(collection(db,'rooms'),orderBy('createdAt','desc'));
+    const snap = await getDocs(q);
+    snap.forEach(docSnap=>{
+      const data=docSnap.data();
+      const el=document.createElement('div'); el.className='room-item'; el.textContent=data.name||'Безымянная';
+      el.onclick=()=>{ openRoom(docSnap.id,data.name); setActiveRoomElement(el); };
+      roomsList.appendChild(el);
     });
-    renderMessages(arr);
-  }, err => console.error('messages onSnapshot', err));
-
-  // show controls
-  show(btnLeaveChat); show(btnDeleteChat);
-}
-
-/* render messages */
-function renderMessages(msgs){
-  clear(messagesEl);
-  if(!msgs || msgs.length===0){
-    messagesEl.innerHTML = `<div class="muted">Пусто — отправь первое сообщение</div>`;
-    return;
   }
-  msgs.forEach(m=>{
-    const div = document.createElement('div');
-    div.className = 'msg' + (m.senderUid === me.uid ? ' me' : '');
-    const who = document.createElement('div'); who.style.fontSize='12px'; who.className='muted';
-    who.textContent = (m.senderName || (m.senderUid===me.uid?'Я':'Пользователь'));
-    const txt = document.createElement('div'); txt.innerHTML = escapeHtml(m.text || '');
-    const time = document.createElement('div'); time.style.fontSize='11px'; time.className='muted';
-    time.textContent = formatTime(m.ts ? (m.ts.seconds ? new Date(m.ts.seconds*1000) : new Date(m.ts)) : new Date());
-    div.appendChild(who); div.appendChild(txt); div.appendChild(time);
-    messagesEl.appendChild(div);
-  });
-  // scroll to bottom
-  messagesEl.scrollTop = messagesEl.scrollHeight + 9999;
-}
 
-/* -------------------------
-   SEND MESSAGE
-   ------------------------- */
-async function sendMessage(){
-  const text = (msgInput.value || '').trim();
-  if(!text) return;
-  if(!currentChatId){
-    showToast('Выберите чат сначала');
-    return;
+  createRoomBtn.onclick=async ()=>{
+    const name=newRoomName.value.trim(); if(!name) return alert('Введите имя комнаты');
+    const user=auth.currentUser; if(!user) return alert('Войдите');
+    const roomRef = await addDoc(collection(db,'rooms'),{name,owner:user.uid,createdAt:serverTimestamp()});
+    newRoomName.value=''; loadRooms(); openRoom(roomRef.id,name);
+  };
+
+  function setActiveRoomElement(el){
+    document.querySelectorAll('.room-item').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
   }
-  try {
-    const messagesColl = collection(db, 'chats', currentChatId, 'messages');
-    await addDoc(messagesColl, {
-      senderUid: me.uid,
-      senderName: me.displayName || me.email || 'User',
-      text,
-      ts: serverTimestamp()
+
+  function openRoom(roomId,roomName){
+    if(unsubscribeMessages) unsubscribeMessages();
+    currentRoomId=roomId;
+    currentRoomTitle.textContent=roomName||'Комната';
+    messagesDiv.innerHTML='';
+    const msgsCol=collection(db,'rooms',roomId,'messages');
+    const q=query(msgsCol,orderBy('createdAt','asc'));
+    unsubscribeMessages=onSnapshot(q,snapshot=>{
+      messagesDiv.innerHTML='';
+      snapshot.forEach(docSnap=>{
+        const m=docSnap.data();
+        const el=document.createElement('div'); el.className='msg';
+        el.innerHTML=`<div class="meta"><strong>${escapeHtml(m.displayName||m.senderId)}</strong> · ${new Date(m.createdAt?.toMillis?m.createdAt.toMillis():Date.now()).toLocaleString()}</div><div>${escapeHtml(m.text)}</div>`;
+        messagesDiv.appendChild(el);
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
     });
-    // update chat lastMessage + updatedAt
-    const chatDoc = doc(db, 'chats', currentChatId);
-    await updateDoc(chatDoc, { lastMessage: text, updatedAt: serverTimestamp() });
-    msgInput.value = '';
-  } catch (err) {
-    console.error('sendMessage', err);
-    showToast('Ошибка отправки');
   }
-}
 
-/* -------------------------
-   CREATE NEW CHAT
-   ------------------------- */
-async function createNewChat(){
-  if(!me) { showToast('Войдите чтобы создать чат'); return; }
-  const title = prompt('Название чата (установи понятное имя):', 'Новый чат');
-  if(title === null) return;
-  try {
-    const chatsColl = collection(db, 'chats');
-    const docRef = await addDoc(chatsColl, {
-      title: title || 'Новый чат',
-      members: [me.uid],
-      lastMessage: '',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    showToast('Чат создан');
-    // open it
-    // loadChats onSnapshot will show it; explicitly open:
-    openChat(docRef.id, { title, members:[me.uid], lastMessage:'' });
-  } catch (err) {
-    console.error('createNewChat', err);
-    showToast('Ошибка создания чата');
-  }
-}
+  sendBtn.onclick=async ()=>{
+    const text=messageInput.value.trim(); if(!text) return; if(!currentRoomId) return alert('Выберите комнату');
+    const user=auth.currentUser; if(!user) return alert('Войдите');
+    const msgsCol=collection(db,'rooms',currentRoomId,'messages');
+    await addDoc(msgsCol,{senderId:user.uid,displayName:user.displayName||user.email.split('@')[0],text,createdAt:serverTimestamp()});
+    messageInput.value='';
+  };
 
-/* -------------------------
-   LEAVE CHAT (remove me from members)
-   ------------------------- */
-async function leaveChat(){
-  if(!currentChatId || !me) return;
-  try {
-    const chatDoc = doc(db, 'chats', currentChatId);
-    const chatSnap = await getDoc(chatDoc);
-    if(!chatSnap.exists()){ showToast('Чат не найден'); return; }
-    const data = chatSnap.data();
-    const members = (data.members || []).filter(u => u !== me.uid);
-    await updateDoc(chatDoc, { members });
-    // if no members left, optionally delete chat (we'll not delete automatically here)
-    showToast('Вы покинули чат');
-    // clear current
-    if(messagesUnsub) messagesUnsub();
-    currentChatId = null;
-    chatTitle.textContent = 'Выберите чат';
-    chatSub.textContent = '';
-    messagesEl.innerHTML = `<div class="muted">Нет выбранного чата</div>`;
-    hide(btnLeaveChat); hide(btnDeleteChat);
-  } catch (err) {
-    console.error('leaveChat', err);
-    showToast('Ошибка выхода из чата');
-  }
-}
+  function escapeHtml(str){ if(!str) return ''; return String(str).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 
-/* -------------------------
-   DELETE CHAT (dangerous)
-   ------------------------- */
-async function deleteChat(){
-  if(!currentChatId) return;
-  if(!confirm('Удалить чат и все сообщения в нём? Это действие необратимо.')) return;
-  try {
-    // delete all messages first (batch deletion may be required for many docs; here we attempt naive)
-    const msgsSnap = await getDocs(collection(db, 'chats', currentChatId, 'messages'));
-    for(const m of msgsSnap.docs){
-      await deleteDoc(doc(db, 'chats', currentChatId, 'messages', m.id));
-    }
-    // delete chat doc
-    await deleteDoc(doc(db, 'chats', currentChatId));
-    showToast('Чат удалён');
-    if(messagesUnsub) messagesUnsub();
-    currentChatId = null;
-    chatTitle.textContent = 'Выберите чат';
-    messagesEl.innerHTML = `<div class="muted">Нет выбранного чата</div>`;
-    hide(btnLeaveChat); hide(btnDeleteChat);
-  } catch (err) {
-    console.error('deleteChat', err);
-    showToast('Ошибка удаления чата');
-  }
-}
-
-/* -------------------------
-   LOGOUT
-   ------------------------- */
-async function logout(){
-  try {
-    if(auth && auth.currentUser) await signOut(auth);
-  } catch(e){ console.warn('signout', e); }
-  // cleanup local state
-  me = null;
-  if(chatsUnsub) chatsUnsub();
-  if(messagesUnsub) messagesUnsub();
-  currentChatId = null;
-  openAuth();
-}
-
-/* -------------------------
-   UTIL: format time / timeAgo
-   ------------------------- */
-function formatTime(d){
-  if(!d) return '';
-  const dt = d instanceof Date ? d : new Date(d);
-  const hh = String(dt.getHours()).padStart(2,'0'), mm = String(dt.getMinutes()).padStart(2,'0');
-  const day = String(dt.getDate()).padStart(2,'0'), mon = String(dt.getMonth()+1).padStart(2,'0');
-  return `${day}.${mon} ${hh}:${mm}`;
-}
-function timeAgo(d){
-  if(!d) return '';
-  const ms = (d instanceof Date) ? Date.now() - d.getTime() : (d.seconds ? Date.now() - d.seconds*1000 : 0);
-  const s = Math.floor(ms/1000);
-  if(s < 60) return `${s}s`;
-  if(s < 3600) return `${Math.floor(s/60)}m`;
-  if(s < 86400) return `${Math.floor(s/3600)}h`;
-  return `${Math.floor(s/86400)}d`;
-}
-
-/* -------------------------
-   Event listeners (after defs!)
-   ------------------------- */
-el('btnRegister').addEventListener('click', registerUser);
-el('btnLogin').addEventListener('click', loginUser);
-el('btnGuest').addEventListener('click', showGuest);
-el('btnLogout').addEventListener('click', logout);
-btnSend.addEventListener('click', sendMessage);
-msgInput.addEventListener('keypress', (e)=> { if(e.key === 'Enter') sendMessage(); });
-btnNewChat.addEventListener('click', createNewChat);
-btnLeaveChat.addEventListener('click', leaveChat);
-btnDeleteChat.addEventListener('click', deleteChat);
-
-/* -------------------------
-   Start: show auth if not logged
-   ------------------------- */
-if(auth && auth.currentUser){
-  // onAuthStateChanged will handle
-} else {
-  openAuth();
-}
 </script>
-
 </body>
 </html>
