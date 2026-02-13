@@ -16,6 +16,7 @@
   .hidden{display:none}
   #profilePic{width:48px;height:48px;border-radius:50%;object-fit:cover}
   .small{font-size:13px;color:#444}
+  .optimistic { opacity: 0.6; filter: grayscale(10%); }
 </style>
 </head>
 <body>
@@ -78,7 +79,7 @@
     getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, getDocs, runTransaction
   } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-  // --- Твоя конфигурация (из сообщения) ---
+  // --- Firebase config (оставь свою) ---
   const firebaseConfig = {
     apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
     authDomain: "nova-prospect-chat.firebaseapp.com",
@@ -94,7 +95,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // UI
+  // UI refs
   const googleSignInBtn = document.getElementById('googleSignInBtn');
   const emailSignUpBtn = document.getElementById('emailSignUpBtn');
   const emailSignInBtn = document.getElementById('emailSignInBtn');
@@ -124,30 +125,25 @@
   let currentPeer = null; // { uid, username, displayName }
   let unsubscribeMessages = null;
 
-  // --- AUTH handlers ---
+  // --- Auth handlers ---
   googleSignInBtn.onclick = async () => {
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      // popup avoids iframe issues
-    } catch (e) { alert(e.message); }
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { alert(e.message); }
   };
 
   emailSignUpBtn.onclick = async () => {
     const email = document.getElementById('email').value.trim();
     const pw = document.getElementById('password').value;
-    const desired = signupUsername.value.trim().toLowerCase();
+    const desired = signupUsername.value?.trim().toLowerCase();
     if (!email || !pw) return alert('Email и пароль обязательны');
     try {
       const uc = await createUserWithEmailAndPassword(auth, email, pw);
-      // если пользователь сразу указал username — попробуем забронировать
       if (desired) {
         try {
           await createUsernameForUid(desired, uc.user.uid, email.split('@')[0]);
           alert('Зарегистрирован и username забронирован');
-        } catch(err){
-          console.warn('username error',err);
-          alert('Регистрация прошла, но username не удалось забронировать: ' + err);
-          // профиль создан, но username придётся выбрать после входа
+        } catch (err) {
+          console.warn('username error', err);
+          alert('Зарегистрирован, но username не удалось забронировать: ' + err);
         }
       } else {
         alert('Зарегистрирован. Установите username в профиле.');
@@ -158,9 +154,7 @@
   emailSignInBtn.onclick = async () => {
     const email = document.getElementById('email').value.trim();
     const pw = document.getElementById('password').value;
-    try {
-      await signInWithEmailAndPassword(auth, email, pw);
-    } catch (e) { alert(e.message); }
+    try { await signInWithEmailAndPassword(auth, email, pw); } catch (e) { alert(e.message); }
   };
 
   signOutBtn.onclick = async () => {
@@ -170,23 +164,17 @@
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      signedInDiv.classList.remove('hidden');
-      signedOutDiv.classList.add('hidden');
+      signedInDiv.classList.remove('hidden'); signedOutDiv.classList.add('hidden');
       profileName.textContent = user.displayName || '(без имени)';
       profileEmail.textContent = user.email || '';
       profilePic.src = user.photoURL || 'https://via.placeholder.com/48?text=?';
       displayNameInput.value = user.displayName || '';
       photoURLInput.value = user.photoURL || '';
-      // загрузим профиль — если нет username — покажем выбор
       const pSnap = await getDoc(doc(db, 'profiles', user.uid));
-      if (!pSnap.exists() || !pSnap.data().username) {
-        chooseUsernameDiv.classList.remove('hidden');
-      } else {
-        chooseUsernameDiv.classList.add('hidden');
-      }
+      if (!pSnap.exists() || !pSnap.data().username) chooseUsernameDiv.classList.remove('hidden');
+      else chooseUsernameDiv.classList.add('hidden');
     } else {
-      signedInDiv.classList.add('hidden');
-      signedOutDiv.classList.remove('hidden');
+      signedInDiv.classList.add('hidden'); signedOutDiv.classList.remove('hidden');
       profileName.textContent = ''; profileEmail.textContent = ''; profilePic.src = '';
       chooseUsernameDiv.classList.add('hidden');
       searchResults.innerHTML=''; messagesDiv.innerHTML=''; currentThreadTitle.textContent='Выберите пользователя или начните чат';
@@ -194,19 +182,12 @@
   });
 
   saveProfileBtn.onclick = async () => {
-    const user = auth.currentUser;
-    if (!user) return alert('Неавторизован');
-    const newName = displayNameInput.value.trim();
-    const newPhoto = photoURLInput.value.trim() || null;
+    const user = auth.currentUser; if (!user) return alert('Неавторизован');
+    const newName = displayNameInput.value.trim(); const newPhoto = photoURLInput.value.trim() || null;
     try {
       await updateProfile(user, { displayName: newName, photoURL: newPhoto });
-      await setDoc(doc(db, 'profiles', user.uid), {
-        displayName: newName,
-        photoURL: newPhoto,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      profileName.textContent = newName;
-      profilePic.src = newPhoto || 'https://via.placeholder.com/48?text=?';
+      await setDoc(doc(db, 'profiles', user.uid), { displayName: newName, photoURL: newPhoto, updatedAt: serverTimestamp() }, { merge: true });
+      profileName.textContent = newName; profilePic.src = newPhoto || 'https://via.placeholder.com/48?text=?';
       alert('Профиль обновлён');
     } catch (e) { alert(e.message); }
   };
@@ -222,11 +203,7 @@
         const unameSnap = await tx.get(unameRef);
         if (unameSnap.exists()) throw new Error('USERNAME_TAKEN');
         tx.set(unameRef, { owner: uid, createdAt: serverTimestamp() });
-        tx.set(profileRef, {
-          username,
-          displayName: displayName || null,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+        tx.set(profileRef, { username, displayName: displayName || null, updatedAt: serverTimestamp() }, { merge: true });
       });
       return true;
     } catch (e) {
@@ -236,16 +213,13 @@
   }
 
   pickUsernameBtn.onclick = async () => {
-    const user = auth.currentUser;
-    if (!user) return alert('Войдите');
+    const user = auth.currentUser; if (!user) return alert('Войдите');
     const desired = pickUsernameInput.value.trim().toLowerCase();
     try {
       await createUsernameForUid(desired, user.uid, user.displayName || user.email.split('@')[0]);
       chooseUsernameDiv.classList.add('hidden');
       alert('username успешно забронирован: ' + desired);
-    } catch (e) {
-      alert('Ошибка брони username: ' + e);
-    }
+    } catch (e) { alert('Ошибка брони username: ' + e); }
   };
 
   function sanitizeUsername(s) {
@@ -260,7 +234,6 @@
     const q = e.target.value.trim().toLowerCase();
     searchResults.innerHTML = '';
     if (!q) return;
-    // простая попытка: ищем doc в usernames/q
     try {
       const unameSnap = await getDoc(doc(db, 'usernames', q));
       if (unameSnap.exists()) {
@@ -270,40 +243,40 @@
         const el = document.createElement('div');
         el.className = 'user-item';
         el.innerHTML = `<strong>${q}</strong> <div class="small">${data.displayName||''}</div><div class="small">${owner}</div><button data-uid="${owner}" data-username="${q}">Написать</button>`;
-        el.querySelector('button').onclick = () => {
-          openDirectChat({ uid: owner, username: q, displayName: data.displayName||q });
-        };
+        el.querySelector('button').onclick = () => { openDirectChat({ uid: owner, username: q, displayName: data.displayName||q }); };
         searchResults.appendChild(el);
       } else {
         searchResults.innerHTML = '<div class="small">Пользователь не найден</div>';
       }
-    } catch (e) { console.warn(e); searchResults.innerHTML = '<div class="small">Ошибка поиска</div>'; }
+    } catch (err) { console.warn(err); searchResults.innerHTML = '<div class="small">Ошибка поиска</div>'; }
   };
 
-  // --- Создание/открытие DM потока ---
+  // --- Thread helpers ---
   function threadIdFor(u1, u2) {
     const ids = [u1, u2].sort();
     return ids[0] + '_' + ids[1];
   }
 
-  async function openDirectChat(peer) {
-    const user = auth.currentUser;
-    if (!user) return alert('Войдите');
-    if (!peer || !peer.uid) return;
-    currentPeer = peer;
-    currentThreadTitle.textContent = 'Чат с ' + (peer.username || peer.displayName || 'пользователем');
+  async function ensureThreadExistsAndSubscribe(peer) {
+    // создаёт поток (если нет) и подписывается на сообщения
+    const user = auth.currentUser; if (!user) throw new Error('Неавторизован');
     const tId = threadIdFor(user.uid, peer.uid);
     const threadRef = doc(db, 'dmThreads', tId);
-    // Создадим документ потока, если нет
-    try {
-      await runTransaction(db, async (tx) => {
-        const tSnap = await tx.get(threadRef);
-        if (!tSnap.exists()) {
-          tx.set(threadRef, { participants: [user.uid, peer.uid], createdAt: serverTimestamp() });
-        }
-      });
-    } catch (e) { console.warn('thread create tx err', e); }
-    // Подпишемся на сообщения
+
+    // create thread if missing
+    await runTransaction(db, async (tx) => {
+      const tSnap = await tx.get(threadRef);
+      if (!tSnap.exists()) {
+        tx.set(threadRef, { participants: [user.uid, peer.uid], createdAt: serverTimestamp() });
+      }
+    });
+
+    // subscribe to messages
+    subscribeToMessages(tId);
+    return tId;
+  }
+
+  function subscribeToMessages(tId) {
     if (unsubscribeMessages) unsubscribeMessages();
     const msgsCol = collection(db, 'dmThreads', tId, 'messages');
     const q = query(msgsCol, orderBy('createdAt', 'asc'));
@@ -317,37 +290,63 @@
         messagesDiv.appendChild(el);
       });
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }, (err) => {
+      console.warn('snapshot error', err);
     });
     currentThreadId = tId;
   }
 
+  async function openDirectChat(peer) {
+    const user = auth.currentUser; if (!user) return alert('Войдите');
+    currentPeer = peer;
+    currentThreadTitle.textContent = 'Чат с ' + (peer.username || peer.displayName || 'пользователем');
+    try {
+      const tId = await ensureThreadExistsAndSubscribe(peer);
+      currentThreadId = tId;
+    } catch (e) {
+      console.error(e); alert('Не удалось открыть чат: ' + (e.message || e));
+    }
+  }
+
+  // --- Send message (guarantee thread exists, optimistic UI) ---
   sendBtn.onclick = async () => {
     const text = messageInput.value.trim();
     if (!text) return;
-    const user = auth.currentUser;
-    if (!user) return alert('Войдите');
-    if (!currentThreadId) return alert('Откройте чат с пользователем');
-    const msgsCol = collection(db, 'dmThreads', currentThreadId, 'messages');
+    const user = auth.currentUser; if (!user) return alert('Войдите');
+    if (!currentPeer) return alert('Откройте чат с пользователем');
+
     try {
+      // убедимся, что поток создан и подписка активна
+      const tId = await ensureThreadExistsAndSubscribe(currentPeer);
+
+      // добавим оптимистичное сообщение в UI (мгновенно)
+      const tempEl = document.createElement('div');
+      tempEl.className = 'msg optimistic';
+      tempEl.innerHTML = `<div class="meta"><strong>${escapeHtml(user.displayName || user.email.split('@')[0])}</strong> · сейчас</div><div>${escapeHtml(text)}</div>`;
+      messagesDiv.appendChild(tempEl);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      messageInput.value = '';
+
+      // теперь добавить в Firestore
+      const msgsCol = collection(db, 'dmThreads', tId, 'messages');
       await addDoc(msgsCol, {
         senderId: user.uid,
         displayName: user.displayName || user.email.split('@')[0],
         text,
         createdAt: serverTimestamp()
       });
-      messageInput.value = '';
-    } catch (e) { alert('Ошибка отправки: ' + e.message); }
+
+      // после snapshot оптимистичное сообщение будет заменено (подписка очищает и рендерит заново)
+    } catch (e) {
+      console.error('send error', e);
+      alert('Ошибка отправки: ' + (e.message || e));
+    }
   };
 
   function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
   }
-
-  // quick helper - show current user profile if logged in
-  (async () => {
-    // prefetch nothing heavy
-  })();
 
 </script>
 </body>
