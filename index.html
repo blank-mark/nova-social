@@ -3,83 +3,143 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Nova Prospect — DM chat (username)</title>
+<title>Nova Prospect — Chat (Telegram style)</title>
+
+<!-- Basic styling: telegram-like, responsive -->
 <style>
-  body{margin:0;font-family:Arial,Helvetica,sans-serif;display:flex;height:100vh}
-  #sidebar{width:320px;border-right:1px solid #ddd;padding:12px;box-sizing:border-box;overflow:auto}
-  #main{flex:1;display:flex;flex-direction:column}
-  input,button,textarea{width:100%;padding:8px;margin:6px 0;box-sizing:border-box}
-  #messages{flex:1;padding:12px;overflow:auto;background:#fafafa}
-  .msg{background:#fff;padding:8px;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 0 #eee}
-  .meta{font-size:12px;color:#666;margin-bottom:6px}
-  .user-item{padding:8px;border-radius:6px;background:#f2f2f2;margin-bottom:6px;cursor:pointer}
-  .hidden{display:none}
-  #profilePic{width:48px;height:48px;border-radius:50%;object-fit:cover}
-  .small{font-size:13px;color:#444}
-  .optimistic { opacity: 0.6; filter: grayscale(10%); }
+  :root{
+    --bg:#f6f7fb;
+    --sidebar:#ffffff;
+    --accent:#2b9df4;
+    --muted:#9aa4b2;
+    --bubble-me:#d2f1ff;
+    --bubble-other:#ffffff;
+    --max-width:1100px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);font-family:Inter,system-ui,Arial,sans-serif;color:#111}
+  .app{max-width:var(--max-width);margin:12px auto;height:calc(100vh - 24px);display:flex;border-radius:10px;overflow:hidden;box-shadow:0 6px 30px rgba(16,24,40,0.08)}
+  /* Sidebar */
+  .sidebar{width:340px;background:var(--sidebar);display:flex;flex-direction:column;border-right:1px solid rgba(16,24,40,0.06)}
+  .sb-header{padding:16px;border-bottom:1px solid rgba(16,24,40,0.04);display:flex;align-items:center;gap:12px}
+  .sb-logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#6fb9ff);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+  .sb-title{font-size:16px;font-weight:600}
+  .sb-search{padding:12px;border-bottom:1px solid rgba(16,24,40,0.04)}
+  .search-input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(16,24,40,0.06);background:#f2f5fb}
+  .chats{flex:1;overflow:auto;padding:8px}
+  .chat-item{display:flex;gap:10px;align-items:center;padding:10px;border-radius:10px;cursor:pointer}
+  .chat-item:hover{background:rgba(43,157,244,0.06)}
+  .avatar{width:48px;height:48px;border-radius:12px;background:#ddd;flex-shrink:0;object-fit:cover}
+  .chat-main{flex:1;min-width:0}
+  .chat-name{font-weight:600}
+  .chat-last{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sb-footer{padding:10px;border-top:1px solid rgba(16,24,40,0.04);display:flex;flex-direction:column;gap:8px}
+  .btn{padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:white;font-weight:600;cursor:pointer}
+  .ghost{background:transparent;border:1px solid rgba(16,24,40,0.06);color:#111}
+  /* Main */
+  .main{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#fff,#fbfdff)}
+  .main-header{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(16,24,40,0.04)}
+  .main-avatar{width:44px;height:44px;border-radius:10px;object-fit:cover}
+  .main-title{font-weight:700}
+  .messages{flex:1;padding:18px;overflow:auto;background:linear-gradient(180deg, #f7fbff00, #f6f7fb)}
+  .message-row{display:flex;margin-bottom:10px;align-items:flex-end}
+  .message-row.me{justify-content:flex-end}
+  .bubble{max-width:66%;padding:10px 12px;border-radius:14px;box-shadow:0 6px 18px rgba(16,24,40,0.04)}
+  .bubble.me{background:var(--bubble-me);border-bottom-right-radius:6px}
+  .bubble.other{background:var(--bubble-other);border-bottom-left-radius:6px}
+  .msg-meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .msg-img{max-width:280px;border-radius:8px;display:block}
+  .msg-audio{display:block;width:240px}
+  .composer{padding:12px;border-top:1px solid rgba(16,24,40,0.04);display:flex;gap:8px;align-items:center}
+  .composer textarea{flex:1;min-height:44px;max-height:160px;padding:10px;border-radius:10px;border:1px solid rgba(16,24,40,0.06);resize:none}
+  .compose-actions{display:flex;gap:8px;align-items:center}
+  .icon-btn{width:40px;height:40px;border-radius:10px;border:1px solid rgba(16,24,40,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;background:white}
+  .small{font-size:13px;color:var(--muted)}
+  /* Responsive */
+  @media (max-width:900px){
+    .sidebar{width:100%;height:42%;order:1}
+    .main{height:58%}
+    .app{flex-direction:column;height:calc(100vh - 24px)}
+  }
+  @media (max-width:480px){
+    .sidebar{height:44%}
+    .main{height:56%}
+    .avatar{width:40px;height:40px}
+    .chat-item{padding:8px}
+    .messages{padding:12px}
+    .bubble{max-width:78%}
+  }
 </style>
 </head>
 <body>
 
-<div id="sidebar">
-  <h3>Аккаунт</h3>
-  <div id="signed-out">
-    <button id="googleSignInBtn">Войти через Google (popup)</button>
-    <hr>
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Пароль">
-    <input id="signupUsername" placeholder="Желаемый username (при регистрации)">
-    <button id="emailSignUpBtn">Зарегистрироваться</button>
-    <button id="emailSignInBtn">Войти (email)</button>
-  </div>
-
-  <div id="signed-in" class="hidden">
-    <img id="profilePic" src="" alt="avatar"><br>
-    <strong id="profileName"></strong><br>
-    <small id="profileEmail"></small><br>
-    <button id="signOutBtn">Выйти</button>
-    <div id="chooseUsernameDiv" class="hidden">
-      <hr>
-      <div class="small">Выбери уникальный username (латиница, цифры, underscore)</div>
-      <input id="pickUsernameInput" placeholder="username">
-      <button id="pickUsernameBtn">Забронировать username</button>
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-header">
+      <div class="sb-logo">NP</div>
+      <div>
+        <div class="sb-title">Nova Prospect</div>
+        <div class="small">Быстрый чат</div>
+      </div>
     </div>
 
-    <hr>
-    <h4>Профиль</h4>
-    <input id="displayNameInput" placeholder="Отображаемое имя">
-    <input id="photoURLInput" placeholder="Ссылка на аватар (опционально)">
-    <button id="saveProfileBtn">Сохранить профиль</button>
+    <div class="sb-search">
+      <input id="globalSearch" class="search-input" placeholder="Поиск username или имя...">
+    </div>
+
+    <div class="chats" id="chatsList">
+      <!-- Список чатов (dmThreads) сюда -->
+    </div>
+
+    <div class="sb-footer">
+      <div id="authBlock">
+        <!-- auth UI inserted by JS -->
+      </div>
+      <button id="newChatBtn" class="btn ghost">Новый чат (по username)</button>
+    </div>
   </div>
 
-  <hr>
-  <h3>Поиск пользователя</h3>
-  <input id="searchInput" placeholder="Искать по username">
-  <div id="searchResults"></div>
+  <!-- MAIN -->
+  <div class="main">
+    <div class="main-header" id="mainHeader">
+      <img id="peerAvatar" class="main-avatar" src="https://via.placeholder.com/44?text=?" alt="avatar">
+      <div>
+        <div id="peerName" class="main-title">Выберите чат</div>
+        <div id="peerSub" class="small">Онлайн</div>
+      </div>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="composer">
+      <div class="compose-actions">
+        <input id="imageInput" type="file" accept="image/*" style="display:none">
+        <button id="imageBtn" class="icon-btn" title="Прикрепить фото">📷</button>
+
+        <button id="recordBtn" class="icon-btn" title="Записать голос">🎙️</button>
+      </div>
+
+      <textarea id="messageInput" placeholder="Напишите сообщение... (Enter — отправить, Shift+Enter — новая строка)"></textarea>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button id="sendBtn" class="btn">Отправить</button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div id="main">
-  <div style="padding:10px;border-bottom:1px solid #ddd;">
-    <strong id="currentThreadTitle">Выберите пользователя или начните чат</strong>
-  </div>
-
-  <div id="messages"></div>
-
-  <div style="padding:10px;border-top:1px solid #ddd;">
-    <textarea id="messageInput" rows="2" placeholder="Сообщение..."></textarea>
-    <button id="sendBtn">Отправить</button>
-  </div>
-</div>
-
+<!-- Firebase v12 modules -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
   import {
-    getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, getDocs, runTransaction
+    getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, getDocs, runTransaction, where, limit
   } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+  import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
 
-  // --- Firebase config (оставь свою) ---
+  // --- Firebase config (твои значения) ---
   const firebaseConfig = {
     apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
     authDomain: "nova-prospect-chat.firebaseapp.com",
@@ -94,105 +154,83 @@
   const analytics = getAnalytics(app);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const storage = getStorage(app);
 
-  // UI refs
-  const googleSignInBtn = document.getElementById('googleSignInBtn');
-  const emailSignUpBtn = document.getElementById('emailSignUpBtn');
-  const emailSignInBtn = document.getElementById('emailSignInBtn');
-  const signOutBtn = document.getElementById('signOutBtn');
-  const signedInDiv = document.getElementById('signed-in');
-  const signedOutDiv = document.getElementById('signed-out');
-  const profileName = document.getElementById('profileName');
-  const profileEmail = document.getElementById('profileEmail');
-  const profilePic = document.getElementById('profilePic');
-  const displayNameInput = document.getElementById('displayNameInput');
-  const photoURLInput = document.getElementById('photoURLInput');
-  const saveProfileBtn = document.getElementById('saveProfileBtn');
-  const chooseUsernameDiv = document.getElementById('chooseUsernameDiv');
-  const pickUsernameInput = document.getElementById('pickUsernameInput');
-  const pickUsernameBtn = document.getElementById('pickUsernameBtn');
-  const signupUsername = document.getElementById('signupUsername');
+  // --- UI refs ---
+  const chatsList = document.getElementById('chatsList');
+  const globalSearch = document.getElementById('globalSearch');
+  const authBlock = document.getElementById('authBlock');
+  const newChatBtn = document.getElementById('newChatBtn');
 
-  const searchInput = document.getElementById('searchInput');
-  const searchResults = document.getElementById('searchResults');
+  const peerAvatar = document.getElementById('peerAvatar');
+  const peerName = document.getElementById('peerName');
+  const peerSub = document.getElementById('peerSub');
 
-  const currentThreadTitle = document.getElementById('currentThreadTitle');
-  const messagesDiv = document.getElementById('messages');
+  const messagesEl = document.getElementById('messages');
   const messageInput = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
 
-  let currentThreadId = null;
-  let currentPeer = null; // { uid, username, displayName }
-  let unsubscribeMessages = null;
+  const imageBtn = document.getElementById('imageBtn');
+  const imageInput = document.getElementById('imageInput');
+  const recordBtn = document.getElementById('recordBtn');
 
-  // --- Auth handlers ---
-  googleSignInBtn.onclick = async () => {
-    try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { alert(e.message); }
-  };
-
-  emailSignUpBtn.onclick = async () => {
-    const email = document.getElementById('email').value.trim();
-    const pw = document.getElementById('password').value;
-    const desired = signupUsername.value?.trim().toLowerCase();
-    if (!email || !pw) return alert('Email и пароль обязательны');
-    try {
-      const uc = await createUserWithEmailAndPassword(auth, email, pw);
-      if (desired) {
+  // --- auth UI (simple) ---
+  function renderAuthUI(user) {
+    authBlock.innerHTML = '';
+    if (!user) {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = `
+        <input id="email" placeholder="Email" style="padding:8px;border-radius:8px;border:1px solid rgba(16,24,40,0.06)">
+        <input id="password" type="password" placeholder="Пароль" style="padding:8px;border-radius:8px;border:1px solid rgba(16,24,40,0.06)">
+        <input id="signupUsername" placeholder="username (при регистрации)" style="padding:8px;border-radius:8px;border:1px solid rgba(16,24,40,0.06)">
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="googleSignIn" class="btn">Google</button>
+          <button id="emailSignUp" class="btn ghost">Регистрация</button>
+        </div>
+      `;
+      authBlock.appendChild(wrapper);
+      document.getElementById('googleSignIn').onclick = async () => {
+        try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+        catch(e){ alert(e.message); }
+      };
+      document.getElementById('emailSignUp').onclick = async () => {
+        const email = wrapper.querySelector('#email').value.trim();
+        const pass = wrapper.querySelector('#password').value;
+        const desired = wrapper.querySelector('#signupUsername').value.trim().toLowerCase();
+        if (!email || !pass) return alert('Email и пароль обязательны');
         try {
-          await createUsernameForUid(desired, uc.user.uid, email.split('@')[0]);
-          alert('Зарегистрирован и username забронирован');
-        } catch (err) {
-          console.warn('username error', err);
-          alert('Зарегистрирован, но username не удалось забронировать: ' + err);
-        }
-      } else {
-        alert('Зарегистрирован. Установите username в профиле.');
-      }
-    } catch (e) { alert(e.message); }
-  };
-
-  emailSignInBtn.onclick = async () => {
-    const email = document.getElementById('email').value.trim();
-    const pw = document.getElementById('password').value;
-    try { await signInWithEmailAndPassword(auth, email, pw); } catch (e) { alert(e.message); }
-  };
-
-  signOutBtn.onclick = async () => {
-    if (unsubscribeMessages) unsubscribeMessages();
-    await signOut(auth);
-  };
-
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      signedInDiv.classList.remove('hidden'); signedOutDiv.classList.add('hidden');
-      profileName.textContent = user.displayName || '(без имени)';
-      profileEmail.textContent = user.email || '';
-      profilePic.src = user.photoURL || 'https://via.placeholder.com/48?text=?';
-      displayNameInput.value = user.displayName || '';
-      photoURLInput.value = user.photoURL || '';
-      const pSnap = await getDoc(doc(db, 'profiles', user.uid));
-      if (!pSnap.exists() || !pSnap.data().username) chooseUsernameDiv.classList.remove('hidden');
-      else chooseUsernameDiv.classList.add('hidden');
+          const uc = await createUserWithEmailAndPassword(auth, email, pass);
+          if (desired) {
+            try { await createUsernameForUid(desired, uc.user.uid, email.split('@')[0]); }
+            catch(err){ console.warn(err); alert('Регистрация: username не забронирован ('+err+')'); }
+          }
+          alert('Зарегистрирован');
+        } catch(e){ alert(e.message); }
+      };
     } else {
-      signedInDiv.classList.add('hidden'); signedOutDiv.classList.remove('hidden');
-      profileName.textContent = ''; profileEmail.textContent = ''; profilePic.src = '';
-      chooseUsernameDiv.classList.add('hidden');
-      searchResults.innerHTML=''; messagesDiv.innerHTML=''; currentThreadTitle.textContent='Выберите пользователя или начните чат';
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center">
+          <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:48px;height:48px;border-radius:10px;object-fit:cover">
+          <div>
+            <div style="font-weight:700">${user.displayName||'(без имени)'}</div>
+            <div class="small">${user.email||''}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="signOut" class="btn ghost">Выйти</button>
+        </div>
+      `;
+      authBlock.appendChild(wrapper);
+      document.getElementById('signOut').onclick = async () => {
+        if (unsubscribeThreads) unsubscribeThreads();
+        await signOut(auth);
+      };
     }
-  });
+  }
 
-  saveProfileBtn.onclick = async () => {
-    const user = auth.currentUser; if (!user) return alert('Неавторизован');
-    const newName = displayNameInput.value.trim(); const newPhoto = photoURLInput.value.trim() || null;
-    try {
-      await updateProfile(user, { displayName: newName, photoURL: newPhoto });
-      await setDoc(doc(db, 'profiles', user.uid), { displayName: newName, photoURL: newPhoto, updatedAt: serverTimestamp() }, { merge: true });
-      profileName.textContent = newName; profilePic.src = newPhoto || 'https://via.placeholder.com/48?text=?';
-      alert('Профиль обновлён');
-    } catch (e) { alert(e.message); }
-  };
-
-  // --- Username creation (transaction ensures uniqueness) ---
+  // --- username helpers (same as раньше) ---
+  import { runTransaction as rT } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js"; // alias for clarity
   async function createUsernameForUid(usernameRaw, uid, displayName = null) {
     const username = sanitizeUsername(usernameRaw);
     if (!username) throw 'Неверный username';
@@ -211,67 +249,89 @@
       throw e.message || e;
     }
   }
+  function sanitizeUsername(s) { if (!s) return null; const low = s.toLowerCase(); if (!/^[a-z0-9_]{3,32}$/.test(low)) return null; return low; }
 
-  pickUsernameBtn.onclick = async () => {
-    const user = auth.currentUser; if (!user) return alert('Войдите');
-    const desired = pickUsernameInput.value.trim().toLowerCase();
-    try {
-      await createUsernameForUid(desired, user.uid, user.displayName || user.email.split('@')[0]);
-      chooseUsernameDiv.classList.add('hidden');
-      alert('username успешно забронирован: ' + desired);
-    } catch (e) { alert('Ошибка брони username: ' + e); }
-  };
-
-  function sanitizeUsername(s) {
-    if (!s) return null;
-    const low = s.toLowerCase();
-    if (!/^[a-z0-9_]{3,32}$/.test(low)) return null;
-    return low;
+  // --- threads list (recent chats) ---
+  let unsubscribeThreads = null;
+  async function subscribeMyThreads(uid) {
+    if (unsubscribeThreads) unsubscribeThreads();
+    const q = query(collection(db, 'dmThreads'), where('participants', 'array-contains', uid), orderBy('createdAt', 'desc'));
+    unsubscribeThreads = onSnapshot(q, async (snap) => {
+      chatsList.innerHTML = '';
+      if (snap.empty) {
+        chatsList.innerHTML = '<div class="small" style="padding:12px">Нет чатов. Найди пользователя и начни диалог.</div>';
+        return;
+      }
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data();
+        const otherUid = data.participants.find(x => x !== uid);
+        const profile = (await getDoc(doc(db, 'profiles', otherUid))).data() || {};
+        const el = document.createElement('div');
+        el.className = 'chat-item';
+        el.innerHTML = `
+          <img src="${profile.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar">
+          <div class="chat-main">
+            <div class="chat-name">${profile.username||profile.displayName||otherUid}</div>
+            <div class="chat-last small">${data.lastMessageText?data.lastMessageText.slice(0,60):'Новый чат'}</div>
+          </div>
+        `;
+        el.onclick = () => openDirectChat({ uid: otherUid, username: profile.username, displayName: profile.displayName });
+        chatsList.appendChild(el);
+      }
+    }, (err) => {
+      console.warn('threads sub err', err);
+    });
   }
 
-  // --- Поиск по username ---
-  searchInput.oninput = async (e) => {
+  // --- search by username (globalSearch) ---
+  globalSearch.oninput = debounce(async (e) => {
     const q = e.target.value.trim().toLowerCase();
-    searchResults.innerHTML = '';
-    if (!q) return;
+    chatsList.innerHTML = '<div class="small" style="padding:12px">Поиск...</div>';
+    if (!q) { // re-subscribe my threads if logged in
+      const user = auth.currentUser;
+      if (user) subscribeMyThreads(user.uid);
+      return;
+    }
     try {
       const unameSnap = await getDoc(doc(db, 'usernames', q));
+      chatsList.innerHTML = '';
       if (unameSnap.exists()) {
         const owner = unameSnap.data().owner;
-        const prof = await getDoc(doc(db, 'profiles', owner));
-        const data = prof.exists() ? prof.data() : {};
+        const prof = (await getDoc(doc(db, 'profiles', owner))).data() || {};
         const el = document.createElement('div');
-        el.className = 'user-item';
-        el.innerHTML = `<strong>${q}</strong> <div class="small">${data.displayName||''}</div><div class="small">${owner}</div><button data-uid="${owner}" data-username="${q}">Написать</button>`;
-        el.querySelector('button').onclick = () => { openDirectChat({ uid: owner, username: q, displayName: data.displayName||q }); };
-        searchResults.appendChild(el);
+        el.className = 'chat-item';
+        el.innerHTML = `
+          <img src="${prof.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar">
+          <div class="chat-main">
+            <div class="chat-name">${prof.displayName||q}</div>
+            <div class="chat-last small">@${q}</div>
+          </div>
+        `;
+        el.onclick = () => openDirectChat({ uid: owner, username: q, displayName: prof.displayName });
+        chatsList.appendChild(el);
       } else {
-        searchResults.innerHTML = '<div class="small">Пользователь не найден</div>';
+        chatsList.innerHTML = '<div class="small" style="padding:12px">Ничего не найдено</div>';
       }
-    } catch (err) { console.warn(err); searchResults.innerHTML = '<div class="small">Ошибка поиска</div>'; }
-  };
+    } catch (err) {
+      console.warn(err); chatsList.innerHTML = '<div class="small" style="padding:12px">Ошибка поиска</div>';
+    }
+  }, 350);
 
-  // --- Thread helpers ---
-  function threadIdFor(u1, u2) {
-    const ids = [u1, u2].sort();
-    return ids[0] + '_' + ids[1];
-  }
+  // --- DM thread helpers ---
+  function threadIdFor(u1, u2){ const ids=[u1,u2].sort(); return ids[0] + '_' + ids[1]; }
+  let unsubscribeMessages = null;
+  let currentPeer = null;
+  let currentThreadId = null;
 
   async function ensureThreadExistsAndSubscribe(peer) {
-    // создаёт поток (если нет) и подписывается на сообщения
     const user = auth.currentUser; if (!user) throw new Error('Неавторизован');
     const tId = threadIdFor(user.uid, peer.uid);
     const threadRef = doc(db, 'dmThreads', tId);
-
-    // create thread if missing
     await runTransaction(db, async (tx) => {
       const tSnap = await tx.get(threadRef);
-      if (!tSnap.exists()) {
-        tx.set(threadRef, { participants: [user.uid, peer.uid], createdAt: serverTimestamp() });
-      }
+      if (!tSnap.exists()) tx.set(threadRef, { participants: [user.uid, peer.uid], createdAt: serverTimestamp() });
+      // обновим lastOpened? можно добавить позже
     });
-
-    // subscribe to messages
     subscribeToMessages(tId);
     return tId;
   }
@@ -281,25 +341,49 @@
     const msgsCol = collection(db, 'dmThreads', tId, 'messages');
     const q = query(msgsCol, orderBy('createdAt', 'asc'));
     unsubscribeMessages = onSnapshot(q, (snapshot) => {
-      messagesDiv.innerHTML = '';
+      messagesEl.innerHTML = '';
       snapshot.forEach(docSnap => {
         const m = docSnap.data();
-        const el = document.createElement('div');
-        el.className = 'msg';
-        el.innerHTML = `<div class="meta"><strong>${escapeHtml(m.displayName||m.senderId)}</strong> · ${new Date(m.createdAt?.toMillis?m.createdAt.toMillis():Date.now()).toLocaleString()}</div><div>${escapeHtml(m.text)}</div>`;
-        messagesDiv.appendChild(el);
+        renderMessage(m);
       });
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
     }, (err) => {
-      console.warn('snapshot error', err);
+      console.warn('msgs sub err', err);
     });
     currentThreadId = tId;
   }
 
+  function renderMessage(m) {
+    const user = auth.currentUser;
+    const row = document.createElement('div');
+    row.className = 'message-row ' + (m.senderId === (user && user.uid) ? 'me' : 'other');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (m.senderId === (user && user.uid) ? 'me' : 'other');
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = (m.displayName || m.senderId) + ' · ' + (m.createdAt ? new Date(m.createdAt.toMillis()).toLocaleTimeString() : '');
+    bubble.appendChild(meta);
+    if (m.type === 'image' && m.url) {
+      const img = document.createElement('img'); img.src = m.url; img.className = 'msg-img';
+      bubble.appendChild(img);
+      if (m.text) { const t = document.createElement('div'); t.textContent = m.text; bubble.appendChild(t); }
+    } else if (m.type === 'audio' && m.url) {
+      const audio = document.createElement('audio'); audio.controls = true; audio.src = m.url; audio.className = 'msg-audio';
+      bubble.appendChild(audio);
+      if (m.text) { const t = document.createElement('div'); t.textContent = m.text; bubble.appendChild(t); }
+    } else {
+      const txt = document.createElement('div'); txt.textContent = m.text || ''; bubble.appendChild(txt);
+    }
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+  }
+
+  // --- open chat with peer ---
   async function openDirectChat(peer) {
-    const user = auth.currentUser; if (!user) return alert('Войдите');
     currentPeer = peer;
-    currentThreadTitle.textContent = 'Чат с ' + (peer.username || peer.displayName || 'пользователем');
+    peerName.textContent = peer.displayName || peer.username || 'Пользователь';
+    peerAvatar.src = peer.photoURL || 'https://via.placeholder.com/44?text=?';
+    peerSub.textContent = '@' + (peer.username || '');
     try {
       const tId = await ensureThreadExistsAndSubscribe(peer);
       currentThreadId = tId;
@@ -308,45 +392,124 @@
     }
   }
 
-  // --- Send message (guarantee thread exists, optimistic UI) ---
-  sendBtn.onclick = async () => {
-    const text = messageInput.value.trim();
+  // --- send message, image upload, audio upload ---
+  async function sendTextMessage(text) {
     if (!text) return;
     const user = auth.currentUser; if (!user) return alert('Войдите');
-    if (!currentPeer) return alert('Откройте чат с пользователем');
-
+    if (!currentPeer) return alert('Открой чат');
     try {
-      // убедимся, что поток создан и подписка активна
       const tId = await ensureThreadExistsAndSubscribe(currentPeer);
-
-      // добавим оптимистичное сообщение в UI (мгновенно)
-      const tempEl = document.createElement('div');
-      tempEl.className = 'msg optimistic';
-      tempEl.innerHTML = `<div class="meta"><strong>${escapeHtml(user.displayName || user.email.split('@')[0])}</strong> · сейчас</div><div>${escapeHtml(text)}</div>`;
-      messagesDiv.appendChild(tempEl);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      messageInput.value = '';
-
-      // теперь добавить в Firestore
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
-      await addDoc(msgsCol, {
-        senderId: user.uid,
-        displayName: user.displayName || user.email.split('@')[0],
-        text,
-        createdAt: serverTimestamp()
-      });
+      await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text, type: 'text', createdAt: serverTimestamp() });
+    } catch (e) { console.error(e); alert('Ошибка отправки: ' + e.message); }
+  }
 
-      // после snapshot оптимистичное сообщение будет заменено (подписка очищает и рендерит заново)
-    } catch (e) {
-      console.error('send error', e);
-      alert('Ошибка отправки: ' + (e.message || e));
+  imageBtn.onclick = () => imageInput.click();
+  imageInput.onchange = async (ev) => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    if (!currentPeer) return alert('Открой чат перед отправкой фото');
+    const user = auth.currentUser; if (!user) return alert('Войдите');
+    try {
+      const tId = await ensureThreadExistsAndSubscribe(currentPeer);
+      const path = `dmThreads/${tId}/media/${Date.now()}_${file.name}`;
+      const sRef = storageRef(storage, path);
+      const snap = await uploadBytes(sRef, file);
+      const url = await getDownloadURL(sRef);
+      // send message with image type
+      const msgsCol = collection(db, 'dmThreads', tId, 'messages');
+      await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'image', createdAt: serverTimestamp() });
+      imageInput.value = '';
+    } catch (e) { console.error(e); alert('Ошибка загрузки изображения: ' + (e.message || e)); }
+  };
+
+  // --- audio recording ---
+  let mediaRecorder = null;
+  let audioChunks = [];
+  recordBtn.onclick = async () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      // stop
+      mediaRecorder.stop();
+      recordBtn.textContent = '🎙️';
+      recordBtn.style.background = '';
+    } else {
+      // start
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          await uploadAudioBlob(blob);
+        };
+        mediaRecorder.start();
+        recordBtn.textContent = '■';
+        recordBtn.style.background = '#ffdddd';
+      } catch (e) {
+        console.error(e); alert('Нет доступа к микрофону: ' + (e.message || e));
+      }
     }
   };
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  async function uploadAudioBlob(blob) {
+    if (!currentPeer) return alert('Открой чат перед отправкой голосового');
+    const user = auth.currentUser; if (!user) return alert('Войдите');
+    try {
+      const tId = await ensureThreadExistsAndSubscribe(currentPeer);
+      const path = `dmThreads/${tId}/media/${Date.now()}_voice.webm`;
+      const sRef = storageRef(storage, path);
+      await uploadBytes(sRef, blob);
+      const url = await getDownloadURL(sRef);
+      const msgsCol = collection(db, 'dmThreads', tId, 'messages');
+      await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'audio', createdAt: serverTimestamp() });
+    } catch (e) { console.error(e); alert('Ошибка загрузки голоса: ' + (e.message || e)); }
   }
+
+  // --- send on Enter (Shift+Enter newline) ---
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendBtn.click();
+    }
+  });
+  sendBtn.onclick = () => {
+    const text = messageInput.value.trim();
+    if (!text) return;
+    sendTextMessage(text);
+    messageInput.value = '';
+  };
+
+  // --- auth state handling ---
+  onAuthStateChanged(auth, async (user) => {
+    renderAuthUI(user);
+    if (user) {
+      // subscribe to my threads
+      subscribeMyThreads(user.uid);
+    } else {
+      if (unsubscribeThreads) unsubscribeThreads();
+    }
+  });
+
+  newChatBtn.onclick = () => {
+    const username = prompt('Введите username пользователя (латиница, без @):');
+    if (!username) return;
+    (async () => {
+      try {
+        const unameSnap = await getDoc(doc(db, 'usernames', username.trim().toLowerCase()));
+        if (!unameSnap.exists()) return alert('Пользователь не найден');
+        const owner = unameSnap.data().owner;
+        const prof = (await getDoc(doc(db, 'profiles', owner))).data() || {};
+        openDirectChat({ uid: owner, username: username.trim().toLowerCase(), displayName: prof.displayName, photoURL: prof.photoURL });
+      } catch (e) { console.error(e); alert('Ошибка: ' + e.message); }
+    })();
+  };
+
+  // --- utilities ---
+  function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
+  function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+
+  // remove analytics cookie warnings? not needed — ignore
 
 </script>
 </body>
