@@ -204,7 +204,7 @@
     justify-content: center;
     z-index: 200;
     background: rgba(0,0,0,0.5);
-    pointer-events: none;
+    pointer-events: none; /* allow interactions with underlying UI by default */
   }
   .call-card {
     background: var(--bg-chat);
@@ -214,7 +214,8 @@
     text-align: center;
     box-shadow: 0 12px 40px rgba(0,0,0,0.6);
     border: 1px solid rgba(255,255,255,0.04);
-    pointer-events: auto;
+    pointer-events: auto; /* card stays interactive */
+    position: relative;
   }
   .call-card h3 { margin: 6px 0 10px 0; font-size:18px; color:var(--text) }
   .call-card p { margin: 0 0 16px 0; color:var(--muted) }
@@ -232,6 +233,24 @@
   }
   /* small remote audio visual (hidden) */
   #remoteAudio { display:none; }
+
+  /* Extra accessibility & layout fixes (added) */
+  /* Ensure auth inputs are visible in light theme and placeholder is readable */
+  .light-theme #authBlock .search-input,
+  .light-theme #authBlock input[type="password"],
+  .light-theme #authBlock input[type="text"],
+  .light-theme #authBlock input[type="email"] {
+    background: #ffffff !important;
+    color: var(--text) !important;
+    border: 1px solid #e5e7eb !important;
+  }
+  .light-theme #authBlock input::placeholder { color: #9ca3af !important; }
+  /* Settings panel styling (mobile friendly, telegram-like) */
+  .settings-panel { max-width:720px; margin:0 auto; padding:16px; }
+  .settings-account { display:flex; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid rgba(0,0,0,0.06); }
+  .settings-account img{ width:88px; height:88px; border-radius:16px; object-fit:cover }
+  .settings-list { display:flex; flex-direction:column; gap:8px; padding-top:12px }
+  .settings-item { padding:12px; border-radius:10px; background:linear-gradient(180deg, rgba(0,0,0,0.02), transparent); cursor:pointer }
 </style>
 </head>
 <body>
@@ -328,7 +347,7 @@
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
   // --- Firebase config (твои значения) ---
   const firebaseConfig = {
-    apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
+    apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe",
     authDomain: "nova-prospect-chat.firebaseapp.com",
     projectId: "nova-prospect-chat",
     storageBucket: "nova-prospect-chat.firebasestorage.app",
@@ -682,16 +701,18 @@
     } catch (e) { console.error(e); alert('Не удалось открыть чат: ' + (e.message || e)); }
   }
   // --- send message, image upload, audio upload (preserve original) ---
-  async function sendTextMessage(text) {
+  function sendTextMessage(text) {
     if (!text) return;
     const user = auth.currentUser; if (!user) return alert('Войдите');
     if (!currentPeer) return alert('Открой чат');
-    try {
-      const tId = await ensureThreadExistsAndSubscribe(currentPeer);
-      const msgsCol = collection(db, 'dmThreads', tId, 'messages');
-      await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text, type: 'text', createdAt: serverTimestamp() });
-      await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: text, updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) { console.error(e); alert('Ошибка отправки: ' + e.message); }
+    (async () => {
+      try {
+        const tId = await ensureThreadExistsAndSubscribe(currentPeer);
+        const msgsCol = collection(db, 'dmThreads', tId, 'messages');
+        await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text, type: 'text', createdAt: serverTimestamp() });
+        await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: text, updatedAt: serverTimestamp() }, { merge: true });
+      } catch (e) { console.error(e); alert('Ошибка отправки: ' + e.message); }
+    })();
   }
   imageBtn.onclick = () => imageInput.click();
   imageInput.onchange = async (ev) => {
@@ -703,7 +724,8 @@
       const tId = await ensureThreadExistsAndSubscribe(currentPeer);
       const path = `dmThreads/${tId}/media/${Date.now()}_${file.name}`;
       const sRef = storageRef(storage, path);
-      const snap = await uploadBytes(sRef, file);
+      // upload with proper contentType to avoid playback/preview issues
+      const snap = await uploadBytes(sRef, file, { contentType: file.type });
       const url = await getDownloadURL(sRef);
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
       await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'image', createdAt: serverTimestamp() });
@@ -734,7 +756,8 @@
       const tId = await ensureThreadExistsAndSubscribe(currentPeer);
       const path = `dmThreads/${tId}/media/${Date.now()}_voice.webm`;
       const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, blob);
+      // ensure contentType metadata so playback works across platforms
+      await uploadBytes(sRef, blob, { contentType: blob.type });
       const url = await getDownloadURL(sRef);
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
       await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'audio', createdAt: serverTimestamp() });
@@ -750,6 +773,7 @@
     renderFavoritesBar();
     if (user) {
       subscribeMyThreads(user.uid);
+      subscribeIncomingCallsFor(user.uid);
       // soft request for notifications
       if ("Notification" in window && Notification.permission === "default") {
         try { await Notification.requestPermission(); } catch(e){ /* ignore */ }
@@ -813,39 +837,48 @@
     settingsOverlay.style.zIndex = '100';
     settingsOverlay.style.overflow = 'auto';
     settingsOverlay.style.padding = '20px';
+    // improved mobile-friendly / telegram-like settings layout
     settingsOverlay.innerHTML = `
       <button id="closeSettings" style="margin-bottom:20px;">Закрыть</button>
-      <div id="settingsAuth" style="margin-bottom:20px;"></div>
-      <input type="file" id="profilePhotoInput" accept="image/*" style="margin-bottom:10px;">
-      <button id="uploadProfilePhoto">Загрузить фото профиля</button>
-      <input id="displayNameInput" placeholder="Новое имя" style="margin-top:20px;margin-bottom:10px;padding:8px;">
-      <button id="updateName">Обновить имя</button>
+      <div class="settings-panel">
+        <div class="settings-account">
+          <img id="settingsAvatar" src="https://via.placeholder.com/88?text=?" alt="avatar">
+          <div>
+            <div id="settingsName" style="font-weight:800;color:var(--text);font-size:18px">(без имени)</div>
+            <div id="settingsEmail" style="color:var(--muted);font-size:13px">email@example.com</div>
+            <div style="margin-top:8px"><button id="editProfileBtn" class="ghost-btn">Редактировать профиль</button></div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <input type="file" id="profilePhotoInput" accept="image/*" style="margin-bottom:10px;">
+          <button id="uploadProfilePhoto">Загрузить фото профиля</button>
+        </div>
+        <div style="margin-top:8px">
+          <input id="displayNameInput" placeholder="Новое имя" style="margin-top:10px;margin-bottom:10px;padding:8px;width:100%;">
+          <button id="updateName">Обновить имя</button>
+        </div>
+        <div class="settings-list" style="margin-top:18px">
+          <div class="settings-item">Уведомления</div>
+          <div class="settings-item">Конфиденциальность</div>
+          <div class="settings-item">Оформление</div>
+          <div class="settings-item">О приложении</div>
+        </div>
+      </div>
     `;
     document.body.appendChild(settingsOverlay);
     const user = auth.currentUser;
     if (user) {
-      const settingsAuth = document.getElementById('settingsAuth');
-      settingsAuth.innerHTML = `
-        <div style="display:flex;gap:8px;align-items:center">
-          <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:72px;height:72;border-radius:16px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)">
-          <div>
-            <div style="font-weight:700;color:var(--text)">${user.displayName||'(без имени)'}</div>
-            <div class="small">${user.email||''}</div>
-          </div>
-        </div>
-        <button id="signOutSettings" class="ghost-btn" style="margin-top:10px;">Выйти</button>
-      `;
-      document.getElementById('signOutSettings').onclick = async () => {
-        await signOut(auth);
-        settingsOverlay.remove();
-      };
+      document.getElementById('settingsAvatar').src = user.photoURL || 'https://via.placeholder.com/88?text=?';
+      document.getElementById('settingsName').textContent = user.displayName || '(без имени)';
+      document.getElementById('settingsEmail').textContent = user.email || '';
+      document.getElementById('editProfileBtn').onclick = () => alert('Редактирование профиля — позже');
       document.getElementById('uploadProfilePhoto').onclick = async () => {
         const file = document.getElementById('profilePhotoInput').files[0];
         if (!file) return;
         try {
           const path = `profiles/${user.uid}/avatar`;
           const sRef = storageRef(storage, path);
-          await uploadBytes(sRef, file);
+          await uploadBytes(sRef, file, { contentType: file.type });
           const url = await getDownloadURL(sRef);
           await updateProfile(user, { photoURL: url });
           await setDoc(doc(db, 'profiles', user.uid), { photoURL: url }, { merge: true });
@@ -863,14 +896,18 @@
           settingsOverlay.remove();
         } catch (e) { alert('Ошибка: ' + e.message); }
       };
+      document.getElementById('signOutSettings')?.onclick = async () => {
+        await signOut(auth);
+        settingsOverlay.remove();
+      };
     } else {
-      document.getElementById('settingsAuth').innerHTML = '<div>Войдите в аккаунт</div>';
+      document.getElementById('settingsAuth')?.innerHTML = '<div>Войдите в аккаунт</div>';
     }
     document.getElementById('closeSettings').onclick = () => settingsOverlay.remove();
   };
   // --- utilities ---
   function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
-  function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
   // render favorites on load
   renderFavoritesBar();
   // expose setLastSeen for testing
@@ -930,12 +967,25 @@
       hangupBtn.style.display = '';
       callingIndicator.style.display = 'none';
     }
+    // make overlay visually visible but non-blocking so user can keep typing
     callOverlay.style.display = 'flex';
     callOverlay.setAttribute('aria-hidden', 'false');
+    // ensure overlay does not block clicks/typing to the composer; only the card should be interactive
+    callOverlay.style.pointerEvents = 'none';
+    const card = document.getElementById('callCard');
+    if (card) card.style.pointerEvents = 'auto';
+    // place card near top on mobile so it doesn't cover composer
+    if (window.innerWidth <= 900) {
+      callOverlay.style.alignItems = 'flex-start';
+      card.style.marginTop = '24px';
+    }
   }
   function hideCallOverlay() {
     callOverlay.style.display = 'none';
     callOverlay.setAttribute('aria-hidden', 'true');
+    callOverlay.style.pointerEvents = 'none';
+    const card = document.getElementById('callCard');
+    if (card) card.style.pointerEvents = 'auto';
   }
   // Сброс/очистка соединения
   async function cleanUpCallState(markEnded = true) {
@@ -991,7 +1041,7 @@
       return;
     }
     // создаём документ вызова
-    const callDocRef = doc(collection(db, 'webrtcCalls')); // сгенерит id
+    const callDocRef = doc(collection(db, 'webrtcCalls'));
     currentCallDocRef = callDocRef;
     // создаём оффер
     const offer = await pc.createOffer();
@@ -1146,6 +1196,9 @@
           callingIndicator.style.display = 'none';
           callOverlay.style.display = 'flex';
           callOverlay.setAttribute('aria-hidden', 'false');
+          // make overlay non-blocking so user can keep typing; card remains clickable
+          callOverlay.style.pointerEvents = 'none';
+          const card = document.getElementById('callCard'); if (card) card.style.pointerEvents = 'auto';
           // вешаем обработчики
           acceptCallBtn.onclick = async () => {
             acceptCallBtn.disabled = true;
