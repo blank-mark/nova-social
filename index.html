@@ -234,10 +234,33 @@
   <div class="call-card" id="callCard">
     <h3 id="callTitle">Входящий звонок</h3>
     <p id="callSubtitle">@user</p>
-    <div class="call-actions" id="callActions">
+
+    <!-- video area -->
+    <div style="display:flex;gap:8px;align-items:flex-start;justify-content:center;margin-top:12px;">
+      <video id="remoteVideo" autoplay playsinline style="width:60%;height:240px;background:#000;border-radius:8px"></video>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+        <video id="localVideo" autoplay muted playsinline style="width:140px;height:100px;background:#111;border-radius:8px;object-fit:cover"></video>
+        <canvas id="micLevel" width="140" height="16" style="border-radius:8px;background:rgba(255,255,255,0.03);"></canvas>
+        <div id="callTimer" style="font-weight:700;color:var(--muted)">00:00</div>
+      </div>
+    </div>
+
+    <!-- main actions -->
+    <div class="call-actions" id="callActions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
       <button id="acceptCallBtn" class="call-btn call-accept">Принять</button>
       <button id="declineCallBtn" class="call-btn call-decline">Сбросить</button>
+      <button id="muteBtn" class="call-btn" title="Отключить микрофон">🔈</button>
+      <button id="camBtn" class="call-btn" title="Отключить камеру">📷</button>
+      <button id="screenBtn" class="call-btn" title="Поделиться экраном">🖥️</button>
+      <button id="blockBtn" class="call-btn" title="Заблокировать звонки от этого пользователя">🚫</button>
+      <button id="hangupBtn" class="call-btn call-hangup" style="display:none">Завершить</button>
     </div>
+
+    <div style="margin-top:12px;">
+      <div id="callingIndicator" class="calling-indicator">Звоню… <span id="callingTo">@user</span></div>
+    </div>
+  </div>
+</div>
     <div class="call-actions" style="margin-top:12px;">
       <button id="hangupBtn" class="call-btn call-hangup" style="display:none">Завершить</button>
     </div>
@@ -1070,15 +1093,27 @@
     if (!user) return alert('Войдите');
     if (!peer || !peer.uid) return alert('Открой чат с пользователем, которому хочешь позвонить');
     pc = new RTCPeerConnection(rtcConfig);
-    pc.ontrack = (event) => { try { remoteAudio.srcObject = event.streams[0]; } catch(e){ console.warn(e); } };
+
+    // hookup remote streams to video and audio
+    pc.ontrack = (event) => { try { remoteAudio.srcObject = event.streams[0]; const rv = document.getElementById('remoteVideo'); if (rv) rv.srcObject = event.streams[0]; } catch(e){ console.warn(e); } };
     pc.onicecandidate = async (e) => {
       if (!e.candidate) return;
       try { await addDoc(collection(currentCallDocRef, 'offerCandidates'), e.candidate.toJSON()); } catch (err) { console.warn(err); }
     };
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // request audio+video by default
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      // attach to local preview
+      const localVideoEl = document.getElementById('localVideo');
+      if (localVideoEl) localVideoEl.srcObject = localStream;
+
+      // start mic level visualizer
+      startMicVisualizer(localStream);
+
+      // add all tracks to peer connection
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-    } catch (e) { console.error(e); alert('Нужен доступ к микрофону'); return; }
+    } catch (e) { console.error(e); alert('Нужен доступ к микрофона/камеры'); return; }
+
     const callDocRef = doc(collection(db, 'webrtcCalls'));
     currentCallDocRef = callDocRef;
     const offer = await pc.createOffer();
@@ -1099,7 +1134,10 @@
         const answerDesc = new RTCSessionDescription(data.answer);
         pc.setRemoteDescription(answerDesc).catch(e => console.warn(e));
       }
-      if (data.status === 'accepted') showCallOverlay('incall', { peerName: peer.username || peer.displayName || peer.uid });
+      if (data.status === 'accepted') {
+        showCallOverlay('incall', { peerName: peer.username || peer.displayName || peer.uid });
+        startCallTimer();
+      }
       if (data.status === 'declined' || data.status === 'ended') cleanUpCallState(false);
     }, (err) => console.warn(err));
     answerCandidatesUnsub = onSnapshot(collection(callDocRef, 'answerCandidates'), (snap) => {
@@ -1124,15 +1162,17 @@
       if (!callSnap.exists()) return alert('Вызов больше не доступен');
       const data = callSnap.data();
       pc = new RTCPeerConnection(rtcConfig);
-      pc.ontrack = (event) => { try { remoteAudio.srcObject = event.streams[0]; } catch(e){} };
+      pc.ontrack = (event) => { try { remoteAudio.srcObject = event.streams[0]; const rv = document.getElementById('remoteVideo'); if (rv) rv.srcObject = event.streams[0]; } catch(e){} };
       pc.onicecandidate = async (e) => {
         if (!e.candidate) return;
         try { await addDoc(collection(callDocRef, 'answerCandidates'), e.candidate.toJSON()); } catch (err) { console.warn(err); }
       };
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const localVideoEl = document.getElementById('localVideo'); if (localVideoEl) localVideoEl.srcObject = localStream;
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-      } catch (e) { console.error(e); alert('Нужен доступ к микрофону'); await setDoc(callDocRef, { status: 'declined' }, { merge: true }); return; }
+        startMicVisualizer(localStream);
+      } catch (e) { console.error(e); alert('Нужен доступ к микрофона/камеры'); await setDoc(callDocRef, { status: 'declined' }, { merge: true }); return; }
       const offer = data.offer; if (!offer) return alert('Оффер не найден');
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
@@ -1148,6 +1188,7 @@
         if (d.status === 'ended' || d.status === 'declined') { cleanUpCallState(false); unsubCall(); }
       });
       showCallOverlay('incall', { peerName: data.callerName || data.callerUid });
+      startCallTimer();
       hangupBtn.onclick = async () => {
         await setDoc(callDocRef, { status: 'ended' }, { merge: true });
         unsubCall(); await cleanUpCallState(false);
@@ -1187,6 +1228,147 @@
   onAuthStateChanged(auth, (user) => {
     if (user) subscribeIncomingCallsFor(user.uid); else { if (incomingCallsUnsub) { incomingCallsUnsub(); incomingCallsUnsub = null; } }
   });
+
+  // ==== Доп. функциональность для звонков: таймер, mute/cam/screen, визуализация микрофона, блокировка ====
+  const localVideoEl = document.getElementById('localVideo');
+  const remoteVideoEl = document.getElementById('remoteVideo');
+  const muteBtnEl = document.getElementById('muteBtn');
+  const camBtnEl = document.getElementById('camBtn');
+  const screenBtnEl = document.getElementById('screenBtn');
+  const blockBtnEl = document.getElementById('blockBtn');
+  const callTimerEl = document.getElementById('callTimer');
+  const micCanvas = document.getElementById('micLevel');
+
+  let isMuted = false;
+  let isCameraOn = true;
+  let isScreenSharing = false;
+  let screenStream = null;
+  let audioCtx = null;
+  let analyser = null;
+  let micAnimId = null;
+  let callTimerInterval = null;
+  let callStartedAt = 0;
+
+  function formatTime(ms){ const s = Math.floor(ms/1000); const mm = String(Math.floor(s/60)).padStart(2,'0'); const ss = String(s%60).padStart(2,'0'); return `${mm}:${ss}`; }
+  function startCallTimer(){ callStartedAt = Date.now(); if (callTimerInterval) clearInterval(callTimerInterval); callTimerEl.textContent = '00:00'; callTimerInterval = setInterval(()=>{ callTimerEl.textContent = formatTime(Date.now()-callStartedAt); }, 500); }
+  function stopCallTimer(){ if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null; } callTimerEl.textContent = '00:00'; }
+
+  function startMicVisualizer(stream){ try{
+    if (!micCanvas) return;
+    if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; }
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser(); analyser.fftSize = 256; src.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const ctx = micCanvas.getContext('2d');
+    function draw(){ analyser.getByteFrequencyData(data); let sum=0; for(let i=0;i<data.length;i++){ sum += data[i]; } const avg = sum/data.length/255; ctx.clearRect(0,0,micCanvas.width,micCanvas.height); ctx.fillStyle = '#7c4dff'; ctx.fillRect(0,0, Math.max(2, micCanvas.width*avg), micCanvas.height); micAnimId = requestAnimationFrame(draw); }
+    micAnimId = requestAnimationFrame(draw);
+  }catch(e){ console.warn('mic viz err', e); }}
+  function stopMicVisualizer(){ try{ if (micAnimId) cancelAnimationFrame(micAnimId); micAnimId = null; if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; analyser = null; } const ctx = micCanvas && micCanvas.getContext ? micCanvas.getContext('2d') : null; if (ctx) { ctx.clearRect(0,0,micCanvas.width,micCanvas.height); } } catch(e){} }
+
+  function toggleMute(){ if (!localStream) return; isMuted = !isMuted; localStream.getAudioTracks().forEach(t=>t.enabled = !isMuted); muteBtnEl.textContent = isMuted ? '🔇' : '🔈'; }
+  function toggleCamera(){ if (!localStream) return; const vids = localStream.getVideoTracks(); if (!vids || vids.length===0) { alert('Камера не найдена'); return; } isCameraOn = !isCameraOn; vids.forEach(t=>t.enabled = isCameraOn); camBtnEl.textContent = isCameraOn ? '📷' : '📷✖'; }
+
+  async function toggleScreenShare(){ if (!pc) return alert('Нет активного подключения');
+    try{
+      if (!isScreenSharing){
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const screenTrack = screenStream.getVideoTracks()[0];
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) await sender.replaceTrack(screenTrack);
+        // preview local as screen
+        if (localVideoEl) localVideoEl.srcObject = screenStream;
+        isScreenSharing = true;
+        screenTrack.onended = async () => { // revert to camera
+          try{
+            const camTrack = localStream && localStream.getVideoTracks()[0];
+            const sender2 = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender2 && camTrack) await sender2.replaceTrack(camTrack);
+            if (localVideoEl) localVideoEl.srcObject = localStream;
+          }catch(e){console.warn(e);} finally { isScreenSharing = false; screenStream = null; }
+        };
+      } else {
+        // stop sharing
+        if (screenStream) { screenStream.getTracks().forEach(t=>t.stop()); }
+      }
+    }catch(e){ console.warn('screen share err', e); alert('Не удалось поделиться экраном'); }
+  }
+
+  function blockCallerAndDecline(){
+    try{
+      const title = document.getElementById('callTitle').textContent || '';
+      const subtitle = document.getElementById('callSubtitle').textContent || '';
+      const name = (subtitle.replace('@','') || title.replace('Вам звонит','').trim()).toLowerCase();
+      if (!name) return alert('Не удалось определить пользователя для блокировки');
+      const blocked = JSON.parse(localStorage.getItem('np_blocked_v1')||'[]');
+      if (!blocked.includes(name)) blocked.push(name);
+      localStorage.setItem('np_blocked_v1', JSON.stringify(blocked));
+      // decline current call if any
+      if (currentCallDocRef) { setDoc(currentCallDocRef, { status: 'declined' }, { merge: true }).catch(()=>{}); }
+      cleanUpCallState(false);
+      alert('Пользователь заблокирован локально: ' + name);
+    }catch(e){ console.warn(e); }
+  }
+
+  // attach handlers
+  try{
+    if (muteBtnEl) muteBtnEl.onclick = toggleMute;
+    if (camBtnEl) camBtnEl.onclick = toggleCamera;
+    if (screenBtnEl) screenBtnEl.onclick = toggleScreenShare;
+    if (blockBtnEl) blockBtnEl.onclick = blockCallerAndDecline;
+  }catch(e){console.warn(e);} 
+
+  // override cleanUpCallState to also clear UI and stop visualizers
+  try{
+    const _origCleanUp = cleanUpCallState;
+    cleanUpCallState = async function(markEnded = true){
+      try{
+        stopCallTimer();
+        stopMicVisualizer();
+        if (screenStream) { screenStream.getTracks().forEach(t=>t.stop()); screenStream = null; isScreenSharing = false; }
+        if (localStream) { localStream.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} }); localStream = null; }
+        if (localVideoEl) localVideoEl.srcObject = null;
+        if (remoteVideoEl) remoteVideoEl.srcObject = null;
+      }catch(e){ console.warn(e); }
+      await _origCleanUp(markEnded);
+      // reset buttons
+      isMuted = false; isCameraOn = true; isScreenSharing = false;
+      if (muteBtnEl) muteBtnEl.textContent = '🔈';
+      if (camBtnEl) camBtnEl.textContent = '📷';
+    };
+  }catch(e){ console.warn('override cleanup err', e); }
+
+  // prevent showing incoming overlay for locally-blocked users
+  const _origSubscribeIncoming = subscribeIncomingCallsFor;
+  subscribeIncomingCallsFor = function(uid){
+    // wrapper: call original but filter incoming display
+    if (incomingCallsUnsub) incomingCallsUnsub();
+    const q = query(collection(db, 'webrtcCalls'), where('calleeUid', '==', uid));
+    incomingCallsUnsub = onSnapshot(q, (snap) => {
+      snap.forEach(docSnap => {
+        const data = docSnap.data(); const id = docSnap.id;
+        if (data && data.status === 'ringing') {
+          const callerName = (data.callerName || data.callerUid || '').toLowerCase();
+          const blocked = JSON.parse(localStorage.getItem('np_blocked_v1')||'[]');
+          if (blocked.includes((callerName||'').replace('@',''))) {
+            // auto-decline
+            setDoc(doc(db, 'webrtcCalls', id), { status: 'declined' }, { merge: true }).catch(()=>{});
+            return;
+          }
+          if (currentIncomingCallId && currentIncomingCallId !== id) return;
+          currentIncomingCallId = id;
+          callTitle.textContent = 'Вам звонит';
+          callSubtitle.textContent = '@' + (data.callerName || data.callerUid);
+          acceptCallBtn.style.display = ''; declineCallBtn.style.display = ''; hangupBtn.style.display = 'none'; callingIndicator.style.display = 'none';
+          callOverlay.style.display = 'flex'; callOverlay.setAttribute('aria-hidden', 'false');
+          acceptCallBtn.onclick = async () => { acceptCallBtn.disabled = true; await acceptIncomingCall(id); acceptCallBtn.disabled = false; };
+          declineCallBtn.onclick = async () => { declineCallBtn.disabled = true; await declineIncomingCall(id); declineCallBtn.disabled = false; };
+        }
+      });
+    }, (err) => console.warn('incoming calls sub err', err));
+  };
+
+  /* ================================================================================= */
 </script>
 </body>
 </html>
