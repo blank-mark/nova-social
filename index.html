@@ -2,41 +2,43 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>nova-prospeCt — simple ID messenger + calls</title>
+<title>nova-prospeCt — ID messenger + audio/video calls</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   :root{--bg:#0f0c16;--muted:#9aa0c3;--accent:#7c4dff}
   body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:#e9e6f7}
-  .wrap{max-width:720px;margin:18px auto;padding:16px}
+  .wrap{max-width:920px;margin:18px auto;padding:16px}
   .card{background:linear-gradient(180deg,#0b0910,#0f0c16);border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,0.5)}
-  input,button{width:100%;padding:10px;border-radius:8px;border:0;margin-top:8px}
-  #messages{height:320px;overflow:auto;border-radius:8px;padding:10px;background:#0b0810;border:1px solid rgba(255,255,255,0.03)}
+  input,button,select{padding:10px;border-radius:8px;border:0;margin-top:8px}
+  #messages{height:280px;overflow:auto;border-radius:8px;padding:10px;background:#0b0810;border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:6px}
   .msg.me{color:#0b0b0b;background:linear-gradient(180deg,#f3e8ff,#f4e9ff);padding:8px;border-radius:10px;margin:6px 0;max-width:75%;align-self:flex-end}
   .msg.other{color:#fff;background:#1f1a2b;padding:8px;border-radius:10px;margin:6px 0;max-width:75%}
   .row{display:flex;gap:8px;align-items:center}
   .top{display:flex;gap:12px;align-items:center;justify-content:space-between}
   .small{font-size:13px;color:var(--muted)}
   .call-overlay{position:fixed;left:0;right:0;top:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:1000}
-  .call-card{background:#0f0c16;padding:18px;border-radius:10px;width:320px;text-align:center;border:1px solid rgba(255,255,255,0.04)}
+  .call-card{background:#0f0c16;padding:18px;border-radius:10px;width:360px;text-align:center;border:1px solid rgba(255,255,255,0.04)}
   .btn-accept{background:linear-gradient(135deg,var(--accent),#5e35b1);color:white;padding:10px;border-radius:8px;border:0}
   .btn-decline{background:#222;padding:10px;border-radius:8px;border:0;color:white}
-  .inline{display:inline-block;width:auto}
+  .video-row{display:flex;gap:8px;align-items:center;margin-top:12px}
+  video{background:#000;border-radius:8px;max-height:200px}
+  .small-note{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card" id="loginCard">
     <h2>nova-prospeCt</h2>
-    <div class="small">Введите имя — система сгенерирует твой короткий ID</div>
+    <div class="small">Введите имя — система сгенерирует короткий ID (XXXXX). Никаких email/паролей.</div>
     <input id="nameInput" placeholder="Введите имя">
     <button id="enterBtn">Войти</button>
-    <div class="small" style="margin-top:8px;color:var(--muted)">UID показывается как короткий ID (XXXXX). Никого не нужно регать.</div>
+    <div class="small-note">После входа появится ваш ID и можно будет писать и звонить по ID.</div>
   </div>
 
   <div class="card" id="chatCard" style="display:none;margin-top:14px">
     <div class="top">
       <div>
-        <div class="small">Твoй ID</div>
+        <div class="small">Твой ID</div>
         <div style="font-weight:800;font-size:18px" id="myShortId">—</div>
         <div class="small" id="myNameShow"></div>
       </div>
@@ -47,17 +49,32 @@
       </div>
     </div>
 
-    <div id="messages" style="display:flex;flex-direction:column;gap:6px;margin-top:12px"></div>
+    <div id="messages" style="margin-top:12px"></div>
 
     <div style="margin-top:12px" class="row">
-      <input id="msgInput" placeholder="Напиши сообщение..." style="flex:1">
+      <input id="msgInput" placeholder="Сообщение" style="flex:1">
       <button id="sendBtn" style="width:120px">Отправить</button>
     </div>
 
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-      <button id="callBtn" style="width:100px">📞 Позвонить</button>
-      <div class="small">Кнопка звонка активна, когда открыт чат с ID.</div>
+      <button id="callBtn" style="width:120px">📞 Позвонить</button>
+      <button id="videoToggleBtn" style="width:120px">📷 Вкл видео</button>
+      <button id="muteBtn" style="width:120px">🔈 Мute</button>
+      <div class="small">Кнопки помогут управлять микрофоном и камерой перед/во время звонка.</div>
     </div>
+
+    <div class="video-row">
+      <div style="flex:1">
+        <div class="small">Локальное видео</div>
+        <video id="localVideo" autoplay muted playsinline style="width:100%"></video>
+      </div>
+      <div style="flex:1">
+        <div class="small">Удалённое видео</div>
+        <video id="remoteVideo" autoplay playsinline style="width:100%"></video>
+      </div>
+    </div>
+
+    <div class="small-note">Если у собеседника нет короткого doc в `users/SHORT` — звонок/чат не начнётся.</div>
   </div>
 </div>
 
@@ -79,11 +96,11 @@
 <audio id="remoteAudio" autoplay></audio>
 
 <script type="module">
-/* ========== FIREBASE ========== */
+/* ================= FIREBASE ================= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 import {
-  getFirestore, doc, setDoc, addDoc, collection, onSnapshot, serverTimestamp, getDoc, updateDoc, query, where, limit
+  getFirestore, doc, setDoc, addDoc, collection, onSnapshot, serverTimestamp, getDoc, updateDoc, query, where
 } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -99,7 +116,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* ========== UI refs ========== */
+/* ================= UI ================= */
 const loginCard = document.getElementById('loginCard');
 const chatCard = document.getElementById('chatCard');
 const nameInput = document.getElementById('nameInput');
@@ -112,6 +129,10 @@ const messagesEl = document.getElementById('messages');
 const msgInput = document.getElementById('msgInput');
 const sendBtn = document.getElementById('sendBtn');
 const callBtn = document.getElementById('callBtn');
+const muteBtn = document.getElementById('muteBtn');
+const videoToggleBtn = document.getElementById('videoToggleBtn');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
 
 const callOverlay = document.getElementById('callOverlay');
 const callTitle = document.getElementById('callTitle');
@@ -119,15 +140,14 @@ const callSubtitle = document.getElementById('callSubtitle');
 const acceptBtn = document.getElementById('acceptBtn');
 const declineBtn = document.getElementById('declineBtn');
 const hangupBtn = document.getElementById('hangupBtn');
-const remoteAudio = document.getElementById('remoteAudio');
 
-/* ========== state ========== */
 let myUid = null;
 let myName = null;
 let myShort = null;
 let currentPeerShort = null;
 let currentChatId = null;
 
+// WebRTC state
 let pc = null;
 let localStream = null;
 let currentCallDocRef = null;
@@ -135,9 +155,11 @@ let offerCandidatesUnsub = null;
 let answerCandidatesUnsub = null;
 let incomingCallsUnsub = null;
 
+let wantVideo = true;   // default: enable video when calling
+let muted = false;
+
 /* ========== helpers ========== */
-function shortId(uid){
-  // produce consistent 5 chars from uid
+function shortIdFromUid(uid){
   return uid.replace(/[^A-Z0-9]/gi,'').slice(0,5).toUpperCase();
 }
 function showOverlay(mode, info = {}){
@@ -168,7 +190,7 @@ function hideOverlay(){
   callOverlay.setAttribute('aria-hidden','true');
 }
 
-/* ========== AUTH & PROFILE (anonymous) ========== */
+/* ========== AUTH & PROFILE ========== */
 enterBtn.onclick = async () => {
   const name = nameInput.value.trim();
   if(!name) return alert('Введи имя');
@@ -176,22 +198,27 @@ enterBtn.onclick = async () => {
     const res = await signInAnonymously(auth);
     myUid = res.user.uid;
     myName = name;
-    myShort = shortId(myUid);
-    // save profile (short id used as doc id for easy lookup)
+    myShort = shortIdFromUid(myUid);
+    // store simple mapping short -> uid
     await setDoc(doc(db, 'users', myShort), {
       uid: myUid,
       name: myName,
       createdAt: serverTimestamp()
     });
-    // UI
     myShortIdEl.textContent = myShort;
     myNameShow.textContent = myName;
     loginCard.style.display='none';
     chatCard.style.display='block';
     subscribeIncomingCallsFor(myShort);
+    // try to open local preview (permission prompt)
+    try { 
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: wantVideo });
+      stopLocalStream(s); // we just warm permissions and stop
+    } catch(e){ /* ignore */ }
   }catch(e){ console.error(e); alert('Auth error: ' + e.message); }
 };
 
+/* ========== CHAT ========== */
 openChatBtn.onclick = () => {
   const peer = peerShortIn.value.trim().toUpperCase();
   if(!peer) return alert('Введи ID собеседника');
@@ -207,6 +234,7 @@ sendBtn.onclick = async () => {
   const text = msgInput.value.trim();
   if(!text) return;
   try{
+    // ensure chat doc exists (optional)
     await addDoc(collection(db, 'chats', currentChatId, 'messages'), {
       fromShort: myShort,
       fromUid: myUid,
@@ -219,7 +247,6 @@ sendBtn.onclick = async () => {
 };
 
 function subscribeToMessages(chatId){
-  // unsubscribe previous if any - simplistic: just clear messages and rebind
   if(window._msgsUnsub) window._msgsUnsub(); window._msgsUnsub = null;
   const col = collection(db, 'chats', chatId, 'messages');
   window._msgsUnsub = onSnapshot(col, (snap) => {
@@ -235,7 +262,47 @@ function subscribeToMessages(chatId){
   }, err => { console.warn('msgs sub err', err); });
 }
 
-/* ========== WebRTC call logic ========== */
+/* =================== local preview helpers =================== */
+function attachLocalStreamToEl(stream){
+  try { localVideo.srcObject = stream; } catch(e){ console.warn(e); }
+}
+function attachRemoteStreamToEl(stream){
+  try { remoteVideo.srcObject = stream; } catch(e){ console.warn(e); }
+}
+function stopLocalStream(s){
+  if(!s) return;
+  try{ s.getTracks().forEach(t=>t.stop()); } catch(e){}
+}
+
+/* =================== mute / video toggle =================== */
+muteBtn.onclick = () => {
+  muted = !muted;
+  muteBtn.textContent = muted ? '🔇 Muted' : '🔈 Mute';
+  if(localStream){
+    localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+  }
+};
+
+videoToggleBtn.onclick = async () => {
+  wantVideo = !wantVideo;
+  videoToggleBtn.textContent = wantVideo ? '📷 Вкл видео' : '📷 Выкл видео';
+  // if there's an active local stream, try to toggle camera track
+  if(localStream){
+    const vTracks = localStream.getVideoTracks();
+    if(vTracks.length){
+      vTracks.forEach(t => t.enabled = wantVideo);
+    } else if (wantVideo) {
+      // try to re-acquire camera
+      try{
+        const s = await navigator.mediaDevices.getUserMedia({ video:true });
+        s.getVideoTracks().forEach(t => localStream.addTrack(t));
+        attachLocalStreamToEl(localStream);
+      }catch(e){ console.warn('camera error', e); }
+    }
+  }
+};
+
+/* ========== WebRTC calls (audio+video) ========== */
 const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 callBtn.onclick = async () => {
@@ -245,51 +312,67 @@ callBtn.onclick = async () => {
 
 async function startCallToPeer(peerShort){
   try{
-    // create PeerConnection
+    // lookup callee uid from users/{peerShort}
+    const calleeSnap = await getDoc(doc(db, 'users', peerShort));
+    if(!calleeSnap.exists()) return alert('Пользователь с таким ID не найден');
+    const callee = calleeSnap.data();
+    const calleeUid = callee.uid;
+
     pc = new RTCPeerConnection(rtcConfig);
     pc.ontrack = (ev) => {
-      try{ remoteAudio.srcObject = ev.streams[0]; }catch(e){console.warn(e);}
+      const stream = ev.streams[0];
+      attachRemoteStreamToEl(stream);
     };
     pc.onicecandidate = async (e) => {
       if(e.candidate && currentCallDocRef){
         try{ await addDoc(collection(currentCallDocRef, 'offerCandidates'), e.candidate.toJSON()); } catch(e){ console.warn(e); }
       }
     };
-    // get mic
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    // get local media according to current flags
+    localStream = await navigator.mediaDevices.getUserMedia({ audio:true, video: wantVideo });
+    // apply mute flag
+    localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+    // attach to local preview
+    attachLocalStreamToEl(localStream);
+    // add tracks to pc
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-    // create call doc
+
+    // create call doc and include calleeUid so rules can check permissions
     const callRef = doc(collection(db, 'webrtcCalls'));
     currentCallDocRef = callRef;
-    // offer
+
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
+
     await setDoc(callRef, {
       callerShort: myShort,
       callerUid: myUid,
       callerName: myName,
       calleeShort: peerShort,
+      calleeUid: calleeUid,
+      wantVideo: wantVideo,
       status: 'ringing',
       offer: { type: offer.type, sdp: offer.sdp },
       createdAt: serverTimestamp()
     });
-    // listen for answer & status changes
+
+    // subscribe to call doc updates (for answer, status)
     const unsubCallDoc = onSnapshot(callRef, docSnap => {
       const data = docSnap.data();
       if(!data) return;
       if(data.answer && pc && !pc.remoteDescription){
-        pc.setRemoteDescription(new RTCSessionDescription(data.answer)).catch(e=>console.warn(e));
+        pc.setRemoteDescription({ type: data.answer.type, sdp: data.answer.sdp }).catch(e=>console.warn(e));
       }
-      if(data.status === 'accepted'){
-        showOverlay('incall', { peerShort });
-      }
-      if(data.status === 'declined' || data.status === 'ended'){
+      if(data.status === 'accepted') showOverlay('incall', { peerShort: peerShort });
+      if(data.status === 'declined' || data.status === 'ended') {
         cleanupCallState();
         unsubCallDoc();
       }
     });
+
     // listen for answerCandidates
-    answerCandidatesUnsub = onSnapshot(collection(callRef, 'answerCandidates'), snap => {
+    answerCandidatesUnsub = onSnapshot(collection(callRef, 'answerCandidates'), snap=>{
       snap.docChanges().forEach(change=>{
         if(change.type === 'added'){
           const c = change.doc.data();
@@ -297,7 +380,8 @@ async function startCallToPeer(peerShort){
         }
       });
     });
-    // show outgoing UI
+
+    // outgoing UI
     showOverlay('outgoing', { calleeShort: peerShort });
     hangupBtn.style.display='';
     hangupBtn.onclick = async () => {
@@ -305,6 +389,7 @@ async function startCallToPeer(peerShort){
       cleanupCallState();
       unsubCallDoc();
     };
+
   }catch(e){ console.error(e); alert('Не удалось начать звонок: ' + (e.message || e)); await cleanupCallState(); }
 }
 
@@ -314,24 +399,33 @@ async function acceptIncomingCall(callId){
     const callSnap = await getDoc(callRef);
     if(!callSnap.exists()) return alert('Вызов недоступен');
     const data = callSnap.data();
-    // prepare pc
+
+    // create pc
     pc = new RTCPeerConnection(rtcConfig);
-    pc.ontrack = (ev) => { remoteAudio.srcObject = ev.streams[0]; };
+    pc.ontrack = (ev) => attachRemoteStreamToEl(ev.streams[0]);
     pc.onicecandidate = async (e) => {
       if(e.candidate){
         try{ await addDoc(collection(callRef,'answerCandidates'), e.candidate.toJSON()); } catch(e){ console.warn(e); }
       }
     };
-    localStream = await navigator.mediaDevices.getUserMedia({ audio:true });
-    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-    // set remote (offer)
+
+    // request local media according to call's wantVideo (use caller's preference)
+    const wantVid = !!data.wantVideo;
+    localStream = await navigator.mediaDevices.getUserMedia({ audio:true, video: wantVid });
+    localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+    attachLocalStreamToEl(localStream);
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+    // set remote offer
     const offer = data.offer;
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    await pc.setRemoteDescription({ type: offer.type, sdp: offer.sdp });
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    // update doc with answer + accepted status
-    await updateDoc(callRef, { answer: { type: answer.type, sdp: answer.sdp }, status: 'accepted' });
-    // subscribe to offerCandidates
+
+    // update call doc: write answer + accepted status; include calleeUid for rules (we already have it)
+    await updateDoc(callRef, { answer: { type: answer.type, sdp: answer.sdp }, status: 'accepted', calleeUid: myUid });
+
+    // listen for offerCandidates
     offerCandidatesUnsub = onSnapshot(collection(callRef, 'offerCandidates'), snap=>{
       snap.docChanges().forEach(change=>{
         if(change.type === 'added'){
@@ -340,12 +434,14 @@ async function acceptIncomingCall(callId){
         }
       });
     });
-    showOverlay('incall', { peerShort: data.callerShort });
+
+    showOverlay('incall', { peerShort: data.callerShort || 'XXXXX' });
     hangupBtn.style.display='';
     hangupBtn.onclick = async () => {
       await updateDoc(callRef, { status: 'ended' }).catch(()=>{});
       cleanupCallState();
     };
+
   }catch(e){ console.error(e); alert('Ошибка при принятии звонка'); try{ await updateDoc(doc(db,'webrtcCalls',callId), { status:'declined' }); }catch{} }
 }
 
@@ -354,7 +450,7 @@ async function declineIncomingCall(callId){
   hideOverlay();
 }
 
-async function cleanupCallState(markEnded=true){
+async function cleanupCallState(){
   try{
     if(offerCandidatesUnsub){ offerCandidatesUnsub(); offerCandidatesUnsub=null; }
     if(answerCandidatesUnsub){ answerCandidatesUnsub(); answerCandidatesUnsub=null; }
@@ -368,7 +464,8 @@ async function cleanupCallState(markEnded=true){
     try{ localStream.getTracks().forEach(t=>t.stop()); }catch(e){}
     localStream = null;
   }
-  remoteAudio.srcObject = null;
+  remoteVideo.srcObject = null;
+  localVideo.srcObject = null;
   currentCallDocRef = null;
   hideOverlay();
   hangupBtn.style.display='none';
@@ -382,10 +479,8 @@ function subscribeIncomingCallsFor(short){
     snap.forEach(docSnap=>{
       const data = docSnap.data(); const id = docSnap.id;
       if(!data) return;
-      // show only ringing calls
       if(data.status === 'ringing'){
-        // if we already in call => ignore other incoming
-        if(pc) return;
+        if(pc) return; // already in call
         callTitle.textContent = 'Вам звонит';
         callSubtitle.textContent = '@' + (data.callerShort || 'XXXXX');
         showOverlay('incoming', { callerShort: data.callerShort });
@@ -405,9 +500,9 @@ function subscribeIncomingCallsFor(short){
   }, err => console.warn('incoming sub err', err));
 }
 
-/* ========== on unload: try cleanup ========== */
+/* ========== cleanup on unload ========== */
 window.addEventListener('beforeunload', async () => {
-  try{ await cleanupCallState(false); }catch(e){}
+  try{ await cleanupCallState(); }catch(e){}
 });
 </script>
 </body>
