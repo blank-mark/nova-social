@@ -3,127 +3,165 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Nova Prospect — Chat (Telegram style)</title>
+<title>Nova Prospect — Chat (Telegram style, purple dark)</title>
 
-<!-- Basic styling: telegram-like, responsive -->
 <style>
   :root{
-    --bg:#f6f7fb;
-    --sidebar:#ffffff;
-    --accent:#2b9df4;
-    --muted:#9aa4b2;
-    --bubble-me:#d2f1ff;
-    --bubble-other:#ffffff;
-    --max-width:1100px;
+    --bg-main: #0f0c16;
+    --bg-sidebar: #141018;
+    --bg-chat: #121018;
+    --accent: #7c4dff;
+    --accent-2: #5e35b1;
+    --muted: #9aa0c3;
+    --text: #e9e6f7;
+    --bubble-me: #f3e8ff;
+    --bubble-other: #1f1a2b;
+    --bubble-other-text: #ffffff;
+    --max-width:1200px;
   }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:var(--bg);font-family:Inter,system-ui,Arial,sans-serif;color:#111}
-  .app{max-width:var(--max-width);margin:12px auto;height:calc(100vh - 24px);display:flex;border-radius:10px;overflow:hidden;box-shadow:0 6px 30px rgba(16,24,40,0.08)}
+  html,body{height:100%;margin:0;background:var(--bg-main);font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--text)}
+  .app{max-width:var(--max-width);margin:8px auto;height:calc(100vh - 16px);display:flex;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,var(--bg-main),#0b0910);box-shadow:0 8px 40px rgba(0,0,0,0.6)}
   /* Sidebar */
-  .sidebar{width:340px;background:var(--sidebar);display:flex;flex-direction:column;border-right:1px solid rgba(16,24,40,0.06)}
-  .sb-header{padding:16px;border-bottom:1px solid rgba(16,24,40,0.04);display:flex;align-items:center;gap:12px}
-  .sb-logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#6fb9ff);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
-  .sb-title{font-size:16px;font-weight:600}
-  .sb-search{padding:12px;border-bottom:1px solid rgba(16,24,40,0.04)}
-  .search-input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(16,24,40,0.06);background:#f2f5fb}
-  .chats{flex:1;overflow:auto;padding:8px}
-  .chat-item{display:flex;gap:10px;align-items:center;padding:10px;border-radius:10px;cursor:pointer}
-  .chat-item:hover{background:rgba(43,157,244,0.06)}
-  .avatar{width:48px;height:48px;border-radius:12px;background:#ddd;flex-shrink:0;object-fit:cover}
-  .chat-main{flex:1;min-width:0}
-  .chat-name{font-weight:600}
-  .chat-last{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sb-footer{padding:10px;border-top:1px solid rgba(16,24,40,0.04);display:flex;flex-direction:column;gap:8px}
-  .btn{padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:white;font-weight:600;cursor:pointer}
-  .ghost{background:transparent;border:1px solid rgba(16,24,40,0.06);color:#111}
-  /* Main */
-  .main{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#fff,#fbfdff)}
-  .main-header{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(16,24,40,0.04)}
-  .main-avatar{width:44px;height:44px;border-radius:10px;object-fit:cover}
-  .main-title{font-weight:700}
-  .messages{flex:1;padding:18px;overflow:auto;background:linear-gradient(180deg, #f7fbff00, #f6f7fb)}
-  .message-row{display:flex;margin-bottom:10px;align-items:flex-end}
-  .message-row.me{justify-content:flex-end}
-  .bubble{max-width:66%;padding:10px 12px;border-radius:14px;box-shadow:0 6px 18px rgba(16,24,40,0.04)}
-  .bubble.me{background:var(--bubble-me);border-bottom-right-radius:6px}
-  .bubble.other{background:var(--bubble-other);border-bottom-left-radius:6px}
-  .msg-meta{font-size:12px;color:var(--muted);margin-bottom:6px}
-  .msg-img{max-width:280px;border-radius:8px;display:block}
-  .msg-audio{display:block;width:240px}
-  .composer{padding:12px;border-top:1px solid rgba(16,24,40,0.04);display:flex;gap:8px;align-items:center}
-  .composer textarea{flex:1;min-height:44px;max-height:160px;padding:10px;border-radius:10px;border:1px solid rgba(16,24,40,0.06);resize:none}
-  .compose-actions{display:flex;gap:8px;align-items:center}
-  .icon-btn{width:40px;height:40px;border-radius:10px;border:1px solid rgba(16,24,40,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;background:white}
+  .sidebar{width:96px;background:var(--bg-sidebar);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.03)}
+  .sidebar-top{padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .logo-circle{width:52px;height:52;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:800;color:white}
+  .sidebar-search{padding:10px;border-bottom:1px solid rgba(255,255,255,0.02); width:100%}
+  .search-compact{width:100%;padding:8px;border-radius:10px;border:0;background:#1a1624;color:var(--text);outline:none;font-size:13px}
+  .avatars-col{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:12px;align-items:center}
+  .avatar-btn{width:56px;height:56;border-radius:50%;background:#241f2b;border:2px solid rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+  .avatar-img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+  .avatar-badge{position:absolute;right:-2px;bottom:-2px;background:#ff3b30;color:white;font-size:12px;padding:3px 6px;border-radius:14px;border:2px solid var(--bg-sidebar)}
+  .sidebar-footer{padding:10px;display:flex;flex-direction:column;gap:8px;align-items:center;border-top:1px solid rgba(255,255,255,0.02)}
   .small{font-size:13px;color:var(--muted)}
-  /* Responsive */
+  .ghost-btn{background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--text);padding:8px;border-radius:10px;cursor:pointer}
+
+  /* Main left panel (expanded) */
+  .left-panel{width:320px;background:var(--bg-chat);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.02)}
+  .left-top{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.02)}
+  .left-logo{width:44px;height:44;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+  .left-search{padding:10px;border-bottom:1px solid rgba(255,255,255,0.02)}
+  .search-input{width:100%;padding:10px;border-radius:12px;border:0;background:#141018;color:var(--text);outline:none}
+  .chat-list{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
+  .chat-row{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;cursor:pointer}
+  .chat-row:hover{background:rgba(124,77,255,0.06)}
+  .chat-row.active{background:linear-gradient(90deg, rgba(124,77,255,0.09), rgba(94,53,177,0.04))}
+  .chat-name{font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chat-sub{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .unread-pill{background:#ff3b30;color:white;padding:4px 8px;border-radius:12px;font-size:12px}
+
+  /* Main chat area */
+  .main{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#0b0910,#0f0c16)}
+  .main-header{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid rgba(255,255,255,0.02)}
+  .main-avatar{width:48px;height:48;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,0.02)}
+  .main-title{font-weight:800;color:var(--text)}
+  .main-sub{font-size:13px;color:var(--muted)}
+  .messages{flex:1;padding:20px;overflow:auto}
+  .message-row{display:flex;margin-bottom:12px;align-items:flex-end}
+  .message-row.me{justify-content:flex-end}
+  .bubble{max-width:70%;padding:10px 14px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.6)}
+  .bubble.me{background:linear-gradient(180deg,var(--bubble-me),#f4e9ff);color:#0b0b0b;border-bottom-right-radius:6px}
+  .bubble.other{background:var(--bubble-other);color:var(--bubble-other-text);border-bottom-left-radius:6px}
+  .msg-meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .msg-img{max-width:320px;border-radius:10px;display:block}
+  .msg-audio{display:block;width:240px}
+  .composer{padding:12px;border-top:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:center;background:linear-gradient(180deg,#0f0c16,#0b0910)}
+  .composer .actions{display:flex;gap:8px;align-items:center}
+  .composer textarea{flex:1;min-height:46px;max-height:160px;padding:12px;border-radius:12px;border:0;background:#0b0810;color:var(--text);outline:none;resize:none}
+  .icon-btn{width:44px;height:44;border-radius:10px;border:0;background:#111014;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .send-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;border-radius:12px;padding:10px 14px;border:0;cursor:pointer;font-weight:700}
+
+  /* Notifications permission UI */
+  .notify-perm{padding:8px;border-radius:10px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;font-weight:700;border:0;cursor:pointer}
+
+  /* Responsive: on small screens show left-panel collapsed like WhatsApp */
   @media (max-width:900px){
-    .sidebar{width:100%;height:42%;order:1}
-    .main{height:58%}
-    .app{flex-direction:column;height:calc(100vh - 24px)}
+    .app{flex-direction:column;height:100vh;margin:0;border-radius:0}
+    .sidebar{display:flex;flex-direction:row;height:64px;width:100%}
+    .left-panel{width:100%;height:calc(100vh - 64px);order:1}
+    .main{height:100%;order:2}
+    .avatars-col{flex-direction:row;overflow:auto;padding:8px}
+    .sidebar-footer{display:none}
+    .sidebar-top{display:flex;flex-direction:row;align-items:center}
   }
   @media (max-width:480px){
-    .sidebar{height:44%}
-    .main{height:56%}
-    .avatar{width:40px;height:40px}
-    .chat-item{padding:8px}
-    .messages{padding:12px}
-    .bubble{max-width:78%}
+    .left-panel{width:100%}
+    .chat-row{padding:8px}
+    .bubble{max-width:82%}
   }
 </style>
 </head>
 <body>
 
 <div class="app">
-  <!-- SIDEBAR -->
-  <div class="sidebar" id="sidebar">
-    <div class="sb-header">
-      <div class="sb-logo">NP</div>
-      <div>
-        <div class="sb-title">Nova Prospect</div>
-        <div class="small">Быстрый чат</div>
-      </div>
+  <!-- narrow left icon column (desktop) -->
+  <div class="sidebar" id="sidebarIcons">
+    <div class="sidebar-top">
+      <div class="logo-circle">NP</div>
     </div>
 
-    <div class="sb-search">
-      <input id="globalSearch" class="search-input" placeholder="Поиск username или имя...">
+    <div class="avatars-col" id="avatarsCol">
+      <!-- avatars stack -->
+      <!-- populated by JS (recent threads owners) -->
     </div>
 
-    <div class="chats" id="chatsList">
-      <!-- Список чатов (dmThreads) сюда -->
-    </div>
-
-    <div class="sb-footer">
-      <div id="authBlock">
-        <!-- auth UI inserted by JS -->
-      </div>
-      <button id="newChatBtn" class="btn ghost">Новый чат (по username)</button>
+    <div class="sidebar-footer">
+      <button id="openLeftPanelBtn" class="ghost-btn" title="Открыть список чатов">≡</button>
     </div>
   </div>
 
-  <!-- MAIN -->
+  <!-- expanded left panel (like Telegram list) -->
+  <div class="left-panel" id="leftPanel">
+    <div class="left-top">
+      <div class="left-logo">NP</div>
+      <div style="flex:1">
+        <div style="font-weight:800;color:var(--text)">Nova Prospect</div>
+        <div class="small">Быстрый мессенджер</div>
+      </div>
+      <button id="notifToggle" class="ghost-btn" title="Включить уведомления">🔔</button>
+    </div>
+
+    <div class="left-search">
+      <input id="globalSearch" class="search-input" placeholder="Поиск по username...">
+    </div>
+
+    <div class="chat-list" id="chatsList">
+      <!-- chat rows -->
+    </div>
+
+    <div style="padding:12px;border-top:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:center;">
+      <div id="authBlock" style="flex:1"></div>
+      <button id="newChatBtn" class="ghost-btn">Новый</button>
+    </div>
+  </div>
+
+  <!-- main chat area -->
   <div class="main">
     <div class="main-header" id="mainHeader">
-      <img id="peerAvatar" class="main-avatar" src="https://via.placeholder.com/44?text=?" alt="avatar">
-      <div>
+      <img id="peerAvatar" class="main-avatar" src="https://via.placeholder.com/48?text=?" alt="avatar">
+      <div style="flex:1">
         <div id="peerName" class="main-title">Выберите чат</div>
-        <div id="peerSub" class="small">Онлайн</div>
+        <div id="peerSub" class="main-sub">@username</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="searchInChat" class="icon-btn" title="Поиск в чате">🔎</button>
+        <button id="moreBtn" class="icon-btn" title="Ещё">⋯</button>
       </div>
     </div>
 
     <div class="messages" id="messages"></div>
 
     <div class="composer">
-      <div class="compose-actions">
+      <div class="actions">
         <input id="imageInput" type="file" accept="image/*" style="display:none">
         <button id="imageBtn" class="icon-btn" title="Прикрепить фото">📷</button>
-
         <button id="recordBtn" class="icon-btn" title="Записать голос">🎙️</button>
       </div>
 
       <textarea id="messageInput" placeholder="Напишите сообщение... (Enter — отправить, Shift+Enter — новая строка)"></textarea>
 
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button id="sendBtn" class="btn">Отправить</button>
+        <button id="sendBtn" class="send-btn">Отправить</button>
       </div>
     </div>
   </div>
@@ -157,10 +195,14 @@
   const storage = getStorage(app);
 
   // --- UI refs ---
+  const avatarsCol = document.getElementById('avatarsCol');
+  const leftPanel = document.getElementById('leftPanel');
+  const openLeftPanelBtn = document.getElementById('openLeftPanelBtn');
   const chatsList = document.getElementById('chatsList');
   const globalSearch = document.getElementById('globalSearch');
   const authBlock = document.getElementById('authBlock');
   const newChatBtn = document.getElementById('newChatBtn');
+  const notifToggle = document.getElementById('notifToggle');
 
   const peerAvatar = document.getElementById('peerAvatar');
   const peerName = document.getElementById('peerName');
@@ -174,18 +216,69 @@
   const imageInput = document.getElementById('imageInput');
   const recordBtn = document.getElementById('recordBtn');
 
-  // --- auth UI (simple) ---
+  // --- small utilities for unread & notifications ---
+  const threadMsgUnsubs = {}; // threadId -> unsubscribe function for last-message listener
+  const unreadCounts = {}; // threadId -> number
+  const lastSeenLocalKey = 'np_lastseen_v1'; // store map threadId->timestamp
+  function getLastSeenMap(){ try { return JSON.parse(localStorage.getItem(lastSeenLocalKey)||'{}'); } catch(e){ return {}; } }
+  function setLastSeen(threadId, ts){ const m=getLastSeenMap(); m[threadId]=ts; localStorage.setItem(lastSeenLocalKey, JSON.stringify(m)); unreadCounts[threadId]=0; renderThreadBadge(threadId); }
+
+  // play short beep using WebAudio
+  function playNotificationSound(){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type='sine';
+      o.frequency.value=880;
+      g.gain.value=0.08;
+      o.connect(g); g.connect(ctx.destination);
+      o.start();
+      setTimeout(()=>{ o.stop(); ctx.close(); }, 120);
+    }catch(e){ /* ignore */ }
+  }
+
+  // request and show desktop notification
+  async function showDesktopNotification(title, body, icon){
+    if (("Notification" in window) && Notification.permission === "granted") {
+      try {
+        const n = new Notification(title, { body, icon });
+        n.onclick = () => window.focus();
+      } catch(e){ console.warn(e); }
+    }
+  }
+
+  // toggle left panel visibility on narrow screens
+  openLeftPanelBtn.onclick = () => {
+    leftPanel.style.display = leftPanel.style.display === 'none' ? 'flex' : 'none';
+  };
+
+  // Request notification permission when clicking notifToggle
+  notifToggle.onclick = async () => {
+    if (!("Notification" in window)) return alert('Уведомления не поддерживаются в этом браузере');
+    if (Notification.permission === 'default') {
+      const p = await Notification.requestPermission();
+      if (p === 'granted') alert('Уведомления включены — не забудь разрешить в системе');
+      else alert('Уведомления не разрешены');
+    } else if (Notification.permission === 'granted') {
+      alert('Уведомления уже включены');
+    } else {
+      alert('Уведомления заблокированы в браузере. Разрешите их в настройках сайта.');
+    }
+  };
+
+  // --- auth UI (simple) - preserve original logic but render in authBlock ---
   function renderAuthUI(user) {
     authBlock.innerHTML = '';
     if (!user) {
       const wrapper = document.createElement('div');
       wrapper.innerHTML = `
-        <input id="email" placeholder="Email" style="padding:8px;border-radius:8px;border:1px solid rgba(16,24,40,0.06)">
-        <input id="password" type="password" placeholder="Пароль" style="padding:8px;border-radius:8px;border:1px solid rgba(16,24,40,0.06)">
-        <input id="signupUsername" placeholder="username (при регистрации)" style="padding:8px;border-radius:8px;border:1px solid rgba(16,24,40,0.06)">
+        <input id="email" placeholder="Email" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text)">
+        <input id="password" type="password" placeholder="Пароль" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text)">
+        <input id="signupUsername" placeholder="username (при регистрации)" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text)">
         <div style="display:flex;gap:8px;margin-top:8px">
-          <button id="googleSignIn" class="btn">Google</button>
-          <button id="emailSignUp" class="btn ghost">Регистрация</button>
+          <button id="googleSignIn" class="ghost-btn">Google</button>
+          <button id="emailSignUp" class="ghost-btn">Регистрация</button>
         </div>
       `;
       authBlock.appendChild(wrapper);
@@ -211,26 +304,27 @@
       const wrapper = document.createElement('div');
       wrapper.innerHTML = `
         <div style="display:flex;gap:8px;align-items:center">
-          <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:48px;height:48px;border-radius:10px;object-fit:cover">
-          <div>
-            <div style="font-weight:700">${user.displayName||'(без имени)'}</div>
+          <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)">
+          <div style="min-width:0">
+            <div style="font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${user.displayName||'(без имени)'}</div>
             <div class="small">${user.email||''}</div>
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:8px">
-          <button id="signOut" class="btn ghost">Выйти</button>
+          <button id="signOut" class="ghost-btn">Выйти</button>
         </div>
       `;
       authBlock.appendChild(wrapper);
       document.getElementById('signOut').onclick = async () => {
+        if (unsubscribeThreadsAll) unsubscribeThreadsAll();
         if (unsubscribeThreads) unsubscribeThreads();
         await signOut(auth);
       };
     }
   }
 
-  // --- username helpers (same as раньше) ---
-  import { runTransaction as rT } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js"; // alias for clarity
+  // --- username helpers (preserve original) ---
+  import { runTransaction as rT } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
   async function createUsernameForUid(usernameRaw, uid, displayName = null) {
     const username = sanitizeUsername(usernameRaw);
     if (!username) throw 'Неверный username';
@@ -251,43 +345,108 @@
   }
   function sanitizeUsername(s) { if (!s) return null; const low = s.toLowerCase(); if (!/^[a-z0-9_]{3,32}$/.test(low)) return null; return low; }
 
-  // --- threads list (recent chats) ---
+  // --- threads list (recent chats) with avatar column and unread handling ---
   let unsubscribeThreads = null;
+  let unsubscribeThreadsAll = null; // to unsubscribe per-thread listeners for notifications
   async function subscribeMyThreads(uid) {
+    // cleanup previous listeners
     if (unsubscribeThreads) unsubscribeThreads();
+    // also cleanup per-thread listeners
+    if (unsubscribeThreadsAll) unsubscribeThreadsAll();
+
     const q = query(collection(db, 'dmThreads'), where('participants', 'array-contains', uid), orderBy('createdAt', 'desc'));
     unsubscribeThreads = onSnapshot(q, async (snap) => {
       chatsList.innerHTML = '';
+      avatarsCol.innerHTML = '';
       if (snap.empty) {
-        chatsList.innerHTML = '<div class="small" style="padding:12px">Нет чатов. Найди пользователя и начни диалог.</div>';
+        chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Нет чатов. Найди пользователя и начни диалог.</div>';
         return;
       }
+
+      // maintain per-thread last-message listeners for notifications
+      const perThreadUnsubs = [];
       for (const docSnap of snap.docs) {
         const data = docSnap.data();
+        const threadId = docSnap.id;
         const otherUid = data.participants.find(x => x !== uid);
-        const profile = (await getDoc(doc(db, 'profiles', otherUid))).data() || {};
+        const profileSnap = await getDoc(doc(db, 'profiles', otherUid));
+        const profile = profileSnap.exists() ? profileSnap.data() : {};
+        const lastText = data.lastMessageText || '';
+
+        // render list row
         const el = document.createElement('div');
-        el.className = 'chat-item';
+        el.className = 'chat-row';
+        el.id = 'chatrow_' + threadId;
         el.innerHTML = `
-          <img src="${profile.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar">
-          <div class="chat-main">
+          <img src="${profile.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar" style="width:56px;height:56;border-radius:12px">
+          <div style="flex:1;min-width:0">
             <div class="chat-name">${profile.username||profile.displayName||otherUid}</div>
-            <div class="chat-last small">${data.lastMessageText?data.lastMessageText.slice(0,60):'Новый чат'}</div>
+            <div class="chat-sub">${lastText || 'Новый чат'}</div>
           </div>
+          <div id="badge_${threadId}"></div>
         `;
-        el.onclick = () => openDirectChat({ uid: otherUid, username: profile.username, displayName: profile.displayName });
+        el.onclick = () => {
+          openDirectChat({ uid: otherUid, username: profile.username, displayName: profile.displayName, photoURL: profile.photoURL });
+          // mark as read locally
+          setLastSeen(threadId, Date.now());
+        };
         chatsList.appendChild(el);
+
+        // add avatar button in narrow icons column
+        const a = document.createElement('div');
+        a.className = 'avatar-btn';
+        a.innerHTML = `<img src="${profile.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar-img">`;
+        a.onclick = () => { el.click(); };
+        const badgeWrap = document.createElement('div'); badgeWrap.id = 'avatar_badge_' + threadId;
+        a.appendChild(badgeWrap);
+        avatarsCol.appendChild(a);
+
+        // subscribe to last message of this thread to detect incoming messages -> notification
+        const msgsCol = collection(db, 'dmThreads', threadId, 'messages');
+        const qLast = query(msgsCol, orderBy('createdAt', 'desc'), limit(1));
+        const unsub = onSnapshot(qLast, (msnap) => {
+          msnap.forEach(mdoc => {
+            const m = mdoc.data();
+            // if message from other user and newer than lastSeen -> unread & notify
+            if (m.senderId !== uid) {
+              const lastSeenMap = getLastSeenMap();
+              const lastSeen = lastSeenMap[threadId] || 0;
+              const createdTs = m.createdAt && m.createdAt.toMillis ? m.createdAt.toMillis() : Date.now();
+              if (createdTs > lastSeen) {
+                unreadCounts[threadId] = (unreadCounts[threadId] || 0) + 1;
+                renderThreadBadge(threadId);
+                // desktop notification + sound
+                const title = (m.displayName || 'Сообщение');
+                const body = m.type === 'text' ? m.text : (m.type === 'image' ? 'Фото' : 'Голосовое сообщение');
+                playNotificationSound();
+                showDesktopNotification(title, body, profile.photoURL || undefined);
+              }
+            }
+          });
+        }, (err) => console.warn('last message sub err', err));
+        perThreadUnsubs.push(unsub);
       }
+
+      // store ability to unsubscribe all per-thread listeners
+      unsubscribeThreadsAll = () => perThreadUnsubs.forEach(u => u && u());
     }, (err) => {
       console.warn('threads sub err', err);
     });
   }
 
+  function renderThreadBadge(threadId){
+    const badge = document.getElementById('badge_' + threadId);
+    const avBadge = document.getElementById('avatar_badge_' + threadId);
+    const count = unreadCounts[threadId] || 0;
+    if (badge) badge.innerHTML = count ? `<div class="unread-pill">${count}</div>` : '';
+    if (avBadge) avBadge.innerHTML = count ? `<div class="avatar-badge">${count}</div>` : '';
+  }
+
   // --- search by username (globalSearch) ---
   globalSearch.oninput = debounce(async (e) => {
     const q = e.target.value.trim().toLowerCase();
-    chatsList.innerHTML = '<div class="small" style="padding:12px">Поиск...</div>';
-    if (!q) { // re-subscribe my threads if logged in
+    chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Поиск...</div>';
+    if (!q) {
       const user = auth.currentUser;
       if (user) subscribeMyThreads(user.uid);
       return;
@@ -299,25 +458,26 @@
         const owner = unameSnap.data().owner;
         const prof = (await getDoc(doc(db, 'profiles', owner))).data() || {};
         const el = document.createElement('div');
-        el.className = 'chat-item';
+        el.className = 'chat-row';
         el.innerHTML = `
-          <img src="${prof.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar">
-          <div class="chat-main">
+          <img src="${prof.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar" style="width:56px;height:56;border-radius:12px">
+          <div style="flex:1;min-width:0">
             <div class="chat-name">${prof.displayName||q}</div>
-            <div class="chat-last small">@${q}</div>
+            <div class="chat-sub small">@${q}</div>
           </div>
+          <div></div>
         `;
-        el.onclick = () => openDirectChat({ uid: owner, username: q, displayName: prof.displayName });
+        el.onclick = () => openDirectChat({ uid: owner, username: q, displayName: prof.displayName, photoURL: prof.photoURL });
         chatsList.appendChild(el);
       } else {
-        chatsList.innerHTML = '<div class="small" style="padding:12px">Ничего не найдено</div>';
+        chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ничего не найдено</div>';
       }
     } catch (err) {
-      console.warn(err); chatsList.innerHTML = '<div class="small" style="padding:12px">Ошибка поиска</div>';
+      console.warn(err); chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ошибка поиска</div>';
     }
   }, 350);
 
-  // --- DM thread helpers ---
+  // --- DM thread helpers (preserve original) ---
   function threadIdFor(u1, u2){ const ids=[u1,u2].sort(); return ids[0] + '_' + ids[1]; }
   let unsubscribeMessages = null;
   let currentPeer = null;
@@ -330,7 +490,7 @@
     await runTransaction(db, async (tx) => {
       const tSnap = await tx.get(threadRef);
       if (!tSnap.exists()) tx.set(threadRef, { participants: [user.uid, peer.uid], createdAt: serverTimestamp() });
-      // обновим lastOpened? можно добавить позже
+      // optionally update lastSeen/time
     });
     subscribeToMessages(tId);
     return tId;
@@ -347,6 +507,11 @@
         renderMessage(m);
       });
       messagesEl.scrollTop = messagesEl.scrollHeight;
+      // clear unread for this thread on open
+      unreadCounts[tId] = 0;
+      renderThreadBadge(tId);
+      // set last seen timestamp
+      setLastSeen(tId, Date.now());
     }, (err) => {
       console.warn('msgs sub err', err);
     });
@@ -382,17 +547,21 @@
   async function openDirectChat(peer) {
     currentPeer = peer;
     peerName.textContent = peer.displayName || peer.username || 'Пользователь';
-    peerAvatar.src = peer.photoURL || 'https://via.placeholder.com/44?text=?';
+    peerAvatar.src = peer.photoURL || 'https://via.placeholder.com/48?text=?';
     peerSub.textContent = '@' + (peer.username || '');
     try {
       const tId = await ensureThreadExistsAndSubscribe(peer);
       currentThreadId = tId;
+      // clear unread after opening
+      unreadCounts[tId] = 0;
+      renderThreadBadge(tId);
+      setLastSeen(tId, Date.now());
     } catch (e) {
       console.error(e); alert('Не удалось открыть чат: ' + (e.message || e));
     }
   }
 
-  // --- send message, image upload, audio upload ---
+  // --- send message, image upload, audio upload (preserve original) ---
   async function sendTextMessage(text) {
     if (!text) return;
     const user = auth.currentUser; if (!user) return alert('Войдите');
@@ -401,6 +570,8 @@
       const tId = await ensureThreadExistsAndSubscribe(currentPeer);
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
       await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text, type: 'text', createdAt: serverTimestamp() });
+      // optionally update lastMessageText in thread doc for UI convenience
+      await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: text, updatedAt: serverTimestamp() }, { merge: true });
     } catch (e) { console.error(e); alert('Ошибка отправки: ' + e.message); }
   }
 
@@ -419,6 +590,8 @@
       // send message with image type
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
       await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'image', createdAt: serverTimestamp() });
+      // update lastMessageText
+      await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: '[Фото]', updatedAt: serverTimestamp() }, { merge: true });
       imageInput.value = '';
     } catch (e) { console.error(e); alert('Ошибка загрузки изображения: ' + (e.message || e)); }
   };
@@ -428,12 +601,10 @@
   let audioChunks = [];
   recordBtn.onclick = async () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
-      // stop
       mediaRecorder.stop();
       recordBtn.textContent = '🎙️';
       recordBtn.style.background = '';
     } else {
-      // start
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
@@ -463,6 +634,7 @@
       const url = await getDownloadURL(sRef);
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
       await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'audio', createdAt: serverTimestamp() });
+      await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: '[Голосовое сообщение]', updatedAt: serverTimestamp() }, { merge: true });
     } catch (e) { console.error(e); alert('Ошибка загрузки голоса: ' + (e.message || e)); }
   }
 
@@ -486,8 +658,13 @@
     if (user) {
       // subscribe to my threads
       subscribeMyThreads(user.uid);
+      // request notifications permission prompt softly when logged in
+      if ("Notification" in window && Notification.permission === "default") {
+        try { await Notification.requestPermission(); } catch(e){ /* ignore */ }
+      }
     } else {
       if (unsubscribeThreads) unsubscribeThreads();
+      if (unsubscribeThreadsAll) unsubscribeThreadsAll();
     }
   });
 
@@ -509,8 +686,10 @@
   function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
   function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 
-  // remove analytics cookie warnings? not needed — ignore
+  // expose setLastSeen so user can click to mark read (optional)
+  window.setLastSeen = setLastSeen;
 
+  // end of module
 </script>
 </body>
 </html>
