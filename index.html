@@ -22,19 +22,8 @@
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg-main);font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--text)}
   .app{max-width:var(--max-width);margin:8px auto;height:calc(100vh - 16px);display:flex;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,var(--bg-main),#0b0910);box-shadow:0 8px 40px rgba(0,0,0,0.6)}
-  /* Sidebar */
-  .sidebar{width:96px;background:var(--bg-sidebar);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.03)}
-  .sidebar-top{padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px}
-  .logo-circle{width:52px;height:52;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:800;color:white}
-  .sidebar-search{padding:10px;border-bottom:1px solid rgba(255,255,255,0.02); width:100%}
-  .search-compact{width:100%;padding:8px;border-radius:10px;border:0;background:#1a1624;color:var(--text);outline:none;font-size:13px}
-  .avatars-col{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:12px;align-items:center}
-  .avatar-btn{width:56px;height:56;border-radius:50%;background:#241f2b;border:2px solid rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
-  .avatar-img{width:100%;height:100%;border-radius:50%;object-fit:cover}
-  .avatar-badge{position:absolute;right:-2px;bottom:-2px;background:#ff3b30;color:white;font-size:12px;padding:3px 6px;border-radius:14px;border:2px solid var(--bg-sidebar)}
-  .sidebar-footer{padding:10px;display:flex;flex-direction:column;gap:8px;align-items:center;border-top:1px solid rgba(255,255,255,0.02)}
-  .small{font-size:13px;color:var(--muted)}
-  .ghost-btn{background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--text);padding:8px;border-radius:10px;cursor:pointer}
+  /* Sidebar (hidden per request) */
+  .sidebar{display:none} /* панель слева скрыта, оставляем только поиск в left-panel */
 
   /* Main left panel (expanded) */
   .left-panel{width:320px;background:var(--bg-chat);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.02)}
@@ -49,6 +38,14 @@
   .chat-name{font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chat-sub{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .unread-pill{background:#ff3b30;color:white;padding:4px 8px;border-radius:12px;font-size:12px}
+  .fav-add-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer;margin-left:8px}
+  .fav-remove{position:absolute;right:4px;top:4px;background:rgba(0,0,0,0.4);border-radius:8px;padding:2px 6px;font-size:12px;cursor:pointer;color:#fff}
+
+  /* Favorites bar at top of main area */
+  .favorites-bar{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.02);overflow:auto;background:linear-gradient(90deg, rgba(124,77,255,0.02), transparent)}
+  .fav-item{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:64px;position:relative;cursor:pointer}
+  .fav-avatar{width:56px;height:56;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)}
+  .fav-username{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:64px;text-align:center}
 
   /* Main chat area */
   .main{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#0b0910,#0f0c16)}
@@ -71,46 +68,24 @@
   .icon-btn{width:44px;height:44;border-radius:10px;border:0;background:#111014;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer}
   .send-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;border-radius:12px;padding:10px 14px;border:0;cursor:pointer;font-weight:700}
 
-  /* Notifications permission UI */
-  .notify-perm{padding:8px;border-radius:10px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;font-weight:700;border:0;cursor:pointer}
-
   /* Responsive: on small screens show left-panel collapsed like WhatsApp */
   @media (max-width:900px){
     .app{flex-direction:column;height:100vh;margin:0;border-radius:0}
-    .sidebar{display:flex;flex-direction:row;height:64px;width:100%}
-    .left-panel{width:100%;height:calc(100vh - 64px);order:1}
-    .main{height:100%;order:2}
-    .avatars-col{flex-direction:row;overflow:auto;padding:8px}
-    .sidebar-footer{display:none}
-    .sidebar-top{display:flex;flex-direction:row;align-items:center}
+    .left-panel{width:100%;height:42%;order:1}
+    .main{height:58%;order:2}
   }
   @media (max-width:480px){
     .left-panel{width:100%}
     .chat-row{padding:8px}
     .bubble{max-width:82%}
+    .fav-username{display:none}
   }
 </style>
 </head>
 <body>
 
 <div class="app">
-  <!-- narrow left icon column (desktop) -->
-  <div class="sidebar" id="sidebarIcons">
-    <div class="sidebar-top">
-      <div class="logo-circle">NP</div>
-    </div>
-
-    <div class="avatars-col" id="avatarsCol">
-      <!-- avatars stack -->
-      <!-- populated by JS (recent threads owners) -->
-    </div>
-
-    <div class="sidebar-footer">
-      <button id="openLeftPanelBtn" class="ghost-btn" title="Открыть список чатов">≡</button>
-    </div>
-  </div>
-
-  <!-- expanded left panel (like Telegram list) -->
+  <!-- left panel: оставляем только поиск и список чатов -->
   <div class="left-panel" id="leftPanel">
     <div class="left-top">
       <div class="left-logo">NP</div>
@@ -118,7 +93,6 @@
         <div style="font-weight:800;color:var(--text)">Nova Prospect</div>
         <div class="small">Быстрый мессенджер</div>
       </div>
-      <button id="notifToggle" class="ghost-btn" title="Включить уведомления">🔔</button>
     </div>
 
     <div class="left-search">
@@ -136,7 +110,7 @@
   </div>
 
   <!-- main chat area -->
-  <div class="main">
+  <div class="main" style="display:flex;flex-direction:column">
     <div class="main-header" id="mainHeader">
       <img id="peerAvatar" class="main-avatar" src="https://via.placeholder.com/48?text=?" alt="avatar">
       <div style="flex:1">
@@ -147,6 +121,11 @@
         <button id="searchInChat" class="icon-btn" title="Поиск в чате">🔎</button>
         <button id="moreBtn" class="icon-btn" title="Ещё">⋯</button>
       </div>
+    </div>
+
+    <!-- Favorites bar (появляются избранные) -->
+    <div class="favorites-bar" id="favoritesBar" title="Избранные — клик для открытия чата">
+      <!-- favorites populated by JS -->
     </div>
 
     <div class="messages" id="messages"></div>
@@ -195,14 +174,13 @@
   const storage = getStorage(app);
 
   // --- UI refs ---
-  const avatarsCol = document.getElementById('avatarsCol');
   const leftPanel = document.getElementById('leftPanel');
-  const openLeftPanelBtn = document.getElementById('openLeftPanelBtn');
   const chatsList = document.getElementById('chatsList');
   const globalSearch = document.getElementById('globalSearch');
   const authBlock = document.getElementById('authBlock');
   const newChatBtn = document.getElementById('newChatBtn');
-  const notifToggle = document.getElementById('notifToggle');
+
+  const favoritesBar = document.getElementById('favoritesBar');
 
   const peerAvatar = document.getElementById('peerAvatar');
   const peerName = document.getElementById('peerName');
@@ -216,14 +194,64 @@
   const imageInput = document.getElementById('imageInput');
   const recordBtn = document.getElementById('recordBtn');
 
-  // --- small utilities for unread & notifications ---
-  const threadMsgUnsubs = {}; // threadId -> unsubscribe function for last-message listener
-  const unreadCounts = {}; // threadId -> number
-  const lastSeenLocalKey = 'np_lastseen_v1'; // store map threadId->timestamp
+  // --- favorites (localStorage) ---
+  const FAV_KEY = 'np_favs_v1';
+  function loadFavorites(){
+    try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); }
+    catch(e){ return []; }
+  }
+  function saveFavorites(list){ localStorage.setItem(FAV_KEY, JSON.stringify(list)); }
+  function isFav(username){ return loadFavorites().some(f => f.username === username); }
+
+  function renderFavoritesBar(){
+    const favs = loadFavorites();
+    favoritesBar.innerHTML = '';
+    if (favs.length === 0) {
+      favoritesBar.innerHTML = '<div class="small" style="color:var(--muted)">Избранных нет — добавь через + в поиске</div>';
+      return;
+    }
+    favs.forEach(f => {
+      const el = document.createElement('div');
+      el.className = 'fav-item';
+      el.innerHTML = `
+        <img src="${f.photoURL||'https://via.placeholder.com/56?text=?'}" class="fav-avatar">
+        <div class="fav-username">@${f.username}</div>
+      `;
+      // click opens chat
+      el.onclick = () => openDirectChat({ uid: f.uid, username: f.username, displayName: f.displayName, photoURL: f.photoURL });
+      // add small remove button
+      const rem = document.createElement('div');
+      rem.className = 'fav-remove';
+      rem.textContent = '✕';
+      rem.onclick = (e) => {
+        e.stopPropagation();
+        const newf = loadFavorites().filter(x => x.username !== f.username);
+        saveFavorites(newf);
+        renderFavoritesBar();
+      };
+      el.style.position = 'relative';
+      el.appendChild(rem);
+      favoritesBar.appendChild(el);
+    });
+  }
+
+  // add favorite (profile: {uid, username, displayName, photoURL})
+  function addFavorite(profile){
+    if (!profile || !profile.username) return;
+    const favs = loadFavorites();
+    if (favs.some(f => f.username === profile.username)) return; // already
+    favs.unshift({ uid: profile.uid, username: profile.username, displayName: profile.displayName || '', photoURL: profile.photoURL || '' });
+    saveFavorites(favs.slice(0, 50)); // keep limit
+    renderFavoritesBar();
+  }
+
+  // --- small utilities for unread & notifications (kept original) ---
+  const threadMsgUnsubs = {};
+  const unreadCounts = {};
+  const lastSeenLocalKey = 'np_lastseen_v1';
   function getLastSeenMap(){ try { return JSON.parse(localStorage.getItem(lastSeenLocalKey)||'{}'); } catch(e){ return {}; } }
   function setLastSeen(threadId, ts){ const m=getLastSeenMap(); m[threadId]=ts; localStorage.setItem(lastSeenLocalKey, JSON.stringify(m)); unreadCounts[threadId]=0; renderThreadBadge(threadId); }
 
-  // play short beep using WebAudio
   function playNotificationSound(){
     try{
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -238,7 +266,6 @@
     }catch(e){ /* ignore */ }
   }
 
-  // request and show desktop notification
   async function showDesktopNotification(title, body, icon){
     if (("Notification" in window) && Notification.permission === "granted") {
       try {
@@ -248,37 +275,18 @@
     }
   }
 
-  // toggle left panel visibility on narrow screens
-  openLeftPanelBtn.onclick = () => {
-    leftPanel.style.display = leftPanel.style.display === 'none' ? 'flex' : 'none';
-  };
-
-  // Request notification permission when clicking notifToggle
-  notifToggle.onclick = async () => {
-    if (!("Notification" in window)) return alert('Уведомления не поддерживаются в этом браузере');
-    if (Notification.permission === 'default') {
-      const p = await Notification.requestPermission();
-      if (p === 'granted') alert('Уведомления включены — не забудь разрешить в системе');
-      else alert('Уведомления не разрешены');
-    } else if (Notification.permission === 'granted') {
-      alert('Уведомления уже включены');
-    } else {
-      alert('Уведомления заблокированы в браузере. Разрешите их в настройках сайта.');
-    }
-  };
-
-  // --- auth UI (simple) - preserve original logic but render in authBlock ---
+  // --- auth UI (preserve original) ---
   function renderAuthUI(user) {
     authBlock.innerHTML = '';
     if (!user) {
       const wrapper = document.createElement('div');
       wrapper.innerHTML = `
-        <input id="email" placeholder="Email" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text)">
-        <input id="password" type="password" placeholder="Пароль" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text)">
-        <input id="signupUsername" placeholder="username (при регистрации)" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text)">
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button id="googleSignIn" class="ghost-btn">Google</button>
-          <button id="emailSignUp" class="ghost-btn">Регистрация</button>
+        <input id="email" placeholder="Email" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text);margin-bottom:6px">
+        <input id="password" type="password" placeholder="Пароль" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text);margin-bottom:6px">
+        <input id="signupUsername" placeholder="username (при регистрации)" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text);margin-bottom:6px">
+        <div style="display:flex;gap:8px">
+          <button id="googleSignIn" class="ghost-btn" style="flex:1">Google</button>
+          <button id="emailSignUp" class="ghost-btn" style="flex:1">Регистрация</button>
         </div>
       `;
       authBlock.appendChild(wrapper);
@@ -304,7 +312,7 @@
       const wrapper = document.createElement('div');
       wrapper.innerHTML = `
         <div style="display:flex;gap:8px;align-items:center">
-          <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)">
+          <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:48px;height:48;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)">
           <div style="min-width:0">
             <div style="font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${user.displayName||'(без имени)'}</div>
             <div class="small">${user.email||''}</div>
@@ -345,25 +353,21 @@
   }
   function sanitizeUsername(s) { if (!s) return null; const low = s.toLowerCase(); if (!/^[a-z0-9_]{3,32}$/.test(low)) return null; return low; }
 
-  // --- threads list (recent chats) with avatar column and unread handling ---
+  // --- threads list (recent chats) with unread handling (preserve original) ---
   let unsubscribeThreads = null;
-  let unsubscribeThreadsAll = null; // to unsubscribe per-thread listeners for notifications
+  let unsubscribeThreadsAll = null;
   async function subscribeMyThreads(uid) {
-    // cleanup previous listeners
     if (unsubscribeThreads) unsubscribeThreads();
-    // also cleanup per-thread listeners
     if (unsubscribeThreadsAll) unsubscribeThreadsAll();
 
     const q = query(collection(db, 'dmThreads'), where('participants', 'array-contains', uid), orderBy('createdAt', 'desc'));
     unsubscribeThreads = onSnapshot(q, async (snap) => {
       chatsList.innerHTML = '';
-      avatarsCol.innerHTML = '';
       if (snap.empty) {
         chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Нет чатов. Найди пользователя и начни диалог.</div>';
         return;
       }
 
-      // maintain per-thread last-message listeners for notifications
       const perThreadUnsubs = [];
       for (const docSnap of snap.docs) {
         const data = docSnap.data();
@@ -373,7 +377,6 @@
         const profile = profileSnap.exists() ? profileSnap.data() : {};
         const lastText = data.lastMessageText || '';
 
-        // render list row
         const el = document.createElement('div');
         el.className = 'chat-row';
         el.id = 'chatrow_' + threadId;
@@ -387,27 +390,16 @@
         `;
         el.onclick = () => {
           openDirectChat({ uid: otherUid, username: profile.username, displayName: profile.displayName, photoURL: profile.photoURL });
-          // mark as read locally
           setLastSeen(threadId, Date.now());
         };
         chatsList.appendChild(el);
 
-        // add avatar button in narrow icons column
-        const a = document.createElement('div');
-        a.className = 'avatar-btn';
-        a.innerHTML = `<img src="${profile.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar-img">`;
-        a.onclick = () => { el.click(); };
-        const badgeWrap = document.createElement('div'); badgeWrap.id = 'avatar_badge_' + threadId;
-        a.appendChild(badgeWrap);
-        avatarsCol.appendChild(a);
-
-        // subscribe to last message of this thread to detect incoming messages -> notification
+        // subscribe to last message of this thread for notifications
         const msgsCol = collection(db, 'dmThreads', threadId, 'messages');
         const qLast = query(msgsCol, orderBy('createdAt', 'desc'), limit(1));
         const unsub = onSnapshot(qLast, (msnap) => {
           msnap.forEach(mdoc => {
             const m = mdoc.data();
-            // if message from other user and newer than lastSeen -> unread & notify
             if (m.senderId !== uid) {
               const lastSeenMap = getLastSeenMap();
               const lastSeen = lastSeenMap[threadId] || 0;
@@ -415,7 +407,6 @@
               if (createdTs > lastSeen) {
                 unreadCounts[threadId] = (unreadCounts[threadId] || 0) + 1;
                 renderThreadBadge(threadId);
-                // desktop notification + sound
                 const title = (m.displayName || 'Сообщение');
                 const body = m.type === 'text' ? m.text : (m.type === 'image' ? 'Фото' : 'Голосовое сообщение');
                 playNotificationSound();
@@ -427,7 +418,6 @@
         perThreadUnsubs.push(unsub);
       }
 
-      // store ability to unsubscribe all per-thread listeners
       unsubscribeThreadsAll = () => perThreadUnsubs.forEach(u => u && u());
     }, (err) => {
       console.warn('threads sub err', err);
@@ -436,46 +426,68 @@
 
   function renderThreadBadge(threadId){
     const badge = document.getElementById('badge_' + threadId);
-    const avBadge = document.getElementById('avatar_badge_' + threadId);
     const count = unreadCounts[threadId] || 0;
     if (badge) badge.innerHTML = count ? `<div class="unread-pill">${count}</div>` : '';
-    if (avBadge) avBadge.innerHTML = count ? `<div class="avatar-badge">${count}</div>` : '';
   }
 
-  // --- search by username (globalSearch) ---
+  // --- search by username (prefix matching) ---
   globalSearch.oninput = debounce(async (e) => {
     const q = e.target.value.trim().toLowerCase();
     chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Поиск...</div>';
     if (!q) {
       const user = auth.currentUser;
       if (user) subscribeMyThreads(user.uid);
+      renderFavoritesBar();
       return;
     }
     try {
-      const unameSnap = await getDoc(doc(db, 'usernames', q));
+      // fetch up to 200 username docs, then filter client-side by prefix
+      const snap = await getDocs(query(collection(db, 'usernames'), limit(200)));
+      const matches = [];
+      snap.forEach(d => {
+        const uname = d.id;
+        if (uname.startsWith(q)) matches.push({ username: uname, owner: d.data().owner });
+      });
       chatsList.innerHTML = '';
-      if (unameSnap.exists()) {
-        const owner = unameSnap.data().owner;
-        const prof = (await getDoc(doc(db, 'profiles', owner))).data() || {};
+      if (matches.length === 0) {
+        chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ничего не найдено</div>';
+        return;
+      }
+      // render matches
+      for (const m of matches) {
+        const owner = m.owner;
+        const profSnap = await getDoc(doc(db, 'profiles', owner));
+        const prof = profSnap.exists() ? profSnap.data() : {};
         const el = document.createElement('div');
         el.className = 'chat-row';
+        // main content
         el.innerHTML = `
-          <img src="${prof.photoURL||'https://via.placeholder.com/48?text=?'}" class="avatar" style="width:56px;height:56;border-radius:12px">
+          <img src="${prof.photoURL||'https://via.placeholder.com/56?text=?'}" class="avatar" style="width:56px;height:56;border-radius:12px">
           <div style="flex:1;min-width:0">
-            <div class="chat-name">${prof.displayName||q}</div>
-            <div class="chat-sub small">@${q}</div>
+            <div class="chat-name">${prof.displayName || m.username}</div>
+            <div class="chat-sub small">@${m.username}</div>
           </div>
-          <div></div>
+          <div style="display:flex;align-items:center">
+            <button class="fav-add-btn" data-username="${m.username}">＋</button>
+          </div>
         `;
-        el.onclick = () => openDirectChat({ uid: owner, username: q, displayName: prof.displayName, photoURL: prof.photoURL });
+        // clicking row opens chat
+        el.onclick = (ev) => {
+          // avoid click when pressing + button
+          if (ev.target && ev.target.classList && ev.target.classList.contains('fav-add-btn')) return;
+          openDirectChat({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL });
+        };
+        // handle + button
+        el.querySelector('.fav-add-btn').onclick = (ev) => {
+          ev.stopPropagation();
+          addFavorite({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL });
+        };
         chatsList.appendChild(el);
-      } else {
-        chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ничего не найдено</div>';
       }
     } catch (err) {
       console.warn(err); chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ошибка поиска</div>';
     }
-  }, 350);
+  }, 200);
 
   // --- DM thread helpers (preserve original) ---
   function threadIdFor(u1, u2){ const ids=[u1,u2].sort(); return ids[0] + '_' + ids[1]; }
@@ -490,7 +502,6 @@
     await runTransaction(db, async (tx) => {
       const tSnap = await tx.get(threadRef);
       if (!tSnap.exists()) tx.set(threadRef, { participants: [user.uid, peer.uid], createdAt: serverTimestamp() });
-      // optionally update lastSeen/time
     });
     subscribeToMessages(tId);
     return tId;
@@ -507,10 +518,8 @@
         renderMessage(m);
       });
       messagesEl.scrollTop = messagesEl.scrollHeight;
-      // clear unread for this thread on open
       unreadCounts[tId] = 0;
       renderThreadBadge(tId);
-      // set last seen timestamp
       setLastSeen(tId, Date.now());
     }, (err) => {
       console.warn('msgs sub err', err);
@@ -552,7 +561,6 @@
     try {
       const tId = await ensureThreadExistsAndSubscribe(peer);
       currentThreadId = tId;
-      // clear unread after opening
       unreadCounts[tId] = 0;
       renderThreadBadge(tId);
       setLastSeen(tId, Date.now());
@@ -570,7 +578,6 @@
       const tId = await ensureThreadExistsAndSubscribe(currentPeer);
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
       await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text, type: 'text', createdAt: serverTimestamp() });
-      // optionally update lastMessageText in thread doc for UI convenience
       await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: text, updatedAt: serverTimestamp() }, { merge: true });
     } catch (e) { console.error(e); alert('Ошибка отправки: ' + e.message); }
   }
@@ -587,10 +594,8 @@
       const sRef = storageRef(storage, path);
       const snap = await uploadBytes(sRef, file);
       const url = await getDownloadURL(sRef);
-      // send message with image type
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
       await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'image', createdAt: serverTimestamp() });
-      // update lastMessageText
       await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: '[Фото]', updatedAt: serverTimestamp() }, { merge: true });
       imageInput.value = '';
     } catch (e) { console.error(e); alert('Ошибка загрузки изображения: ' + (e.message || e)); }
@@ -655,10 +660,9 @@
   // --- auth state handling ---
   onAuthStateChanged(auth, async (user) => {
     renderAuthUI(user);
+    renderFavoritesBar(); // update favorites bar on auth change
     if (user) {
-      // subscribe to my threads
       subscribeMyThreads(user.uid);
-      // request notifications permission prompt softly when logged in
       if ("Notification" in window && Notification.permission === "default") {
         try { await Notification.requestPermission(); } catch(e){ /* ignore */ }
       }
@@ -686,10 +690,11 @@
   function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
   function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 
-  // expose setLastSeen so user can click to mark read (optional)
-  window.setLastSeen = setLastSeen;
+  // keep favorites persistent and render on load
+  renderFavoritesBar();
 
-  // end of module
+  // expose setLastSeen for manual testing (optional)
+  window.setLastSeen = setLastSeen;
 </script>
 </body>
 </html>
