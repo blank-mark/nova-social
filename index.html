@@ -1,3 +1,4 @@
+html
 <!doctype html>
 <html lang="ru">
 <head>
@@ -86,7 +87,7 @@
   .header-controls { margin-left: auto; display:flex; gap:8px; align-items:center }
   .theme-toggle { padding:8px 10px; border-radius:8px; border:0; cursor:pointer; background:rgba(255,255,255,0.04); color:var(--text) }
 
-  /* Mobile design (matches requested style: top tabs, bottom nav like WhatsApp) */
+  /* Mobile design: улучшенная мобильная версия */
   @media (max-width:900px){
     .app{flex-direction:column;height:100vh;margin:0;border-radius:0}
     .left-panel{width:100%;height:42%;order:1}
@@ -110,6 +111,96 @@
     .favorites-bar{padding:8px;gap:12px}
     .fav-avatar{width:44px;height:44;border-radius:50%}
     .fav-username{font-size:11px}
+
+    /* Улучшенный мобильный дизайн: крупные элементы, удобная регистрация */
+    .left-top {
+      padding: 16px 12px;
+    }
+    .left-logo {
+      width: 52px;
+      height: 52px;
+      font-size: 20px;
+    }
+    .left-top div:last-child .small {
+      font-size: 14px;
+    }
+    .search-input {
+      padding: 14px 16px;
+      font-size: 16px;
+      border-radius: 24px;
+    }
+    /* Блок авторизации на мобильных — крупные поля и кнопки */
+    #authBlock {
+      width: 100%;
+    }
+    #authBlock input {
+      width: 100%;
+      padding: 16px 18px !important;
+      font-size: 16px !important;
+      border-radius: 24px !important;
+      margin-bottom: 12px !important;
+      background: rgba(0,0,0,0.25) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+    #authBlock button {
+      padding: 16px !important;
+      font-size: 18px !important;
+      border-radius: 32px !important;
+      font-weight: 600;
+    }
+    .light-theme #authBlock input {
+      background: #f2f4f8 !important;
+      border: 1px solid #ddd !important;
+    }
+    .chat-row {
+      padding: 14px 10px;
+    }
+    .chat-name {
+      font-size: 18px;
+    }
+    .chat-sub {
+      font-size: 15px;
+    }
+    .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+    }
+    .fav-add-btn {
+      padding: 10px 14px;
+      font-size: 18px;
+    }
+    /* сообщения */
+    .bubble {
+      font-size: 16px;
+      padding: 12px 18px;
+    }
+    .msg-meta {
+      font-size: 13px;
+    }
+    .composer textarea {
+      font-size: 16px;
+      padding: 16px;
+    }
+    .icon-btn {
+      width: 56px;
+      height: 56px;
+      font-size: 24px;
+    }
+    .send-btn {
+      padding: 14px 22px;
+      font-size: 18px;
+    }
+  }
+
+  /* очень маленькие экраны */
+  @media (max-width:480px){
+    .left-panel.hide-on-mobile { display:none; }
+    /* ещё более крупные элементы при необходимости */
+    .left-logo { width: 56px; height: 56px; }
+    .avatar { width: 72px; height: 72px; }
+    .chat-name { font-size: 20px; }
+    .chat-sub { font-size: 16px; }
   }
 
   /* Light theme small overrides for inputs / backgrounds */
@@ -117,11 +208,7 @@
   .light-theme .composer textarea { background:#fff; color:var(--text) }
   .light-theme .left-panel, .light-theme .main { background: var(--bg-chat) }
   .light-theme .left-panel { border-right: 1px solid rgba(0,0,0,0.06) }
-
-  /* small screens: hide left panel when chat open (we'll toggle via JS) */
-  @media (max-width:480px){
-    .left-panel.hide-on-mobile { display:none; }
-  }
+  .light-theme #authBlock input { background: #f2f4f8; color: #111; border-color: #ccc; }
 </style>
 </head>
 <body>
