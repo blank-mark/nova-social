@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Nova Prospect — Chat (Telegram style, purple dark)</title>
+<title>Nova Prospect — Chat (Telegram style, purple + light)</title>
 
 <style>
+  /* THEMES: default = dark purple, .light-theme for white */
   :root{
     --bg-main: #0f0c16;
     --bg-sidebar: #141018;
@@ -19,27 +20,40 @@
     --bubble-other-text: #ffffff;
     --max-width:1200px;
   }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:var(--bg-main);font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--text)}
-  .app{max-width:var(--max-width);margin:8px auto;height:calc(100vh - 16px);display:flex;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,var(--bg-main),#0b0910);box-shadow:0 8px 40px rgba(0,0,0,0.6)}
-  /* Sidebar (hidden per request) */
-  .sidebar{display:none} /* панель слева скрыта, оставляем только поиск в left-panel */
 
-  /* Main left panel (expanded) */
-  .left-panel{width:320px;background:var(--bg-chat);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.02)}
+  /* Light theme overrides */
+  .light-theme {
+    --bg-main: #ffffff;
+    --bg-sidebar: #fafafa;
+    --bg-chat: #ffffff;
+    --accent: #7c4dff; /* keep accent purple */
+    --accent-2: #5e35b1;
+    --muted: #6b7280;
+    --text: #111827;
+    --bubble-me: #eef2ff;
+    --bubble-other: #f5f7fb;
+    --bubble-other-text: #111827;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg-main);font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+  .app{max-width:var(--max-width);margin:8px auto;height:calc(100vh - 16px);display:flex;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,var(--bg-main),#0b0910);box-shadow:0 8px 40px rgba(0,0,0,0.4)}
+  /* left panel (search + chats) */
+  .left-panel{width:320px;background:var(--bg-chat);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.03)}
   .left-top{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.02)}
   .left-logo{width:44px;height:44;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
   .left-search{padding:10px;border-bottom:1px solid rgba(255,255,255,0.02)}
-  .search-input{width:100%;padding:10px;border-radius:12px;border:0;background:#141018;color:var(--text);outline:none}
+  .search-input{width:100%;padding:10px;border-radius:12px;border:0;background:rgba(0,0,0,0.18);color:var(--text);outline:none}
   .chat-list{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
-  .chat-row{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;cursor:pointer}
-  .chat-row:hover{background:rgba(124,77,255,0.06)}
-  .chat-row.active{background:linear-gradient(90deg, rgba(124,77,255,0.09), rgba(94,53,177,0.04))}
+  .chat-row{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;cursor:pointer;position:relative}
+  .chat-row:hover{background:rgba(124,77,255,0.04)}
+  .chat-row.active{background:linear-gradient(90deg, rgba(124,77,255,0.06), rgba(94,53,177,0.03))}
+  .avatar{width:56px;height:56;border-radius:12px;object-fit:cover}
   .chat-name{font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chat-sub{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .unread-pill{background:#ff3b30;color:white;padding:4px 8px;border-radius:12px;font-size:12px}
   .fav-add-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer;margin-left:8px}
-  .fav-remove{position:absolute;right:4px;top:4px;background:rgba(0,0,0,0.4);border-radius:8px;padding:2px 6px;font-size:12px;cursor:pointer;color:#fff}
+  .fav-remove{position:absolute;right:6px;top:6px;background:rgba(0,0,0,0.25);border-radius:8px;padding:2px 6px;font-size:12px;cursor:pointer;color:#fff}
 
   /* Favorites bar at top of main area */
   .favorites-bar{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.02);overflow:auto;background:linear-gradient(90deg, rgba(124,77,255,0.02), transparent)}
@@ -50,13 +64,13 @@
   /* Main chat area */
   .main{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#0b0910,#0f0c16)}
   .main-header{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid rgba(255,255,255,0.02)}
-  .main-avatar{width:48px;height:48;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,0.02)}
+  .main-avatar{width:48px;height:48;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)}
   .main-title{font-weight:800;color:var(--text)}
   .main-sub{font-size:13px;color:var(--muted)}
   .messages{flex:1;padding:20px;overflow:auto}
   .message-row{display:flex;margin-bottom:12px;align-items:flex-end}
   .message-row.me{justify-content:flex-end}
-  .bubble{max-width:70%;padding:10px 14px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.6)}
+  .bubble{max-width:70%;padding:10px 14px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
   .bubble.me{background:linear-gradient(180deg,var(--bubble-me),#f4e9ff);color:#0b0b0b;border-bottom-right-radius:6px}
   .bubble.other{background:var(--bubble-other);color:var(--bubble-other-text);border-bottom-left-radius:6px}
   .msg-meta{font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -68,30 +82,62 @@
   .icon-btn{width:44px;height:44;border-radius:10px;border:0;background:#111014;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer}
   .send-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;border-radius:12px;padding:10px 14px;border:0;cursor:pointer;font-weight:700}
 
-  /* Responsive: on small screens show left-panel collapsed like WhatsApp */
+  /* header controls */
+  .header-controls { margin-left: auto; display:flex; gap:8px; align-items:center }
+  .theme-toggle { padding:8px 10px; border-radius:8px; border:0; cursor:pointer; background:rgba(255,255,255,0.04); color:var(--text) }
+
+  /* Mobile design (matches requested style: top tabs, bottom nav like WhatsApp) */
   @media (max-width:900px){
     .app{flex-direction:column;height:100vh;margin:0;border-radius:0}
     .left-panel{width:100%;height:42%;order:1}
     .main{height:58%;order:2}
+    /* mobile: show compact header with tabs */
+    .main-header{padding:10px 12px}
+    .left-top{padding:10px}
+    .left-search{padding:8px}
+    .search-input{padding:10px;border-radius:14px}
+    /* bottom navigation bar (phone) */
+    .bottom-nav {
+      position:fixed;
+      bottom:0;left:0;right:0;height:64px;
+      background:var(--bg-chat);display:flex;align-items:center;justify-content:space-around;border-top:1px solid rgba(255,255,255,0.03);
+      z-index:60;
+    }
+    .bottom-nav button{background:transparent;border:0;color:var(--muted);font-weight:700;cursor:pointer}
+    /* ensure composer above nav */
+    .composer{padding-bottom:80px}
+    /* make favorites bar more like stories circles on top */
+    .favorites-bar{padding:8px;gap:12px}
+    .fav-avatar{width:44px;height:44;border-radius:50%}
+    .fav-username{font-size:11px}
   }
+
+  /* Light theme small overrides for inputs / backgrounds */
+  .light-theme .search-input { background: #f2f4f8; color: var(--text) }
+  .light-theme .composer textarea { background:#fff; color:var(--text) }
+  .light-theme .left-panel, .light-theme .main { background: var(--bg-chat) }
+  .light-theme .left-panel { border-right: 1px solid rgba(0,0,0,0.06) }
+
+  /* small screens: hide left panel when chat open (we'll toggle via JS) */
   @media (max-width:480px){
-    .left-panel{width:100%}
-    .chat-row{padding:8px}
-    .bubble{max-width:82%}
-    .fav-username{display:none}
+    .left-panel.hide-on-mobile { display:none; }
   }
 </style>
 </head>
 <body>
 
 <div class="app">
-  <!-- left panel: оставляем только поиск и список чатов -->
+  <!-- left panel: search and chat list -->
   <div class="left-panel" id="leftPanel">
     <div class="left-top">
       <div class="left-logo">NP</div>
       <div style="flex:1">
         <div style="font-weight:800;color:var(--text)">Nova Prospect</div>
         <div class="small">Быстрый мессенджер</div>
+      </div>
+
+      <div class="header-controls">
+        <button id="themeToggle" class="theme-toggle" title="Переключить тему">🌗</button>
       </div>
     </div>
 
@@ -110,7 +156,7 @@
   </div>
 
   <!-- main chat area -->
-  <div class="main" style="display:flex;flex-direction:column">
+  <div class="main">
     <div class="main-header" id="mainHeader">
       <img id="peerAvatar" class="main-avatar" src="https://via.placeholder.com/48?text=?" alt="avatar">
       <div style="flex:1">
@@ -144,6 +190,14 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- bottom nav for phone -->
+<div id="bottomNav" class="bottom-nav" style="display:none;">
+  <button id="navContacts">Контакты</button>
+  <button id="navCalls">Звонки</button>
+  <button id="navChats">Чаты</button>
+  <button id="navSettings">Настройки</button>
 </div>
 
 <!-- Firebase v12 modules -->
@@ -194,12 +248,12 @@
   const imageInput = document.getElementById('imageInput');
   const recordBtn = document.getElementById('recordBtn');
 
+  const bottomNav = document.getElementById('bottomNav');
+  const themeToggle = document.getElementById('themeToggle');
+
   // --- favorites (localStorage) ---
   const FAV_KEY = 'np_favs_v1';
-  function loadFavorites(){
-    try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); }
-    catch(e){ return []; }
-  }
+  function loadFavorites(){ try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch(e){ return []; } }
   function saveFavorites(list){ localStorage.setItem(FAV_KEY, JSON.stringify(list)); }
   function isFav(username){ return loadFavorites().some(f => f.username === username); }
 
@@ -217,35 +271,27 @@
         <img src="${f.photoURL||'https://via.placeholder.com/56?text=?'}" class="fav-avatar">
         <div class="fav-username">@${f.username}</div>
       `;
-      // click opens chat
       el.onclick = () => openDirectChat({ uid: f.uid, username: f.username, displayName: f.displayName, photoURL: f.photoURL });
-      // add small remove button
       const rem = document.createElement('div');
       rem.className = 'fav-remove';
       rem.textContent = '✕';
-      rem.onclick = (e) => {
-        e.stopPropagation();
-        const newf = loadFavorites().filter(x => x.username !== f.username);
-        saveFavorites(newf);
-        renderFavoritesBar();
-      };
+      rem.onclick = (e) => { e.stopPropagation(); const newf = loadFavorites().filter(x => x.username !== f.username); saveFavorites(newf); renderFavoritesBar(); };
       el.style.position = 'relative';
       el.appendChild(rem);
       favoritesBar.appendChild(el);
     });
   }
 
-  // add favorite (profile: {uid, username, displayName, photoURL})
   function addFavorite(profile){
     if (!profile || !profile.username) return;
     const favs = loadFavorites();
-    if (favs.some(f => f.username === profile.username)) return; // already
+    if (favs.some(f => f.username === profile.username)) return;
     favs.unshift({ uid: profile.uid, username: profile.username, displayName: profile.displayName || '', photoURL: profile.photoURL || '' });
-    saveFavorites(favs.slice(0, 50)); // keep limit
+    saveFavorites(favs.slice(0, 50));
     renderFavoritesBar();
   }
 
-  // --- small utilities for unread & notifications (kept original) ---
+  // --- notification helpers ---
   const threadMsgUnsubs = {};
   const unreadCounts = {};
   const lastSeenLocalKey = 'np_lastseen_v1';
@@ -259,7 +305,7 @@
       const g = ctx.createGain();
       o.type='sine';
       o.frequency.value=880;
-      g.gain.value=0.08;
+      g.gain.value=0.06;
       o.connect(g); g.connect(ctx.destination);
       o.start();
       setTimeout(()=>{ o.stop(); ctx.close(); }, 120);
@@ -275,7 +321,7 @@
     }
   }
 
-  // --- auth UI (preserve original) ---
+  // --- auth UI (same as before) ---
   function renderAuthUI(user) {
     authBlock.innerHTML = '';
     if (!user) {
@@ -332,7 +378,6 @@
   }
 
   // --- username helpers (preserve original) ---
-  import { runTransaction as rT } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
   async function createUsernameForUid(usernameRaw, uid, displayName = null) {
     const username = sanitizeUsername(usernameRaw);
     if (!username) throw 'Неверный username';
@@ -353,7 +398,7 @@
   }
   function sanitizeUsername(s) { if (!s) return null; const low = s.toLowerCase(); if (!/^[a-z0-9_]{3,32}$/.test(low)) return null; return low; }
 
-  // --- threads list (recent chats) with unread handling (preserve original) ---
+  // --- threads list (recent chats) with unread handling ---
   let unsubscribeThreads = null;
   let unsubscribeThreadsAll = null;
   async function subscribeMyThreads(uid) {
@@ -391,6 +436,8 @@
         el.onclick = () => {
           openDirectChat({ uid: otherUid, username: profile.username, displayName: profile.displayName, photoURL: profile.photoURL });
           setLastSeen(threadId, Date.now());
+          // on mobile hide left panel to show chat
+          if (window.innerWidth <= 480) leftPanel.classList.add('hide-on-mobile');
         };
         chatsList.appendChild(el);
 
@@ -430,7 +477,7 @@
     if (badge) badge.innerHTML = count ? `<div class="unread-pill">${count}</div>` : '';
   }
 
-  // --- search by username (prefix matching) ---
+  // --- prefix search by username (client-side scan up to 200 usernames) ---
   globalSearch.oninput = debounce(async (e) => {
     const q = e.target.value.trim().toLowerCase();
     chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Поиск...</div>';
@@ -441,8 +488,8 @@
       return;
     }
     try {
-      // fetch up to 200 username docs, then filter client-side by prefix
-      const snap = await getDocs(query(collection(db, 'usernames'), limit(200)));
+      // fetch some usernames and filter by prefix
+      const snap = await getDocs(query(collection(db, 'usernames'), limit(500)));
       const matches = [];
       snap.forEach(d => {
         const uname = d.id;
@@ -453,14 +500,12 @@
         chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ничего не найдено</div>';
         return;
       }
-      // render matches
       for (const m of matches) {
         const owner = m.owner;
         const profSnap = await getDoc(doc(db, 'profiles', owner));
         const prof = profSnap.exists() ? profSnap.data() : {};
         const el = document.createElement('div');
         el.className = 'chat-row';
-        // main content
         el.innerHTML = `
           <img src="${prof.photoURL||'https://via.placeholder.com/56?text=?'}" class="avatar" style="width:56px;height:56;border-radius:12px">
           <div style="flex:1;min-width:0">
@@ -471,17 +516,8 @@
             <button class="fav-add-btn" data-username="${m.username}">＋</button>
           </div>
         `;
-        // clicking row opens chat
-        el.onclick = (ev) => {
-          // avoid click when pressing + button
-          if (ev.target && ev.target.classList && ev.target.classList.contains('fav-add-btn')) return;
-          openDirectChat({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL });
-        };
-        // handle + button
-        el.querySelector('.fav-add-btn').onclick = (ev) => {
-          ev.stopPropagation();
-          addFavorite({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL });
-        };
+        el.onclick = (ev) => { if (ev.target && ev.target.classList && ev.target.classList.contains('fav-add-btn')) return; openDirectChat({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL }); if (window.innerWidth <= 480) leftPanel.classList.add('hide-on-mobile'); };
+        el.querySelector('.fav-add-btn').onclick = (ev) => { ev.stopPropagation(); addFavorite({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL }); };
         chatsList.appendChild(el);
       }
     } catch (err) {
@@ -489,7 +525,7 @@
     }
   }, 200);
 
-  // --- DM thread helpers (preserve original) ---
+  // --- DM thread helpers & messages (preserve original logic) ---
   function threadIdFor(u1, u2){ const ids=[u1,u2].sort(); return ids[0] + '_' + ids[1]; }
   let unsubscribeMessages = null;
   let currentPeer = null;
@@ -513,17 +549,12 @@
     const q = query(msgsCol, orderBy('createdAt', 'asc'));
     unsubscribeMessages = onSnapshot(q, (snapshot) => {
       messagesEl.innerHTML = '';
-      snapshot.forEach(docSnap => {
-        const m = docSnap.data();
-        renderMessage(m);
-      });
+      snapshot.forEach(docSnap => { const m = docSnap.data(); renderMessage(m); });
       messagesEl.scrollTop = messagesEl.scrollHeight;
       unreadCounts[tId] = 0;
       renderThreadBadge(tId);
       setLastSeen(tId, Date.now());
-    }, (err) => {
-      console.warn('msgs sub err', err);
-    });
+    }, (err) => { console.warn('msgs sub err', err); });
     currentThreadId = tId;
   }
 
@@ -533,17 +564,14 @@
     row.className = 'message-row ' + (m.senderId === (user && user.uid) ? 'me' : 'other');
     const bubble = document.createElement('div');
     bubble.className = 'bubble ' + (m.senderId === (user && user.uid) ? 'me' : 'other');
-    const meta = document.createElement('div');
-    meta.className = 'msg-meta';
+    const meta = document.createElement('div'); meta.className = 'msg-meta';
     meta.textContent = (m.displayName || m.senderId) + ' · ' + (m.createdAt ? new Date(m.createdAt.toMillis()).toLocaleTimeString() : '');
     bubble.appendChild(meta);
     if (m.type === 'image' && m.url) {
-      const img = document.createElement('img'); img.src = m.url; img.className = 'msg-img';
-      bubble.appendChild(img);
+      const img = document.createElement('img'); img.src = m.url; img.className = 'msg-img'; bubble.appendChild(img);
       if (m.text) { const t = document.createElement('div'); t.textContent = m.text; bubble.appendChild(t); }
     } else if (m.type === 'audio' && m.url) {
-      const audio = document.createElement('audio'); audio.controls = true; audio.src = m.url; audio.className = 'msg-audio';
-      bubble.appendChild(audio);
+      const audio = document.createElement('audio'); audio.controls = true; audio.src = m.url; audio.className = 'msg-audio'; bubble.appendChild(audio);
       if (m.text) { const t = document.createElement('div'); t.textContent = m.text; bubble.appendChild(t); }
     } else {
       const txt = document.createElement('div'); txt.textContent = m.text || ''; bubble.appendChild(txt);
@@ -552,7 +580,6 @@
     messagesEl.appendChild(row);
   }
 
-  // --- open chat with peer ---
   async function openDirectChat(peer) {
     currentPeer = peer;
     peerName.textContent = peer.displayName || peer.username || 'Пользователь';
@@ -564,9 +591,7 @@
       unreadCounts[tId] = 0;
       renderThreadBadge(tId);
       setLastSeen(tId, Date.now());
-    } catch (e) {
-      console.error(e); alert('Не удалось открыть чат: ' + (e.message || e));
-    }
+    } catch (e) { console.error(e); alert('Не удалось открыть чат: ' + (e.message || e)); }
   }
 
   // --- send message, image upload, audio upload (preserve original) ---
@@ -601,30 +626,20 @@
     } catch (e) { console.error(e); alert('Ошибка загрузки изображения: ' + (e.message || e)); }
   };
 
-  // --- audio recording ---
-  let mediaRecorder = null;
-  let audioChunks = [];
+  // --- audio recording (preserve) ---
+  let mediaRecorder = null; let audioChunks = [];
   recordBtn.onclick = async () => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-      recordBtn.textContent = '🎙️';
-      recordBtn.style.background = '';
-    } else {
+    if (mediaRecorder && mediaRecorder.state === 'recording') { mediaRecorder.stop(); recordBtn.textContent = '🎙️'; recordBtn.style.background = ''; }
+    else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
         mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = async () => {
-          const blob = new Blob(audioChunks, { type: 'audio/webm' });
-          await uploadAudioBlob(blob);
-        };
+        mediaRecorder.onstop = async () => { const blob = new Blob(audioChunks, { type: 'audio/webm' }); await uploadAudioBlob(blob); };
         mediaRecorder.start();
-        recordBtn.textContent = '■';
-        recordBtn.style.background = '#ffdddd';
-      } catch (e) {
-        console.error(e); alert('Нет доступа к микрофону: ' + (e.message || e));
-      }
+        recordBtn.textContent = '■'; recordBtn.style.background = '#ffdddd';
+      } catch (e) { console.error(e); alert('Нет доступа к микрофону: ' + (e.message || e)); }
     }
   };
 
@@ -643,26 +658,17 @@
     } catch (e) { console.error(e); alert('Ошибка загрузки голоса: ' + (e.message || e)); }
   }
 
-  // --- send on Enter (Shift+Enter newline) ---
-  messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendBtn.click();
-    }
-  });
-  sendBtn.onclick = () => {
-    const text = messageInput.value.trim();
-    if (!text) return;
-    sendTextMessage(text);
-    messageInput.value = '';
-  };
+  // --- send on Enter ---
+  messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
+  sendBtn.onclick = () => { const text = messageInput.value.trim(); if (!text) return; sendTextMessage(text); messageInput.value = ''; };
 
   // --- auth state handling ---
   onAuthStateChanged(auth, async (user) => {
     renderAuthUI(user);
-    renderFavoritesBar(); // update favorites bar on auth change
+    renderFavoritesBar();
     if (user) {
       subscribeMyThreads(user.uid);
+      // soft request for notifications
       if ("Notification" in window && Notification.permission === "default") {
         try { await Notification.requestPermission(); } catch(e){ /* ignore */ }
       }
@@ -682,19 +688,53 @@
         const owner = unameSnap.data().owner;
         const prof = (await getDoc(doc(db, 'profiles', owner))).data() || {};
         openDirectChat({ uid: owner, username: username.trim().toLowerCase(), displayName: prof.displayName, photoURL: prof.photoURL });
+        if (window.innerWidth <= 480) leftPanel.classList.add('hide-on-mobile');
       } catch (e) { console.error(e); alert('Ошибка: ' + e.message); }
     })();
   };
+
+  // --- theme toggle logic (persist in localStorage) ---
+  const THEME_KEY = 'np_theme_v1';
+  function loadTheme(){ try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch(e){ return 'dark'; } }
+  function saveTheme(t){ try { localStorage.setItem(THEME_KEY, t); } catch(e){} }
+  function applyTheme(t){
+    if (t === 'light') document.documentElement.classList.add('light-theme');
+    else document.documentElement.classList.remove('light-theme');
+    themeToggle.textContent = (t === 'light') ? '🌞' : '🌙';
+  }
+  // init theme
+  (function(){ const cur = loadTheme(); applyTheme(cur); })();
+  themeToggle.onclick = () => { const cur = loadTheme(); const next = cur === 'light' ? 'dark' : 'light'; applyTheme(next); saveTheme(next); };
+
+  // show/hide bottom nav on mobile sizes
+  function updateMobileUI(){
+    if (window.innerWidth <= 900) {
+      bottomNav.style.display = 'flex';
+    } else {
+      bottomNav.style.display = 'none';
+      // ensure left panel visible on desktop
+      leftPanel.classList.remove('hide-on-mobile');
+    }
+  }
+  window.addEventListener('resize', updateMobileUI);
+  updateMobileUI();
+
+  // bottom nav handlers (simple anchors — they can be expanded)
+  document.getElementById('navChats').onclick = () => { if (window.innerWidth <= 480) leftPanel.classList.remove('hide-on-mobile'); };
+  document.getElementById('navContacts').onclick = () => alert('Контакты — позже'); 
+  document.getElementById('navCalls').onclick = () => alert('Звонки — позже'); 
+  document.getElementById('navSettings').onclick = () => alert('Настройки — позже');
 
   // --- utilities ---
   function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
   function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 
-  // keep favorites persistent and render on load
+  // render favorites on load
   renderFavoritesBar();
 
-  // expose setLastSeen for manual testing (optional)
+  // expose setLastSeen for testing
   window.setLastSeen = setLastSeen;
+
 </script>
 </body>
 </html>
