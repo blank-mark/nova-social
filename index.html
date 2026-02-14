@@ -804,12 +804,49 @@
   // --- send on Enter ---
   messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
   sendBtn.onclick = () => { const text = messageInput.value.trim(); if (!text) return; sendTextMessage(text); messageInput.value = ''; };
+  // helper: извлекаем username из URL (последний сегмент)
+  function getUsernameFromURL() {
+    try {
+      const path = window.location.pathname; // e.g. /nova-social/username
+      const parts = path.split('/').filter(Boolean);
+      // Если репозиторий размещён в под-папке (например, /nova-social/username),
+      // берём последний сегмент как username
+      return parts.length ? parts[parts.length - 1] : null;
+    } catch (e) { return null; }
+  }
+
   // --- auth state handling ---
   onAuthStateChanged(auth, async (user) => {
     renderAuthUI(user);
     renderFavoritesBar();
     if (user) {
       subscribeMyThreads(user.uid);
+
+      // Deep-link: если в URL указан username, открываем чат с ним (после аутентификации)
+      (async () => {
+        try {
+          const deepUsername = getUsernameFromURL();
+          if (deepUsername) {
+            const unameSnap = await getDoc(doc(db, 'usernames', deepUsername.toLowerCase()));
+            if (unameSnap.exists()) {
+              const ownerUid = unameSnap.data().owner;
+              const profileSnap = await getDoc(doc(db, 'profiles', ownerUid));
+              const prof = profileSnap.exists() ? profileSnap.data() : {};
+              openDirectChat({
+                uid: ownerUid,
+                username: deepUsername.toLowerCase(),
+                displayName: prof.displayName,
+                photoURL: prof.photoURL
+              });
+            } else {
+              console.warn('Deep-link username not found:', deepUsername);
+            }
+          }
+        } catch (e) {
+          console.error('Ошибка открытия deep link:', e);
+        }
+      })();
+
       if ("Notification" in window && Notification.permission === "default") {
         try { await Notification.requestPermission(); } catch(e){ /* ignore */ }
       }
