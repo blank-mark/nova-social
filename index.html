@@ -4,7 +4,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Nova Prospect — Chat (Telegram style, purple + light)</title>
-
 <style>
   /* THEMES: default = dark purple, .light-theme for white */
   :root{
@@ -20,7 +19,6 @@
     --bubble-other-text: #ffffff;
     --max-width:1200px;
   }
-
   /* Light theme overrides */
   .light-theme {
     --bg-main: #ffffff;
@@ -34,7 +32,6 @@
     --bubble-other: #f5f7fb;
     --bubble-other-text: #111827;
   }
-
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg-main);font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
   .app{max-width:var(--max-width);margin:8px auto;height:calc(100vh - 16px);display:flex;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,var(--bg-main),#0b0910);box-shadow:0 8px 40px rgba(0,0,0,0.4)}
@@ -54,13 +51,11 @@
   .unread-pill{background:#ff3b30;color:white;padding:4px 8px;border-radius:12px;font-size:12px}
   .fav-add-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer;margin-left:8px}
   .fav-remove{position:absolute;right:6px;top:6px;background:rgba(0,0,0,0.25);border-radius:8px;padding:2px 6px;font-size:12px;cursor:pointer;color:#fff}
-
   /* Favorites bar at top of main area */
   .favorites-bar{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.02);overflow:auto;background:linear-gradient(90deg, rgba(124,77,255,0.02), transparent)}
   .fav-item{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:64px;position:relative;cursor:pointer}
   .fav-avatar{width:56px;height:56;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)}
   .fav-username{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:64px;text-align:center}
-
   /* Main chat area */
   .main{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#0b0910,#0f0c16)}
   .main-header{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid rgba(255,255,255,0.02)}
@@ -81,11 +76,9 @@
   .composer textarea{flex:1;min-height:46px;max-height:160px;padding:12px;border-radius:12px;border:0;background:#0b0810;color:var(--text);outline:none;resize:none}
   .icon-btn{width:44px;height:44;border-radius:10px;border:0;background:#111014;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer}
   .send-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;border-radius:12px;padding:10px 14px;border:0;cursor:pointer;font-weight:700}
-
   /* header controls */
   .header-controls { margin-left: auto; display:flex; gap:8px; align-items:center }
   .theme-toggle { padding:8px 10px; border-radius:8px; border:0; cursor:pointer; background:rgba(255,255,255,0.04); color:var(--text) }
-
   /* Mobile design: улучшенная мобильная версия */
   @media (max-width:900px){
     .app{flex-direction:column;height:100vh;margin:0;border-radius:0}
@@ -110,7 +103,6 @@
     .favorites-bar{padding:8px;gap:12px}
     .fav-avatar{width:44px;height:44;border-radius:50%}
     .fav-username{font-size:11px}
-
     /* Улучшенный мобильный дизайн: крупные элементы, удобная регистрация */
     .left-top {
       padding: 16px 12px;
@@ -186,8 +178,8 @@
       padding: 14px 22px;
       font-size: 18px;
     }
+    .call-overlay { align-items: flex-start; padding-top: 20px; }
   }
-
   /* очень маленькие экраны */
   @media (max-width:480px){
     .left-panel.hide-on-mobile { display:none; }
@@ -197,14 +189,12 @@
     .chat-name { font-size: 20px; }
     .chat-sub { font-size: 16px; }
   }
-
   /* Light theme small overrides for inputs / backgrounds */
   .light-theme .search-input { background: #f2f4f8; color: var(--text) }
   .light-theme .composer textarea { background:#fff; color:var(--text) }
   .light-theme .left-panel, .light-theme .main { background: var(--bg-chat) }
   .light-theme .left-panel { border-right: 1px solid rgba(0,0,0,0.06) }
   .light-theme #authBlock input { background: #f2f4f8; color: #111; border-color: #ccc; }
-
   /* ========== CALL UI ========== */
   .call-overlay {
     position: fixed;
@@ -214,6 +204,7 @@
     justify-content: center;
     z-index: 200;
     background: rgba(0,0,0,0.5);
+    pointer-events: none;
   }
   .call-card {
     background: var(--bg-chat);
@@ -223,6 +214,7 @@
     text-align: center;
     box-shadow: 0 12px 40px rgba(0,0,0,0.6);
     border: 1px solid rgba(255,255,255,0.04);
+    pointer-events: auto;
   }
   .call-card h3 { margin: 6px 0 10px 0; font-size:18px; color:var(--text) }
   .call-card p { margin: 0 0 16px 0; color:var(--muted) }
@@ -231,7 +223,6 @@
   .call-accept { background: linear-gradient(135deg,var(--accent),var(--accent-2)); color:white }
   .call-decline { background: rgba(255,255,255,0.06); color:var(--text) }
   .call-hangup { background: #ff3b30; color: white; }
-
   .calling-indicator {
     display:none;
     align-items:center;
@@ -239,13 +230,11 @@
     color:var(--muted);
     font-size:13px;
   }
-
   /* small remote audio visual (hidden) */
   #remoteAudio { display:none; }
 </style>
 </head>
 <body>
-
 <div class="app">
   <!-- left panel: search and chat list -->
   <div class="left-panel" id="leftPanel">
@@ -255,26 +244,21 @@
         <div style="font-weight:800;color:var(--text)">Nova Prospect</div>
         <div class="small">Быстрый мессенджер</div>
       </div>
-
       <div class="header-controls">
         <button id="themeToggle" class="theme-toggle" title="Переключить тему">🌗</button>
       </div>
     </div>
-
     <div class="left-search">
       <input id="globalSearch" class="search-input" placeholder="Поиск по username...">
     </div>
-
     <div class="chat-list" id="chatsList">
       <!-- chat rows -->
     </div>
-
     <div style="padding:12px;border-top:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:center;">
       <div id="authBlock" style="flex:1"></div>
       <button id="newChatBtn" class="ghost-btn">Новый</button>
     </div>
   </div>
-
   <!-- main chat area -->
   <div class="main">
     <div class="main-header" id="mainHeader">
@@ -289,30 +273,24 @@
         <button id="moreBtn" class="icon-btn" title="Ещё">⋯</button>
       </div>
     </div>
-
     <!-- Favorites bar (появляются избранные) -->
     <div class="favorites-bar" id="favoritesBar" title="Избранные — клик для открытия чата">
       <!-- favorites populated by JS -->
     </div>
-
     <div class="messages" id="messages"></div>
-
     <div class="composer">
       <div class="actions">
         <input id="imageInput" type="file" accept="image/*" style="display:none">
         <button id="imageBtn" class="icon-btn" title="Прикрепить фото">📷</button>
         <button id="recordBtn" class="icon-btn" title="Записать голос">🎙️</button>
       </div>
-
       <textarea id="messageInput" placeholder="Напишите сообщение... (Enter — отправить, Shift+Enter — новая строка)"></textarea>
-
       <div style="display:flex;flex-direction:column;gap:8px">
         <button id="sendBtn" class="send-btn">Отправить</button>
       </div>
     </div>
   </div>
 </div>
-
 <!-- bottom nav for phone -->
 <div id="bottomNav" class="bottom-nav" style="display:none;">
   <button id="navContacts">Контакты</button>
@@ -320,7 +298,6 @@
   <button id="navChats">Чаты</button>
   <button id="navSettings">Настройки</button>
 </div>
-
 <!-- CALL OVERLAY UI (добавлено) -->
 <div id="callOverlay" class="call-overlay" aria-hidden="true">
   <div class="call-card" id="callCard">
@@ -338,10 +315,8 @@
     </div>
   </div>
 </div>
-
 <!-- hidden remote audio element -->
 <audio id="remoteAudio" autoplay></audio>
-
 <!-- Firebase v12 modules -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
@@ -351,7 +326,6 @@
     getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, getDocs, runTransaction, where, limit
   } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
-
   // --- Firebase config (твои значения) ---
   const firebaseConfig = {
     apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
@@ -362,43 +336,34 @@
     appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
     measurementId: "G-9V0Q2E2FNB"
   };
-
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
   const auth = getAuth(app);
   const db = getFirestore(app);
   const storage = getStorage(app);
-
   // --- UI refs ---
   const leftPanel = document.getElementById('leftPanel');
   const chatsList = document.getElementById('chatsList');
   const globalSearch = document.getElementById('globalSearch');
   const authBlock = document.getElementById('authBlock');
   const newChatBtn = document.getElementById('newChatBtn');
-
   const favoritesBar = document.getElementById('favoritesBar');
-
   const peerAvatar = document.getElementById('peerAvatar');
   const peerName = document.getElementById('peerName');
   const peerSub = document.getElementById('peerSub');
-
   const messagesEl = document.getElementById('messages');
   const messageInput = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
-
   const imageBtn = document.getElementById('imageBtn');
   const imageInput = document.getElementById('imageInput');
   const recordBtn = document.getElementById('recordBtn');
-
   const bottomNav = document.getElementById('bottomNav');
   const themeToggle = document.getElementById('themeToggle');
-
   // --- favorites (localStorage) ---
   const FAV_KEY = 'np_favs_v1';
   function loadFavorites(){ try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch(e){ return []; } }
   function saveFavorites(list){ localStorage.setItem(FAV_KEY, JSON.stringify(list)); }
   function isFav(username){ return loadFavorites().some(f => f.username === username); }
-
   function renderFavoritesBar(){
     const favs = loadFavorites();
     favoritesBar.innerHTML = '';
@@ -423,7 +388,6 @@
       favoritesBar.appendChild(el);
     });
   }
-
   function addFavorite(profile){
     if (!profile || !profile.username) return;
     const favs = loadFavorites();
@@ -432,14 +396,12 @@
     saveFavorites(favs.slice(0, 50));
     renderFavoritesBar();
   }
-
   // --- notification helpers ---
   const threadMsgUnsubs = {};
   const unreadCounts = {};
   const lastSeenLocalKey = 'np_lastseen_v1';
   function getLastSeenMap(){ try { return JSON.parse(localStorage.getItem(lastSeenLocalKey)||'{}'); } catch(e){ return {}; } }
   function setLastSeen(threadId, ts){ const m=getLastSeenMap(); m[threadId]=ts; localStorage.setItem(lastSeenLocalKey, JSON.stringify(m)); unreadCounts[threadId]=0; renderThreadBadge(threadId); }
-
   function playNotificationSound(){
     try{
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -453,7 +415,6 @@
       setTimeout(()=>{ o.stop(); ctx.close(); }, 120);
     }catch(e){ /* ignore */ }
   }
-
   async function showDesktopNotification(title, body, icon){
     if (("Notification" in window) && Notification.permission === "granted") {
       try {
@@ -462,16 +423,15 @@
       } catch(e){ console.warn(e); }
     }
   }
-
   // --- auth UI (same as before) ---
   function renderAuthUI(user) {
     authBlock.innerHTML = '';
     if (!user) {
       const wrapper = document.createElement('div');
       wrapper.innerHTML = `
-        <input id="email" placeholder="Email" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text);margin-bottom:6px">
-        <input id="password" type="password" placeholder="Пароль" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text);margin-bottom:6px">
-        <input id="signupUsername" placeholder="username (при регистрации)" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#0b0810;color:var(--text);margin-bottom:6px">
+        <input id="email" class="search-input" placeholder="Email" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:6px">
+        <input id="password" class="search-input" type="password" placeholder="Пароль" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:6px">
+        <input id="signupUsername" class="search-input" placeholder="username (при регистрации)" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:6px">
         <div style="display:flex;gap:8px">
           <button id="googleSignIn" class="ghost-btn" style="flex:1">Google</button>
           <button id="emailSignUp" class="ghost-btn" style="flex:1">Регистрация</button>
@@ -518,7 +478,6 @@
       };
     }
   }
-
   // --- username helpers (preserve original) ---
   async function createUsernameForUid(usernameRaw, uid, displayName = null) {
     const username = sanitizeUsername(usernameRaw);
@@ -539,14 +498,12 @@
     }
   }
   function sanitizeUsername(s) { if (!s) return null; const low = s.toLowerCase(); if (!/^[a-z0-9_]{3,32}$/.test(low)) return null; return low; }
-
   // --- threads list (recent chats) with unread handling ---
   let unsubscribeThreads = null;
   let unsubscribeThreadsAll = null;
   async function subscribeMyThreads(uid) {
     if (unsubscribeThreads) unsubscribeThreads();
     if (unsubscribeThreadsAll) unsubscribeThreadsAll();
-
     const q = query(collection(db, 'dmThreads'), where('participants', 'array-contains', uid), orderBy('createdAt', 'desc'));
     unsubscribeThreads = onSnapshot(q, async (snap) => {
       chatsList.innerHTML = '';
@@ -554,7 +511,6 @@
         chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Нет чатов. Найди пользователя и начни диалог.</div>';
         return;
       }
-
       const perThreadUnsubs = [];
       for (const docSnap of snap.docs) {
         const data = docSnap.data();
@@ -563,7 +519,6 @@
         const profileSnap = await getDoc(doc(db, 'profiles', otherUid));
         const profile = profileSnap.exists() ? profileSnap.data() : {};
         const lastText = data.lastMessageText || '';
-
         const el = document.createElement('div');
         el.className = 'chat-row';
         el.id = 'chatrow_' + threadId;
@@ -582,7 +537,6 @@
           if (window.innerWidth <= 480) leftPanel.classList.add('hide-on-mobile');
         };
         chatsList.appendChild(el);
-
         // subscribe to last message of this thread for notifications
         const msgsCol = collection(db, 'dmThreads', threadId, 'messages');
         const qLast = query(msgsCol, orderBy('createdAt', 'desc'), limit(1));
@@ -606,19 +560,16 @@
         }, (err) => console.warn('last message sub err', err));
         perThreadUnsubs.push(unsub);
       }
-
       unsubscribeThreadsAll = () => perThreadUnsubs.forEach(u => u && u());
     }, (err) => {
       console.warn('threads sub err', err);
     });
   }
-
   function renderThreadBadge(threadId){
     const badge = document.getElementById('badge_' + threadId);
     const count = unreadCounts[threadId] || 0;
     if (badge) badge.innerHTML = count ? `<div class="unread-pill">${count}</div>` : '';
   }
-
   // --- prefix search by username (client-side scan up to 200 usernames) ---
   globalSearch.oninput = debounce(async (e) => {
     const q = e.target.value.trim().toLowerCase();
@@ -666,13 +617,11 @@
       console.warn(err); chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ошибка поиска</div>';
     }
   }, 200);
-
   // --- DM thread helpers & messages (preserve original) ---
   function threadIdFor(u1, u2){ const ids=[u1,u2].sort(); return ids[0] + '_' + ids[1]; }
   let unsubscribeMessages = null;
   let currentPeer = null;
   let currentThreadId = null;
-
   async function ensureThreadExistsAndSubscribe(peer) {
     const user = auth.currentUser; if (!user) throw new Error('Неавторизован');
     const tId = threadIdFor(user.uid, peer.uid);
@@ -684,7 +633,6 @@
     subscribeToMessages(tId);
     return tId;
   }
-
   function subscribeToMessages(tId) {
     if (unsubscribeMessages) unsubscribeMessages();
     const msgsCol = collection(db, 'dmThreads', tId, 'messages');
@@ -699,7 +647,6 @@
     }, (err) => { console.warn('msgs sub err', err); });
     currentThreadId = tId;
   }
-
   function renderMessage(m) {
     const user = auth.currentUser;
     const row = document.createElement('div');
@@ -721,7 +668,6 @@
     row.appendChild(bubble);
     messagesEl.appendChild(row);
   }
-
   async function openDirectChat(peer) {
     currentPeer = peer;
     peerName.textContent = peer.displayName || peer.username || 'Пользователь';
@@ -735,7 +681,6 @@
       setLastSeen(tId, Date.now());
     } catch (e) { console.error(e); alert('Не удалось открыть чат: ' + (e.message || e)); }
   }
-
   // --- send message, image upload, audio upload (preserve original) ---
   async function sendTextMessage(text) {
     if (!text) return;
@@ -748,7 +693,6 @@
       await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: text, updatedAt: serverTimestamp() }, { merge: true });
     } catch (e) { console.error(e); alert('Ошибка отправки: ' + e.message); }
   }
-
   imageBtn.onclick = () => imageInput.click();
   imageInput.onchange = async (ev) => {
     const file = ev.target.files[0];
@@ -767,7 +711,6 @@
       imageInput.value = '';
     } catch (e) { console.error(e); alert('Ошибка загрузки изображения: ' + (e.message || e)); }
   };
-
   // --- audio recording (preserve) ---
   let mediaRecorder = null; let audioChunks = [];
   recordBtn.onclick = async () => {
@@ -784,7 +727,6 @@
       } catch (e) { console.error(e); alert('Нет доступа к микрофону: ' + (e.message || e)); }
     }
   };
-
   async function uploadAudioBlob(blob) {
     if (!currentPeer) return alert('Открой чат перед отправкой голосового');
     const user = auth.currentUser; if (!user) return alert('Войдите');
@@ -799,11 +741,9 @@
       await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: '[Голосовое сообщение]', updatedAt: serverTimestamp() }, { merge: true });
     } catch (e) { console.error(e); alert('Ошибка загрузки голоса: ' + (e.message || e)); }
   }
-
   // --- send on Enter ---
   messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
   sendBtn.onclick = () => { const text = messageInput.value.trim(); if (!text) return; sendTextMessage(text); messageInput.value = ''; };
-
   // --- auth state handling ---
   onAuthStateChanged(auth, async (user) => {
     renderAuthUI(user);
@@ -819,7 +759,6 @@
       if (unsubscribeThreadsAll) unsubscribeThreadsAll();
     }
   });
-
   newChatBtn.onclick = () => {
     const username = prompt('Введите username пользователя (латиница, без @):');
     if (!username) return;
@@ -834,7 +773,6 @@
       } catch (e) { console.error(e); alert('Ошибка: ' + e.message); }
     })();
   };
-
   // --- theme toggle logic (persist in localStorage) ---
   const THEME_KEY = 'np_theme_v1';
   function loadTheme(){ try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch(e){ return 'dark'; } }
@@ -847,7 +785,6 @@
   // init theme
   (function(){ const cur = loadTheme(); applyTheme(cur); })();
   themeToggle.onclick = () => { const cur = loadTheme(); const next = cur === 'light' ? 'dark' : 'light'; applyTheme(next); saveTheme(next); };
-
   // show/hide bottom nav on mobile sizes
   function updateMobileUI(){
     if (window.innerWidth <= 900) {
@@ -860,27 +797,87 @@
   }
   window.addEventListener('resize', updateMobileUI);
   updateMobileUI();
-
   // bottom nav handlers (simple anchors — they can be expanded)
   document.getElementById('navChats').onclick = () => { if (window.innerWidth <= 480) leftPanel.classList.remove('hide-on-mobile'); };
-  document.getElementById('navContacts').onclick = () => alert('Контакты — позже'); 
-  document.getElementById('navCalls').onclick = () => alert('Звонки — позже'); 
-  document.getElementById('navSettings').onclick = () => alert('Настройки — позже');
-
+  document.getElementById('navContacts').onclick = () => alert('Контакты — позже');
+  document.getElementById('navCalls').onclick = () => alert('Звонки — позже');
+  document.getElementById('navSettings').onclick = async () => {
+    const settingsOverlay = document.createElement('div');
+    settingsOverlay.id = 'settingsOverlay';
+    settingsOverlay.style.position = 'fixed';
+    settingsOverlay.style.left = '0';
+    settingsOverlay.style.top = '0';
+    settingsOverlay.style.width = '100%';
+    settingsOverlay.style.height = '100%';
+    settingsOverlay.style.background = 'var(--bg-main)';
+    settingsOverlay.style.zIndex = '100';
+    settingsOverlay.style.overflow = 'auto';
+    settingsOverlay.style.padding = '20px';
+    settingsOverlay.innerHTML = `
+      <button id="closeSettings" style="margin-bottom:20px;">Закрыть</button>
+      <div id="settingsAuth" style="margin-bottom:20px;"></div>
+      <input type="file" id="profilePhotoInput" accept="image/*" style="margin-bottom:10px;">
+      <button id="uploadProfilePhoto">Загрузить фото профиля</button>
+      <input id="displayNameInput" placeholder="Новое имя" style="margin-top:20px;margin-bottom:10px;padding:8px;">
+      <button id="updateName">Обновить имя</button>
+    `;
+    document.body.appendChild(settingsOverlay);
+    const user = auth.currentUser;
+    if (user) {
+      const settingsAuth = document.getElementById('settingsAuth');
+      settingsAuth.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center">
+          <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:72px;height:72;border-radius:16px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)">
+          <div>
+            <div style="font-weight:700;color:var(--text)">${user.displayName||'(без имени)'}</div>
+            <div class="small">${user.email||''}</div>
+          </div>
+        </div>
+        <button id="signOutSettings" class="ghost-btn" style="margin-top:10px;">Выйти</button>
+      `;
+      document.getElementById('signOutSettings').onclick = async () => {
+        await signOut(auth);
+        settingsOverlay.remove();
+      };
+      document.getElementById('uploadProfilePhoto').onclick = async () => {
+        const file = document.getElementById('profilePhotoInput').files[0];
+        if (!file) return;
+        try {
+          const path = `profiles/${user.uid}/avatar`;
+          const sRef = storageRef(storage, path);
+          await uploadBytes(sRef, file);
+          const url = await getDownloadURL(sRef);
+          await updateProfile(user, { photoURL: url });
+          await setDoc(doc(db, 'profiles', user.uid), { photoURL: url }, { merge: true });
+          alert('Фото обновлено');
+          settingsOverlay.remove();
+        } catch (e) { alert('Ошибка: ' + e.message); }
+      };
+      document.getElementById('updateName').onclick = async () => {
+        const newName = document.getElementById('displayNameInput').value.trim();
+        if (!newName) return;
+        try {
+          await updateProfile(user, { displayName: newName });
+          await setDoc(doc(db, 'profiles', user.uid), { displayName: newName }, { merge: true });
+          alert('Имя обновлено');
+          settingsOverlay.remove();
+        } catch (e) { alert('Ошибка: ' + e.message); }
+      };
+    } else {
+      document.getElementById('settingsAuth').innerHTML = '<div>Войдите в аккаунт</div>';
+    }
+    document.getElementById('closeSettings').onclick = () => settingsOverlay.remove();
+  };
   // --- utilities ---
   function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
   function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
-
   // render favorites on load
   renderFavoritesBar();
-
   // expose setLastSeen for testing
   window.setLastSeen = setLastSeen;
-
   /* ===================== */
   /* === WEBRTC CALLS === */
   /* ===================== */
-
   // UI refs for calls
   const callOverlay = document.getElementById('callOverlay');
   const callTitle = document.getElementById('callTitle');
@@ -892,7 +889,6 @@
   const callingTo = document.getElementById('callingTo');
   const remoteAudio = document.getElementById('remoteAudio');
   const callBtn = document.getElementById('callBtn');
-
   // WebRTC state
   let pc = null;
   let localStream = null;
@@ -901,7 +897,6 @@
   let answerCandidatesUnsub = null;
   let incomingCallsUnsub = null;
   let currentIncomingCallId = null;
-
   // STUN server (можно добавить TURN для надёжности)
   const rtcConfig = {
     iceServers: [
@@ -909,7 +904,6 @@
       // Для надёжности в проде: добавь TURN сервер здесь
     ]
   };
-
   // Показать/скрыть overlay
   function showCallOverlay(mode, info) {
     // mode: 'incoming' | 'outgoing' | 'incall'
@@ -939,12 +933,10 @@
     callOverlay.style.display = 'flex';
     callOverlay.setAttribute('aria-hidden', 'false');
   }
-
   function hideCallOverlay() {
     callOverlay.style.display = 'none';
     callOverlay.setAttribute('aria-hidden', 'true');
   }
-
   // Сброс/очистка соединения
   async function cleanUpCallState(markEnded = true) {
     try {
@@ -971,13 +963,11 @@
     currentIncomingCallId = null;
     hideCallOverlay();
   }
-
   // Запустить исходящий звонок (caller)
   async function startCallToPeer(peer) {
     const user = auth.currentUser;
     if (!user) return alert('Войдите');
     if (!peer || !peer.uid) return alert('Открой чат с пользователем, которому хочешь позвонить');
-
     // подготовка RTCPeerConnection
     pc = new RTCPeerConnection(rtcConfig);
     // воспроизведение входящего потока
@@ -991,7 +981,6 @@
         await addDoc(collection(currentCallDocRef, 'offerCandidates'), e.candidate.toJSON());
       } catch (err) { console.warn('add offer candidate err', err); }
     };
-
     try {
       // получаем микрофон
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1001,15 +990,12 @@
       alert('Нужен доступ к микрофону');
       return;
     }
-
     // создаём документ вызова
     const callDocRef = doc(collection(db, 'webrtcCalls')); // сгенерит id
     currentCallDocRef = callDocRef;
-
     // создаём оффер
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-
     // записываем оффер в firestore
     await setDoc(callDocRef, {
       callerUid: user.uid,
@@ -1020,7 +1006,6 @@
       status: 'ringing',
       createdAt: serverTimestamp()
     }, { merge: true });
-
     // подписываемся на ответ
     const unsubCall = onSnapshot(callDocRef, (snap) => {
       const data = snap.data();
@@ -1039,7 +1024,6 @@
         cleanUpCallState(false);
       }
     }, (err) => console.warn('callDoc sub err', err));
-
     // слушаем кандидаты answer
     answerCandidatesUnsub = onSnapshot(collection(callDocRef, 'answerCandidates'), (snap) => {
       snap.docChanges().forEach(change => {
@@ -1049,7 +1033,6 @@
         }
       });
     });
-
     // показываем UI как исходящий звонок
     showCallOverlay('outgoing', { calleeName: peer.username || peer.displayName || peer.uid });
     // отображаем hangup — он уже виден по CSS
@@ -1061,20 +1044,16 @@
       await cleanUpCallState(false);
     };
   }
-
   // Ответ на входящий вызов (callee)
   async function acceptIncomingCall(callDocId) {
     try {
       const user = auth.currentUser;
       if (!user) return alert('Войдите');
-
       const callDocRef = doc(db, 'webrtcCalls', callDocId);
       currentCallDocRef = callDocRef;
-
       const callSnap = await getDoc(callDocRef);
       if (!callSnap.exists()) return alert('Вызов больше не доступен');
       const data = callSnap.data();
-
       // создаём RTCPeerConnection
       pc = new RTCPeerConnection(rtcConfig);
       pc.ontrack = (event) => {
@@ -1086,7 +1065,6 @@
           await addDoc(collection(callDocRef, 'answerCandidates'), e.candidate.toJSON());
         } catch (err) { console.warn('add answer candidate err', err); }
       };
-
       // берем микрофон
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1098,19 +1076,15 @@
         await setDoc(callDocRef, { status: 'declined' }, { merge: true });
         return;
       }
-
       // устанавливаем remoteDescription = offer
       const offer = data.offer;
       if (!offer) return alert('Оффер не найден');
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
       // создаём answer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-
       // записываем answer в документ вызова
       await setDoc(callDocRef, { answer: { type: answer.type, sdp: answer.sdp }, status: 'accepted' }, { merge: true });
-
       // слушаем оффер-кандидаты и добавляем их
       offerCandidatesUnsub = onSnapshot(collection(callDocRef, 'offerCandidates'), (snap) => {
         snap.docChanges().forEach(change => {
@@ -1120,7 +1094,6 @@
           }
         });
       });
-
       // слушаем дальнейшее изменение статусов (например hangup)
       const unsubCall = onSnapshot(callDocRef, (snap) => {
         const d = snap.data();
@@ -1130,7 +1103,6 @@
           unsubCall();
         }
       });
-
       // показываем UI "в разговоре"
       showCallOverlay('incall', { peerName: data.callerName || data.callerUid });
       hangupBtn.onclick = async () => {
@@ -1143,7 +1115,6 @@
       alert('Ошибка при принятии звонка');
     }
   }
-
   // Отклонить входящий звонок
   async function declineIncomingCall(callDocId) {
     try {
@@ -1153,7 +1124,6 @@
       await cleanUpCallState(false);
     } catch (e) { console.warn('decline err', e); }
   }
-
   // Слушатель новых входящих звонков для текущего пользователя
   function subscribeIncomingCallsFor(uid) {
     if (incomingCallsUnsub) incomingCallsUnsub();
@@ -1176,7 +1146,6 @@
           callingIndicator.style.display = 'none';
           callOverlay.style.display = 'flex';
           callOverlay.setAttribute('aria-hidden', 'false');
-
           // вешаем обработчики
           acceptCallBtn.onclick = async () => {
             acceptCallBtn.disabled = true;
@@ -1194,7 +1163,6 @@
       console.warn('incoming calls sub err', err);
     });
   }
-
   // Обработчик кнопки звонка в хедере
   callBtn.addEventListener('click', async () => {
     if (!currentPeer || !currentPeer.uid) return alert('Открой чат с человеком, которому хочешь позвонить');
@@ -1207,7 +1175,6 @@
       await cleanUpCallState();
     }
   });
-
   // hangup на overlay (если пользователь нажмёт)
   hangupBtn.addEventListener('click', async () => {
     if (currentCallDocRef) {
@@ -1217,7 +1184,6 @@
     }
     await cleanUpCallState();
   });
-
   // Закрыть overlay при клике вне карточки (необязательно)
   callOverlay.addEventListener('click', (ev) => {
     if (ev.target === callOverlay) {
@@ -1225,7 +1191,6 @@
       // Можно оставить пустым или закрывать только если вызов завершён.
     }
   });
-
   // Подписка при авторизации — слушаем входящие звонки
   onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -1234,15 +1199,12 @@
       if (incomingCallsUnsub) { incomingCallsUnsub(); incomingCallsUnsub = null; }
     }
   });
-
   // Небольшая подсказка: при тестировании на двух вкладках — авторизуйся под двумя разными аккаунтами,
   // открой чат между ними, нажми кнопку звонка у одного — у второго появится плашка входящего.
   // Если пёрл становится нестабильным, добавь TURN серверы в rtcConfig. Сейчас используется только STUN.
-
   /* ===================== */
   /* === END OF CALLS === */
   /* ===================== */
-
 </script>
 </body>
 </html>
