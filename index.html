@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="ru">
 <head>
@@ -40,7 +41,7 @@
   .left-top{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.02)}
   .left-logo{width:44px;height:44;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
   .left-search{padding:10px;border-bottom:1px solid rgba(255,255,255,0.02)}
-  .search-input{Width:100%;padding:10px;border-radius:12px;border:0;background:rgba(0,0,0,0.18);color:var(--text);outline:none}
+  .search-input{width:100%;padding:10px;border-radius:12px;border:0;background:rgba(0,0,0,0.18);color:var(--text);outline:none}
   .chat-list{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
   .chat-row{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;cursor:pointer;position:relative}
   .chat-row:hover{background:rgba(124,77,255,0.04)}
@@ -79,122 +80,59 @@
   /* header controls */
   .header-controls { margin-left: auto; display:flex; gap:8px; align-items:center }
   .theme-toggle { padding:8px 10px; border-radius:8px; border:0; cursor:pointer; background:rgba(255,255,255,0.04); color:var(--text) }
-  /* Mobile design: улучшенная мобильная версия */
+  /* Mobile design — улучшенный, как в Telegram */
   @media (max-width:900px){
     .app{flex-direction:column;height:100vh;margin:0;border-radius:0}
-    .left-panel{width:100%;height:42%;order:1}
-    .main{height:58%;order:2}
-    /* mobile: show compact header with tabs */
-    .main-header{padding:10px 12px}
-    .left-top{padding:10px}
-    .left-search{padding:8px}
-    .search-input{padding:10px;border-radius:14px}
-    /* bottom navigation bar (phone) */
-    .bottom-nav {
-      position:fixed;
-      bottom:0;left:0;right:0;height:64px;
-      background:var(--bg-chat);display:flex;align-items:center;justify-content:space-around;border-top:1px solid rgba(255,255,255,0.03);
-      z-index:60;
+    .left-panel{width:100%;height:100%;order:1}
+    .main{height:100%;order:2}
+    /* класс для скрытия панелей */
+    .hide-on-mobile { display: none !important; }
+    /* кнопка назад в шапке */
+    #backBtn { display: inline-flex !important; margin-right: 8px; }
+    /* отступ снизу для сообщений, чтобы не перекрывать bottom-nav */
+    .messages { padding-bottom: 80px; }
+    /* нижняя навигация всегда видна */
+    .bottom-nav { display: flex !important; }
+    /* экран настроек не перекрывает bottom-nav */
+    #settingsOverlay {
+      bottom: 64px !important;
+      height: auto !important;
+      background: var(--bg-main) !important;
+      z-index: 90 !important;
     }
-    .bottom-nav button{background:transparent;border:0;color:var(--muted);font-weight:700;cursor:pointer}
-    /* ensure composer above nav */
-    .composer{padding-bottom:80px}
-    /* make favorites bar more like stories circles on top */
-    .favorites-bar{padding:8px;gap:12px}
-    .fav-avatar{width:44px;height:44;border-radius:50%}
-    .fav-username{font-size:11px}
-    /* Улучшенный мобильный дизайн: крупные элементы, удобная регистрация */
-    .left-top {
-      padding: 16px 12px;
-    }
-    .left-logo {
-      width: 52px;
-      height: 52px;
-      font-size: 20px;
-    }
-    .left-top div:last-child .small {
-      font-size: 14px;
-    }
-    .search-input {
-      padding: 14px 16px;
-      font-size: 16px;
-      border-radius: 24px;
-    }
-    /* Блок авторизации на мобильных — крупные поля и кнопки */
-    #authBlock {
-      width: 100%;
-    }
-    #authBlock input {
-      width: 100%;
-      padding: 16px 18px !important;
-      font-size: 16px !important;
-      border-radius: 24px !important;
-      margin-bottom: 12px !important;
-      background: rgba(0,0,0,0.25) !important;
-      border: 1px solid rgba(255,255,255,0.1) !important;
-    }
-    #authBlock button {
-      padding: 16px !important;
-      font-size: 18px !important;
-      border-radius: 32px !important;
-      font-weight: 600;
-    }
-    .chat-row {
-      padding: 14px 10px;
-    }
-    .chat-name {
-      font-size: 18px;
-    }
-    .chat-sub {
-      font-size: 15px;
-    }
-    .avatar {
-      width: 64px;
-      height: 64px;
-      border-radius: 16px;
-    }
-    .fav-add-btn {
-      padding: 10px 14px;
-      font-size: 18px;
-    }
-    /* сообщения */
+    /* пузырьки сообщений покрупнее */
     .bubble {
       font-size: 16px;
-      padding: 12px 18px;
+      padding: 12px 16px;
+      max-width: 85%;
     }
-    .msg-meta {
-      font-size: 13px;
-    }
-    .composer textarea {
-      font-size: 16px;
-      padding: 16px;
-    }
-    .icon-btn {
-      width: 56px;
-      height: 56px;
-      font-size: 24px;
-    }
-    .send-btn {
-      padding: 14px 22px;
-      font-size: 18px;
-    }
-    .call-overlay { align-items: flex-start; padding-top: 20px; }
+    .message-row { margin-bottom: 8px; }
+    /* поле ввода прилипает снизу */
+    .composer { padding-bottom: 12px; }
+    /* исправляем высоты */
+    .left-panel, .main { transition: none; }
+    /* аватарки и иконки */
+    .avatar, .main-avatar { width: 52px; height: 52px; }
+    .fav-avatar { width: 48px; height: 48px; }
+    .icon-btn { width: 48px; height: 48px; }
   }
   /* очень маленькие экраны */
   @media (max-width:480px){
-    .left-panel.hide-on-mobile { display:none; }
-    /* ещё более крупные элементы при необходимости */
-    .left-logo { width: 56px; height: 56px; }
-    .avatar { width: 72px; height: 72px; }
-    .chat-name { font-size: 20px; }
-    .chat-sub { font-size: 16px; }
+    .avatar, .main-avatar { width: 56px; height: 56px; }
+    .chat-name { font-size: 18px; }
+    .bubble { font-size: 16px; }
   }
   /* Light theme small overrides for inputs / backgrounds */
-  .light-theme .search-input { background: #f2f4f8; color: var(--text) }
-  .light-theme .composer textarea { background:#fff; color:var(--text) }
-  .light-theme .left-panel, .light-theme .main { background: var(--bg-chat) }
-  .light-theme .left-panel { border-right: 1px solid rgba(0,0,0,0.06) }
-  .light-theme #authBlock input { background: #f2f4f8; color: #111; border-color: #ccc; }
+  .light-theme .search-input { background: #f2f4f8; color: var(--text); }
+  .light-theme .composer textarea { background:#fff; color:var(--text); }
+  .light-theme .left-panel, .light-theme .main { background: var(--bg-chat); }
+  .light-theme .left-panel { border-right: 1px solid rgba(0,0,0,0.06); }
+  /* светлая тема — контрастные поля авторизации */
+  .light-theme #authBlock input {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+  }
   /* ========== CALL UI ========== */
   .call-overlay {
     position: fixed;
@@ -223,14 +161,7 @@
   .call-accept { background: linear-gradient(135deg,var(--accent),var(--accent-2)); color:white }
   .call-decline { background: rgba(255,255,255,0.06); color:var(--text) }
   .call-hangup { background: #ff3b30; color: white; }
-  .calling-indicator {
-    display:none;
-    align-items:center;
-    gap:10px;
-    color:var(--muted);
-    font-size:13px;
-  }
-  /* small remote audio visual (hidden) */
+  .calling-indicator { display:none; align-items:center; gap:10px; color:var(--muted); font-size:13px; }
   #remoteAudio { display:none; }
 </style>
 </head>
@@ -260,8 +191,9 @@
     </div>
   </div>
   <!-- main chat area -->
-  <div class="main">
+  <div class="main" id="mainArea">
     <div class="main-header" id="mainHeader">
+      <button id="backBtn" class="icon-btn" style="display:none;">←</button>
       <img id="peerAvatar" class="main-avatar" src="https://via.placeholder.com/48?text=?" alt="avatar">
       <div style="flex:1">
         <div id="peerName" class="main-title">Выберите чат</div>
@@ -269,7 +201,7 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="searchInChat" class="icon-btn" title="Поиск в чате">🔎</button>
-        <button id="callBtn" class="icon-btn" title="Позвонить">📞</button> <!-- ДОБАВЛЕНО: кнопка звонка -->
+        <button id="callBtn" class="icon-btn" title="Позвонить">📞</button>
         <button id="moreBtn" class="icon-btn" title="Ещё">⋯</button>
       </div>
     </div>
@@ -298,7 +230,7 @@
   <button id="navChats">Чаты</button>
   <button id="navSettings">Настройки</button>
 </div>
-<!-- CALL OVERLAY UI (добавлено) -->
+<!-- CALL OVERLAY UI -->
 <div id="callOverlay" class="call-overlay" aria-hidden="true">
   <div class="call-card" id="callCard">
     <h3 id="callTitle">Входящий звонок</h3>
@@ -326,7 +258,7 @@
     getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, getDocs, runTransaction, where, limit
   } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
-  // --- Firebase config (твои значения) ---
+  // --- Firebase config ---
   const firebaseConfig = {
     apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
     authDomain: "nova-prospect-chat.firebaseapp.com",
@@ -343,6 +275,7 @@
   const storage = getStorage(app);
   // --- UI refs ---
   const leftPanel = document.getElementById('leftPanel');
+  const mainArea = document.getElementById('mainArea');
   const chatsList = document.getElementById('chatsList');
   const globalSearch = document.getElementById('globalSearch');
   const authBlock = document.getElementById('authBlock');
@@ -359,6 +292,8 @@
   const recordBtn = document.getElementById('recordBtn');
   const bottomNav = document.getElementById('bottomNav');
   const themeToggle = document.getElementById('themeToggle');
+  const backBtn = document.getElementById('backBtn');
+
   // --- favorites (localStorage) ---
   const FAV_KEY = 'np_favs_v1';
   function loadFavorites(){ try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch(e){ return []; } }
@@ -423,7 +358,7 @@
       } catch(e){ console.warn(e); }
     }
   }
-  // --- auth UI (same as before) ---
+  // --- auth UI ---
   function renderAuthUI(user) {
     authBlock.innerHTML = '';
     if (!user) {
@@ -478,7 +413,7 @@
       };
     }
   }
-  // --- username helpers (preserve original) ---
+  // --- username helpers ---
   async function createUsernameForUid(usernameRaw, uid, displayName = null) {
     const username = sanitizeUsername(usernameRaw);
     if (!username) throw 'Неверный username';
@@ -533,8 +468,6 @@
         el.onclick = () => {
           openDirectChat({ uid: otherUid, username: profile.username, displayName: profile.displayName, photoURL: profile.photoURL });
           setLastSeen(threadId, Date.now());
-          // on mobile hide left panel to show chat
-          if (window.innerWidth <= 480) leftPanel.classList.add('hide-on-mobile');
         };
         chatsList.appendChild(el);
         // subscribe to last message of this thread for notifications
@@ -570,7 +503,7 @@
     const count = unreadCounts[threadId] || 0;
     if (badge) badge.innerHTML = count ? `<div class="unread-pill">${count}</div>` : '';
   }
-  // --- prefix search by username (client-side scan up to 200 usernames) ---
+  // --- prefix search by username ---
   globalSearch.oninput = debounce(async (e) => {
     const q = e.target.value.trim().toLowerCase();
     chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Поиск...</div>';
@@ -581,7 +514,6 @@
       return;
     }
     try {
-      // fetch some usernames and filter by prefix
       const snap = await getDocs(query(collection(db, 'usernames'), limit(500)));
       const matches = [];
       snap.forEach(d => {
@@ -609,7 +541,7 @@
             <button class="fav-add-btn" data-username="${m.username}">＋</button>
           </div>
         `;
-        el.onclick = (ev) => { if (ev.target && ev.target.classList && ev.target.classList.contains('fav-add-btn')) return; openDirectChat({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL }); if (window.innerWidth <= 480) leftPanel.classList.add('hide-on-mobile'); };
+        el.onclick = (ev) => { if (ev.target && ev.target.classList && ev.target.classList.contains('fav-add-btn')) return; openDirectChat({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL }); };
         el.querySelector('.fav-add-btn').onclick = (ev) => { ev.stopPropagation(); addFavorite({ uid: owner, username: m.username, displayName: prof.displayName, photoURL: prof.photoURL }); };
         chatsList.appendChild(el);
       }
@@ -617,7 +549,7 @@
       console.warn(err); chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ошибка поиска</div>';
     }
   }, 200);
-  // --- DM thread helpers & messages (preserve original) ---
+  // --- DM thread helpers & messages ---
   function threadIdFor(u1, u2){ const ids=[u1,u2].sort(); return ids[0] + '_' + ids[1]; }
   let unsubscribeMessages = null;
   let currentPeer = null;
@@ -679,9 +611,14 @@
       unreadCounts[tId] = 0;
       renderThreadBadge(tId);
       setLastSeen(tId, Date.now());
+      // мобильная навигация: скрыть левую панель, показать основную
+      if (window.innerWidth <= 900) {
+        leftPanel.classList.add('hide-on-mobile');
+        mainArea.classList.remove('hide-on-mobile');
+      }
     } catch (e) { console.error(e); alert('Не удалось открыть чат: ' + (e.message || e)); }
   }
-  // --- send message, image upload, audio upload (preserve original) ---
+  // --- send message, image upload, audio upload ---
   async function sendTextMessage(text) {
     if (!text) return;
     const user = auth.currentUser; if (!user) return alert('Войдите');
@@ -711,7 +648,7 @@
       imageInput.value = '';
     } catch (e) { console.error(e); alert('Ошибка загрузки изображения: ' + (e.message || e)); }
   };
-  // --- audio recording (preserve) ---
+  // --- audio recording ---
   let mediaRecorder = null; let audioChunks = [];
   recordBtn.onclick = async () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') { mediaRecorder.stop(); recordBtn.textContent = '🎙️'; recordBtn.style.background = ''; }
@@ -750,7 +687,6 @@
     renderFavoritesBar();
     if (user) {
       subscribeMyThreads(user.uid);
-      // soft request for notifications
       if ("Notification" in window && Notification.permission === "default") {
         try { await Notification.requestPermission(); } catch(e){ /* ignore */ }
       }
@@ -769,11 +705,10 @@
         const owner = unameSnap.data().owner;
         const prof = (await getDoc(doc(db, 'profiles', owner))).data() || {};
         openDirectChat({ uid: owner, username: username.trim().toLowerCase(), displayName: prof.displayName, photoURL: prof.photoURL });
-        if (window.innerWidth <= 480) leftPanel.classList.add('hide-on-mobile');
       } catch (e) { console.error(e); alert('Ошибка: ' + e.message); }
     })();
   };
-  // --- theme toggle logic (persist in localStorage) ---
+  // --- theme toggle logic ---
   const THEME_KEY = 'np_theme_v1';
   function loadTheme(){ try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch(e){ return 'dark'; } }
   function saveTheme(t){ try { localStorage.setItem(THEME_KEY, t); } catch(e){} }
@@ -782,23 +717,43 @@
     else document.documentElement.classList.remove('light-theme');
     themeToggle.textContent = (t === 'light') ? '🌞' : '🌙';
   }
-  // init theme
   (function(){ const cur = loadTheme(); applyTheme(cur); })();
   themeToggle.onclick = () => { const cur = loadTheme(); const next = cur === 'light' ? 'dark' : 'light'; applyTheme(next); saveTheme(next); };
-  // show/hide bottom nav on mobile sizes
+  // --- mobile navigation ---
   function updateMobileUI(){
     if (window.innerWidth <= 900) {
       bottomNav.style.display = 'flex';
+      if (!currentPeer) {
+        leftPanel.classList.remove('hide-on-mobile');
+        mainArea.classList.add('hide-on-mobile');
+      } else {
+        leftPanel.classList.add('hide-on-mobile');
+        mainArea.classList.remove('hide-on-mobile');
+      }
     } else {
       bottomNav.style.display = 'none';
-      // ensure left panel visible on desktop
       leftPanel.classList.remove('hide-on-mobile');
+      mainArea.classList.remove('hide-on-mobile');
     }
   }
   window.addEventListener('resize', updateMobileUI);
   updateMobileUI();
-  // bottom nav handlers (simple anchors — they can be expanded)
-  document.getElementById('navChats').onclick = () => { if (window.innerWidth <= 480) leftPanel.classList.remove('hide-on-mobile'); };
+  // --- back button ---
+  backBtn.addEventListener('click', () => {
+    if (window.innerWidth <= 900) {
+      leftPanel.classList.remove('hide-on-mobile');
+      mainArea.classList.add('hide-on-mobile');
+      currentPeer = null; // необязательно, но для красоты
+    }
+  });
+  // bottom nav handlers
+  document.getElementById('navChats').onclick = () => {
+    if (window.innerWidth <= 900) {
+      leftPanel.classList.remove('hide-on-mobile');
+      mainArea.classList.add('hide-on-mobile');
+      currentPeer = null;
+    }
+  };
   document.getElementById('navContacts').onclick = () => alert('Контакты — позже');
   document.getElementById('navCalls').onclick = () => alert('Звонки — позже');
   document.getElementById('navSettings').onclick = async () => {
@@ -808,18 +763,23 @@
     settingsOverlay.style.left = '0';
     settingsOverlay.style.top = '0';
     settingsOverlay.style.width = '100%';
-    settingsOverlay.style.height = '100%';
     settingsOverlay.style.background = 'var(--bg-main)';
     settingsOverlay.style.zIndex = '100';
     settingsOverlay.style.overflow = 'auto';
     settingsOverlay.style.padding = '20px';
+    if (window.innerWidth <= 900) {
+      settingsOverlay.style.bottom = '64px';
+      settingsOverlay.style.height = 'auto';
+    } else {
+      settingsOverlay.style.height = '100%';
+    }
     settingsOverlay.innerHTML = `
-      <button id="closeSettings" style="margin-bottom:20px;">Закрыть</button>
+      <button id="closeSettings" style="margin-bottom:20px;">← Назад</button>
       <div id="settingsAuth" style="margin-bottom:20px;"></div>
-      <input type="file" id="profilePhotoInput" accept="image/*" style="margin-bottom:10px;">
-      <button id="uploadProfilePhoto">Загрузить фото профиля</button>
-      <input id="displayNameInput" placeholder="Новое имя" style="margin-top:20px;margin-bottom:10px;padding:8px;">
-      <button id="updateName">Обновить имя</button>
+      <input type="file" id="profilePhotoInput" accept="image/*" style="margin-bottom:10px; width:100%; padding:8px;">
+      <button id="uploadProfilePhoto" style="width:100%; padding:12px;">Загрузить фото профиля</button>
+      <input id="displayNameInput" placeholder="Новое имя" style="margin-top:20px;margin-bottom:10px;padding:12px; width:100%;">
+      <button id="updateName" style="width:100%; padding:12px;">Обновить имя</button>
     `;
     document.body.appendChild(settingsOverlay);
     const user = auth.currentUser;
@@ -871,14 +831,11 @@
   // --- utilities ---
   function debounce(fn, ms) { let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
   function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
-  // render favorites on load
   renderFavoritesBar();
-  // expose setLastSeen for testing
   window.setLastSeen = setLastSeen;
   /* ===================== */
   /* === WEBRTC CALLS === */
   /* ===================== */
-  // UI refs for calls
   const callOverlay = document.getElementById('callOverlay');
   const callTitle = document.getElementById('callTitle');
   const callSubtitle = document.getElementById('callSubtitle');
@@ -897,16 +854,8 @@
   let answerCandidatesUnsub = null;
   let incomingCallsUnsub = null;
   let currentIncomingCallId = null;
-  // STUN server (можно добавить TURN для надёжности)
-  const rtcConfig = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' }
-      // Для надёжности в проде: добавь TURN сервер здесь
-    ]
-  };
-  // Показать/скрыть overlay
+  const rtcConfig = { iceServers: [ { urls: 'stun:stun.l.google.com:19302' } ] };
   function showCallOverlay(mode, info) {
-    // mode: 'incoming' | 'outgoing' | 'incall'
     if (mode === 'incoming') {
       callTitle.textContent = 'Входящий звонок';
       callSubtitle.textContent = `@${info.callerName || info.callerUid}`;
@@ -933,16 +882,11 @@
     callOverlay.style.display = 'flex';
     callOverlay.setAttribute('aria-hidden', 'false');
   }
-  function hideCallOverlay() {
-    callOverlay.style.display = 'none';
-    callOverlay.setAttribute('aria-hidden', 'true');
-  }
-  // Сброс/очистка соединения
+  function hideCallOverlay() { callOverlay.style.display = 'none'; callOverlay.setAttribute('aria-hidden', 'true'); }
   async function cleanUpCallState(markEnded = true) {
     try {
       if (offerCandidatesUnsub) { offerCandidatesUnsub(); offerCandidatesUnsub = null; }
       if (answerCandidatesUnsub) { answerCandidatesUnsub(); answerCandidatesUnsub = null; }
-      if (incomingCallsUnsub) { /* keep incoming listener alive */ }
     } catch (e) { console.warn('cleanup unsub err', e); }
     if (pc) {
       try { pc.getSenders().forEach(s => { try { if (s.track) s.track.stop(); } catch(e){} }); } catch(e){}
@@ -955,48 +899,30 @@
     }
     remoteAudio.srcObject = null;
     if (currentCallDocRef && markEnded) {
-      try {
-        await setDoc(currentCallDocRef, { status: 'ended' }, { merge: true });
-      } catch(e){ console.warn('mark ended err', e); }
+      try { await setDoc(currentCallDocRef, { status: 'ended' }, { merge: true }); } catch(e){ console.warn(e); }
     }
     currentCallDocRef = null;
     currentIncomingCallId = null;
     hideCallOverlay();
   }
-  // Запустить исходящий звонок (caller)
   async function startCallToPeer(peer) {
     const user = auth.currentUser;
     if (!user) return alert('Войдите');
     if (!peer || !peer.uid) return alert('Открой чат с пользователем, которому хочешь позвонить');
-    // подготовка RTCPeerConnection
     pc = new RTCPeerConnection(rtcConfig);
-    // воспроизведение входящего потока
-    pc.ontrack = (event) => {
-      try { remoteAudio.srcObject = event.streams[0]; } catch(e){ console.warn(e); }
-    };
-    // ICE кандидаты отправляем в коллекцию offerCandidates
+    pc.ontrack = (event) => { try { remoteAudio.srcObject = event.streams[0]; } catch(e){ console.warn(e); } };
     pc.onicecandidate = async (e) => {
       if (!e.candidate) return;
-      try {
-        await addDoc(collection(currentCallDocRef, 'offerCandidates'), e.candidate.toJSON());
-      } catch (err) { console.warn('add offer candidate err', err); }
+      try { await addDoc(collection(currentCallDocRef, 'offerCandidates'), e.candidate.toJSON()); } catch (err) { console.warn(err); }
     };
     try {
-      // получаем микрофон
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-    } catch (e) {
-      console.error('getUserMedia failed', e);
-      alert('Нужен доступ к микрофону');
-      return;
-    }
-    // создаём документ вызова
-    const callDocRef = doc(collection(db, 'webrtcCalls')); // сгенерит id
+    } catch (e) { console.error(e); alert('Нужен доступ к микрофону'); return; }
+    const callDocRef = doc(collection(db, 'webrtcCalls'));
     currentCallDocRef = callDocRef;
-    // создаём оффер
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    // записываем оффер в firestore
     await setDoc(callDocRef, {
       callerUid: user.uid,
       callerName: user.displayName || (user.email ? user.email.split('@')[0] : user.uid),
@@ -1006,205 +932,102 @@
       status: 'ringing',
       createdAt: serverTimestamp()
     }, { merge: true });
-    // подписываемся на ответ
     const unsubCall = onSnapshot(callDocRef, (snap) => {
       const data = snap.data();
       if (!data) return;
       if (data.answer && pc && !pc.remoteDescription) {
         const answerDesc = new RTCSessionDescription(data.answer);
-        pc.setRemoteDescription(answerDesc).catch(e => console.warn('setRemoteDesc err', e));
+        pc.setRemoteDescription(answerDesc).catch(e => console.warn(e));
       }
-      // callee принял
-      if (data.status === 'accepted') {
-        showCallOverlay('incall', { peerName: peer.username || peer.displayName || peer.uid });
-      }
-      // callee сбросил
-      if (data.status === 'declined' || data.status === 'ended') {
-        // завершить звонок локально
-        cleanUpCallState(false);
-      }
-    }, (err) => console.warn('callDoc sub err', err));
-    // слушаем кандидаты answer
+      if (data.status === 'accepted') showCallOverlay('incall', { peerName: peer.username || peer.displayName || peer.uid });
+      if (data.status === 'declined' || data.status === 'ended') cleanUpCallState(false);
+    }, (err) => console.warn(err));
     answerCandidatesUnsub = onSnapshot(collection(callDocRef, 'answerCandidates'), (snap) => {
       snap.docChanges().forEach(change => {
-        if (change.type === 'added') {
-          const c = change.doc.data();
-          try { pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('addIceCandidate err', e)); } catch(e){ console.warn(e); }
-        }
+        if (change.type === 'added') { const c = change.doc.data(); try { pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn(e)); } catch(e){} }
       });
     });
-    // показываем UI как исходящий звонок
     showCallOverlay('outgoing', { calleeName: peer.username || peer.displayName || peer.uid });
-    // отображаем hangup — он уже виден по CSS
     hangupBtn.style.display = '';
-    // повесь обработчик hangup
     hangupBtn.onclick = async () => {
       await setDoc(callDocRef, { status: 'ended' }, { merge: true });
-      unsubCall(); // отпишемся
+      unsubCall();
       await cleanUpCallState(false);
     };
   }
-  // Ответ на входящий вызов (callee)
   async function acceptIncomingCall(callDocId) {
     try {
-      const user = auth.currentUser;
-      if (!user) return alert('Войдите');
+      const user = auth.currentUser; if (!user) return alert('Войдите');
       const callDocRef = doc(db, 'webrtcCalls', callDocId);
       currentCallDocRef = callDocRef;
       const callSnap = await getDoc(callDocRef);
       if (!callSnap.exists()) return alert('Вызов больше не доступен');
       const data = callSnap.data();
-      // создаём RTCPeerConnection
       pc = new RTCPeerConnection(rtcConfig);
-      pc.ontrack = (event) => {
-        try { remoteAudio.srcObject = event.streams[0]; } catch(e){ console.warn(e); }
-      };
+      pc.ontrack = (event) => { try { remoteAudio.srcObject = event.streams[0]; } catch(e){} };
       pc.onicecandidate = async (e) => {
         if (!e.candidate) return;
-        try {
-          await addDoc(collection(callDocRef, 'answerCandidates'), e.candidate.toJSON());
-        } catch (err) { console.warn('add answer candidate err', err); }
+        try { await addDoc(collection(callDocRef, 'answerCandidates'), e.candidate.toJSON()); } catch (err) { console.warn(err); }
       };
-      // берем микрофон
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-      } catch (e) {
-        console.error('getUserMedia failed', e);
-        alert('Нужен доступ к микрофону');
-        // можно пометить вызов как declined
-        await setDoc(callDocRef, { status: 'declined' }, { merge: true });
-        return;
-      }
-      // устанавливаем remoteDescription = offer
-      const offer = data.offer;
-      if (!offer) return alert('Оффер не найден');
+      } catch (e) { console.error(e); alert('Нужен доступ к микрофону'); await setDoc(callDocRef, { status: 'declined' }, { merge: true }); return; }
+      const offer = data.offer; if (!offer) return alert('Оффер не найден');
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      // создаём answer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      // записываем answer в документ вызова
       await setDoc(callDocRef, { answer: { type: answer.type, sdp: answer.sdp }, status: 'accepted' }, { merge: true });
-      // слушаем оффер-кандидаты и добавляем их
       offerCandidatesUnsub = onSnapshot(collection(callDocRef, 'offerCandidates'), (snap) => {
         snap.docChanges().forEach(change => {
-          if (change.type === 'added') {
-            const c = change.doc.data();
-            try { pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('addIceCandidate err', e)); } catch(e){ console.warn(e); }
-          }
+          if (change.type === 'added') { const c = change.doc.data(); try { pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn(e)); } catch(e){} }
         });
       });
-      // слушаем дальнейшее изменение статусов (например hangup)
       const unsubCall = onSnapshot(callDocRef, (snap) => {
-        const d = snap.data();
-        if (!d) return;
-        if (d.status === 'ended' || d.status === 'declined') {
-          cleanUpCallState(false);
-          unsubCall();
-        }
+        const d = snap.data(); if (!d) return;
+        if (d.status === 'ended' || d.status === 'declined') { cleanUpCallState(false); unsubCall(); }
       });
-      // показываем UI "в разговоре"
       showCallOverlay('incall', { peerName: data.callerName || data.callerUid });
       hangupBtn.onclick = async () => {
         await setDoc(callDocRef, { status: 'ended' }, { merge: true });
-        unsubCall();
-        await cleanUpCallState(false);
+        unsubCall(); await cleanUpCallState(false);
       };
-    } catch (e) {
-      console.error('acceptIncomingCall err', e);
-      alert('Ошибка при принятии звонка');
-    }
+    } catch (e) { console.error(e); alert('Ошибка при принятии звонка'); }
   }
-  // Отклонить входящий звонок
   async function declineIncomingCall(callDocId) {
-    try {
-      const callDocRef = doc(db, 'webrtcCalls', callDocId);
-      await setDoc(callDocRef, { status: 'declined' }, { merge: true });
-      // просто прячем overlay и очищаем локальное состояние
-      await cleanUpCallState(false);
-    } catch (e) { console.warn('decline err', e); }
+    try { const callDocRef = doc(db, 'webrtcCalls', callDocId); await setDoc(callDocRef, { status: 'declined' }, { merge: true }); await cleanUpCallState(false); } catch (e) { console.warn(e); }
   }
-  // Слушатель новых входящих звонков для текущего пользователя
   function subscribeIncomingCallsFor(uid) {
     if (incomingCallsUnsub) incomingCallsUnsub();
     const q = query(collection(db, 'webrtcCalls'), where('calleeUid', '==', uid));
     incomingCallsUnsub = onSnapshot(q, (snap) => {
       snap.forEach(docSnap => {
-        const data = docSnap.data();
-        const id = docSnap.id;
-        // показываем только свежие и "ringing" вызовы
+        const data = docSnap.data(); const id = docSnap.id;
         if (data && data.status === 'ringing') {
-          // если у нас уже есть обработывающийся входящий вызов — игнорируем другие
           if (currentIncomingCallId && currentIncomingCallId !== id) return;
           currentIncomingCallId = id;
-          // показываем UI входящего
           callTitle.textContent = 'Вам звонит';
           callSubtitle.textContent = '@' + (data.callerName || data.callerUid);
-          acceptCallBtn.style.display = '';
-          declineCallBtn.style.display = '';
-          hangupBtn.style.display = 'none';
-          callingIndicator.style.display = 'none';
-          callOverlay.style.display = 'flex';
-          callOverlay.setAttribute('aria-hidden', 'false');
-          // вешаем обработчики
-          acceptCallBtn.onclick = async () => {
-            acceptCallBtn.disabled = true;
-            await acceptIncomingCall(id);
-            acceptCallBtn.disabled = false;
-          };
-          declineCallBtn.onclick = async () => {
-            declineCallBtn.disabled = true;
-            await declineIncomingCall(id);
-            declineCallBtn.disabled = false;
-          };
+          acceptCallBtn.style.display = ''; declineCallBtn.style.display = ''; hangupBtn.style.display = 'none'; callingIndicator.style.display = 'none';
+          callOverlay.style.display = 'flex'; callOverlay.setAttribute('aria-hidden', 'false');
+          acceptCallBtn.onclick = async () => { acceptCallBtn.disabled = true; await acceptIncomingCall(id); acceptCallBtn.disabled = false; };
+          declineCallBtn.onclick = async () => { declineCallBtn.disabled = true; await declineIncomingCall(id); declineCallBtn.disabled = false; };
         }
       });
-    }, (err) => {
-      console.warn('incoming calls sub err', err);
-    });
+    }, (err) => console.warn('incoming calls sub err', err));
   }
-  // Обработчик кнопки звонка в хедере
   callBtn.addEventListener('click', async () => {
     if (!currentPeer || !currentPeer.uid) return alert('Открой чат с человеком, которому хочешь позвонить');
-    // создаём и стартуем звонок
-    try {
-      await startCallToPeer(currentPeer);
-    } catch (e) {
-      console.error('startCallToPeer err', e);
-      alert('Не удалось начать звонок: ' + (e.message || e));
-      await cleanUpCallState();
-    }
+    try { await startCallToPeer(currentPeer); } catch (e) { console.error(e); alert('Не удалось начать звонок: ' + (e.message || e)); await cleanUpCallState(); }
   });
-  // hangup на overlay (если пользователь нажмёт)
   hangupBtn.addEventListener('click', async () => {
-    if (currentCallDocRef) {
-      try {
-        await setDoc(currentCallDocRef, { status: 'ended' }, { merge: true });
-      } catch(e){ console.warn(e); }
-    }
+    if (currentCallDocRef) { try { await setDoc(currentCallDocRef, { status: 'ended' }, { merge: true }); } catch(e){} }
     await cleanUpCallState();
   });
-  // Закрыть overlay при клике вне карточки (необязательно)
-  callOverlay.addEventListener('click', (ev) => {
-    if (ev.target === callOverlay) {
-      // если это в режиме исходящего/входящего, не закрываем автоматически, чтобы не потерять состояние.
-      // Можно оставить пустым или закрывать только если вызов завершён.
-    }
-  });
-  // Подписка при авторизации — слушаем входящие звонки
   onAuthStateChanged(auth, (user) => {
-    if (user) {
-      subscribeIncomingCallsFor(user.uid);
-    } else {
-      if (incomingCallsUnsub) { incomingCallsUnsub(); incomingCallsUnsub = null; }
-    }
+    if (user) subscribeIncomingCallsFor(user.uid); else { if (incomingCallsUnsub) { incomingCallsUnsub(); incomingCallsUnsub = null; } }
   });
-  // Небольшая подсказка: при тестировании на двух вкладках — авторизуйся под двумя разными аккаунтами,
-  // открой чат между ними, нажми кнопку звонка у одного — у второго появится плашка входящего.
-  // Если пёрл становится нестабильным, добавь TURN серверы в rtcConfig. Сейчас используется только STUN.
-  /* ===================== */
-  /* === END OF CALLS === */
-  /* ===================== */
 </script>
 </body>
 </html>
+```
