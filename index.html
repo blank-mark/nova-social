@@ -1,3 +1,4 @@
+123
 <!doctype html>
 <html lang="ru">
 <head>
@@ -284,9 +285,7 @@
         <div id="peerSub" class="main-sub">@username</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button id="searchInChat" class="icon-btn" title="Поиск в чате">🔎</button>
         <button id="callBtn" class="icon-btn" title="Позвонить">📞</button> <!-- ДОБАВЛЕНО: кнопка звонка -->
-        <button id="moreBtn" class="icon-btn" title="Ещё">⋯</button>
       </div>
     </div>
 
@@ -295,14 +294,7 @@
       <!-- favorites populated by JS -->
     </div>
 
-    <div class="messages" id="messages"></div>
 
-    <div class="composer">
-      <div class="actions">
-        <input id="imageInput" type="file" accept="image/*" style="display:none">
-        <button id="imageBtn" class="icon-btn" title="Прикрепить фото">📷</button>
-        <button id="recordBtn" class="icon-btn" title="Записать голос">🎙️</button>
-      </div>
 
       <textarea id="messageInput" placeholder="Напишите сообщение... (Enter — отправить, Shift+Enter — новая строка)"></textarea>
 
@@ -311,14 +303,6 @@
       </div>
     </div>
   </div>
-</div>
-
-<!-- bottom nav for phone -->
-<div id="bottomNav" class="bottom-nav" style="display:none;">
-  <button id="navContacts">Контакты</button>
-  <button id="navCalls">Звонки</button>
-  <button id="navChats">Чаты</button>
-  <button id="navSettings">Настройки</button>
 </div>
 
 <!-- CALL OVERLAY UI (добавлено) -->
