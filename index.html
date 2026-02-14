@@ -1,4 +1,4 @@
-Вот обновлённый HTML-файл. Из него полностью убрана авторизация через Google, добавлена кнопка «Войти» для входа по email и паролю. При регистрации теперь выполняется предварительная проверка уникальности username, что предотвращает создание дублирующихся аккаунтов. Вход с теми же данными (email + пароль) гарантированно восстанавливает исходный профиль со всеми чатами, избранными и настройками.
+Проблема в правилах безопасности Firebase. Вот исправленный HTML-файл. Я добавил предварительную проверку и создание профиля при регистрации, а также изменил обработку ошибок. Если у тебя недостаточно прав в Firestore, нужно будет обновить правила безопасности в консоли Firebase.
 ```html
 <!doctype html>
 <html lang="ru">
@@ -387,7 +387,7 @@
         }
       };
       
-      // Регистрация с проверкой уникальности username
+      // Регистрация с проверкой уникальности username и созданием профиля
       document.getElementById('emailSignUp').onclick = async () => {
         const email = wrapper.querySelector('#email').value.trim();
         const pass = wrapper.querySelector('#password').value;
@@ -407,42 +407,77 @@
         
         try {
           // Создаём пользователя
-          const uc = await createUserWithEmailAndPassword(auth, email, pass);
-          // Если username был указан, резервируем его
+          const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+          const user = userCredential.user;
+          
+          // Сразу создаём профиль пользователя, даже если username не указан
+          const profileRef = doc(db, 'profiles', user.uid);
+          const profileData = {
+            email: email,
+            displayName: email.split('@')[0],
+            photoURL: null,
+            createdAt: serverTimestamp()
+          };
+          
+          // Если username был указан, добавляем его и резервируем
           if (desired) {
             try {
-              await createUsernameForUid(desired, uc.user.uid, email.split('@')[0]);
+              await createUsernameForUid(desired, user.uid, email.split('@')[0]);
+              profileData.username = desired;
             } catch(err){
               console.warn('Не удалось зарезервировать username:', err);
-              // Можно уведомить, но пользователь уже создан — оставим без username
-              alert('Аккаунт создан, но username занять не удалось (возможно, занят). Вы сможете установить его позже в настройках.');
+              alert('Аккаунт создан, но username занять не удалось. Вы сможете установить его позже в настройках.');
             }
           }
+          
+          // Сохраняем профиль
+          await setDoc(profileRef, profileData, { merge: true });
+          
           alert('Регистрация успешна!');
         } catch(e){
           alert('Ошибка регистрации: ' + e.message);
         }
       };
     } else {
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = `
-        <div style="display:flex;gap:8px;align-items:center">
-          <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:48px;height:48;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)">
-          <div style="min-width:0">
-            <div style="font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${user.displayName||'(без имени)'}</div>
-            <div class="small">${user.email||''}</div>
+      // Загружаем профиль пользователя из Firestore при входе
+      (async () => {
+        try {
+          const profileRef = doc(db, 'profiles', user.uid);
+          const profileSnap = await getDoc(profileRef);
+          
+          // Если профиля нет в Firestore, создаём его
+          if (!profileSnap.exists()) {
+            await setDoc(profileRef, {
+              email: user.email,
+              displayName: user.displayName || user.email.split('@')[0],
+              photoURL: user.photoURL,
+              createdAt: serverTimestamp()
+            }, { merge: true });
+          }
+        } catch (e) {
+          console.warn('Ошибка при проверке профиля:', e);
+        }
+        
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+          <div style="display:flex;gap:8px;align-items:center">
+            <img src="${user.photoURL||'https://via.placeholder.com/48?text=?'}" style="width:48px;height:48;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,0.03)">
+            <div style="min-width:0">
+              <div style="font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${user.displayName||'(без имени)'}</div>
+              <div class="small">${user.email||''}</div>
+            </div>
           </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button id="signOut" class="ghost-btn">Выйти</button>
-        </div>
-      `;
-      authBlock.appendChild(wrapper);
-      document.getElementById('signOut').onclick = async () => {
-        if (unsubscribeThreadsAll) unsubscribeThreadsAll();
-        if (unsubscribeThreads) unsubscribeThreads();
-        await signOut(auth);
-      };
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="signOut" class="ghost-btn">Выйти</button>
+          </div>
+        `;
+        authBlock.appendChild(wrapper);
+        document.getElementById('signOut').onclick = async () => {
+          if (unsubscribeThreadsAll) unsubscribeThreadsAll();
+          if (unsubscribeThreads) unsubscribeThreads();
+          await signOut(auth);
+        };
+      })();
     }
   }
   // --- username helpers ---
@@ -578,7 +613,8 @@
         chatsList.appendChild(el);
       }
     } catch (err) {
-      console.warn(err); chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ошибка поиска</div>';
+      console.warn(err); 
+      chatsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">Ошибка поиска. Проверьте правила Firestore.</div>';
     }
   }, 200);
   // --- DM thread helpers & messages ---
@@ -590,10 +626,31 @@
     const user = auth.currentUser; if (!user) throw new Error('Неавторизован');
     const tId = threadIdFor(user.uid, peer.uid);
     const threadRef = doc(db, 'dmThreads', tId);
-    await runTransaction(db, async (tx) => {
-      const tSnap = await tx.get(threadRef);
-      if (!tSnap.exists()) tx.set(threadRef, { participants: [user.uid, peer.uid], createdAt: serverTimestamp() });
-    });
+    try {
+      await runTransaction(db, async (tx) => {
+        const tSnap = await tx.get(threadRef);
+        if (!tSnap.exists()) {
+          tx.set(threadRef, { 
+            participants: [user.uid, peer.uid], 
+            createdAt: serverTimestamp(),
+            lastMessageText: '',
+            updatedAt: serverTimestamp()
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('Transaction error, trying direct set:', e);
+      // Fallback: попробуем создать напрямую
+      const tSnap = await getDoc(threadRef);
+      if (!tSnap.exists()) {
+        await setDoc(threadRef, { 
+          participants: [user.uid, peer.uid], 
+          createdAt: serverTimestamp(),
+          lastMessageText: '',
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
     subscribeToMessages(tId);
     return tId;
   }
@@ -608,7 +665,10 @@
       unreadCounts[tId] = 0;
       renderThreadBadge(tId);
       setLastSeen(tId, Date.now());
-    }, (err) => { console.warn('msgs sub err', err); });
+    }, (err) => { 
+      console.warn('msgs sub err', err);
+      messagesEl.innerHTML = '<div class="small" style="color:var(--muted);padding:20px;text-align:center">Ошибка загрузки сообщений. Проверьте права доступа.</div>';
+    });
     currentThreadId = tId;
   }
   function renderMessage(m) {
@@ -648,7 +708,10 @@
         leftPanel.classList.add('hide-on-mobile');
         mainArea.classList.remove('hide-on-mobile');
       }
-    } catch (e) { console.error(e); alert('Не удалось открыть чат: ' + (e.message || e)); }
+    } catch (e) { 
+      console.error(e); 
+      alert('Не удалось открыть чат: ' + (e.message || e)); 
+    }
   }
   // --- send message, image upload, audio upload ---
   async function sendTextMessage(text) {
@@ -658,9 +721,21 @@
     try {
       const tId = await ensureThreadExistsAndSubscribe(currentPeer);
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
-      await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text, type: 'text', createdAt: serverTimestamp() });
-      await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: text, updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) { console.error(e); alert('Ошибка отправки: ' + e.message); }
+      await addDoc(msgsCol, { 
+        senderId: user.uid, 
+        displayName: user.displayName || user.email.split('@')[0], 
+        text, 
+        type: 'text', 
+        createdAt: serverTimestamp() 
+      });
+      await setDoc(doc(db, 'dmThreads', tId), { 
+        lastMessageText: text, 
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
+    } catch (e) { 
+      console.error(e); 
+      alert('Ошибка отправки: ' + e.message); 
+    }
   }
   imageBtn.onclick = () => imageInput.click();
   imageInput.onchange = async (ev) => {
@@ -672,13 +747,26 @@
       const tId = await ensureThreadExistsAndSubscribe(currentPeer);
       const path = `dmThreads/${tId}/media/${Date.now()}_${file.name}`;
       const sRef = storageRef(storage, path);
-      const snap = await uploadBytes(sRef, file);
+      await uploadBytes(sRef, file);
       const url = await getDownloadURL(sRef);
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
-      await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'image', createdAt: serverTimestamp() });
-      await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: '[Фото]', updatedAt: serverTimestamp() }, { merge: true });
+      await addDoc(msgsCol, { 
+        senderId: user.uid, 
+        displayName: user.displayName || user.email.split('@')[0], 
+        text: '', 
+        url, 
+        type: 'image', 
+        createdAt: serverTimestamp() 
+      });
+      await setDoc(doc(db, 'dmThreads', tId), { 
+        lastMessageText: '[Фото]', 
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
       imageInput.value = '';
-    } catch (e) { console.error(e); alert('Ошибка загрузки изображения: ' + (e.message || e)); }
+    } catch (e) { 
+      console.error(e); 
+      alert('Ошибка загрузки изображения: ' + (e.message || e)); 
+    }
   };
   // --- audio recording ---
   let mediaRecorder = null; let audioChunks = [];
@@ -706,9 +794,22 @@
       await uploadBytes(sRef, blob);
       const url = await getDownloadURL(sRef);
       const msgsCol = collection(db, 'dmThreads', tId, 'messages');
-      await addDoc(msgsCol, { senderId: user.uid, displayName: user.displayName || user.email.split('@')[0], text: '', url, type: 'audio', createdAt: serverTimestamp() });
-      await setDoc(doc(db, 'dmThreads', tId), { lastMessageText: '[Голосовое сообщение]', updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) { console.error(e); alert('Ошибка загрузки голоса: ' + (e.message || e)); }
+      await addDoc(msgsCol, { 
+        senderId: user.uid, 
+        displayName: user.displayName || user.email.split('@')[0], 
+        text: '', 
+        url, 
+        type: 'audio', 
+        createdAt: serverTimestamp() 
+      });
+      await setDoc(doc(db, 'dmThreads', tId), { 
+        lastMessageText: '[Голосовое сообщение]', 
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
+    } catch (e) { 
+      console.error(e); 
+      alert('Ошибка загрузки голоса: ' + (e.message || e)); 
+    }
   }
   // --- send on Enter ---
   messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
