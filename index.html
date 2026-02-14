@@ -1,3 +1,5 @@
+Вот обновлённый HTML-файл. Из него полностью убрана авторизация через Google, добавлена кнопка «Войти» для входа по email и паролю. При регистрации теперь выполняется предварительная проверка уникальности username, что предотвращает создание дублирующихся аккаунтов. Вход с теми же данными (email + пароль) гарантированно восстанавливает исходный профиль со всеми чатами, избранными и настройками.
+```html
 <!doctype html>
 <html lang="ru">
 <head>
@@ -252,7 +254,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
   import {
     getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, getDocs, runTransaction, where, limit
   } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
@@ -357,7 +359,7 @@
       } catch(e){ console.warn(e); }
     }
   }
-  // --- auth UI ---
+  // --- auth UI (БЕЗ GOOGLE) ---
   function renderAuthUI(user) {
     authBlock.innerHTML = '';
     if (!user) {
@@ -367,28 +369,59 @@
         <input id="password" class="search-input" type="password" placeholder="Пароль" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:6px">
         <input id="signupUsername" class="search-input" placeholder="username (при регистрации)" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:6px">
         <div style="display:flex;gap:8px">
-          <button id="googleSignIn" class="ghost-btn" style="flex:1">Google</button>
+          <button id="emailSignIn" class="ghost-btn" style="flex:1">Войти</button>
           <button id="emailSignUp" class="ghost-btn" style="flex:1">Регистрация</button>
         </div>
       `;
       authBlock.appendChild(wrapper);
-      document.getElementById('googleSignIn').onclick = async () => {
-        try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-        catch(e){ alert(e.message); }
+      
+      // Вход по email/пароль
+      document.getElementById('emailSignIn').onclick = async () => {
+        const email = wrapper.querySelector('#email').value.trim();
+        const pass = wrapper.querySelector('#password').value;
+        if (!email || !pass) return alert('Введите email и пароль');
+        try {
+          await signInWithEmailAndPassword(auth, email, pass);
+        } catch(e){
+          alert('Ошибка входа: ' + e.message);
+        }
       };
+      
+      // Регистрация с проверкой уникальности username
       document.getElementById('emailSignUp').onclick = async () => {
         const email = wrapper.querySelector('#email').value.trim();
         const pass = wrapper.querySelector('#password').value;
         const desired = wrapper.querySelector('#signupUsername').value.trim().toLowerCase();
         if (!email || !pass) return alert('Email и пароль обязательны');
-        try {
-          const uc = await createUserWithEmailAndPassword(auth, email, pass);
-          if (desired) {
-            try { await createUsernameForUid(desired, uc.user.uid, email.split('@')[0]); }
-            catch(err){ console.warn(err); alert('Регистрация: username не забронирован ('+err+')'); }
+        
+        // Если username указан, проверяем его доступность заранее
+        if (desired) {
+          const sanitized = sanitizeUsername(desired);
+          if (!sanitized) return alert('Username должен быть 3-32 символа: латиница, цифры, _');
+          const unameRef = doc(db, 'usernames', sanitized);
+          const unameSnap = await getDoc(unameRef);
+          if (unameSnap.exists()) {
+            return alert('Этот username уже занят. Пожалуйста, выберите другой.');
           }
-          alert('Зарегистрирован');
-        } catch(e){ alert(e.message); }
+        }
+        
+        try {
+          // Создаём пользователя
+          const uc = await createUserWithEmailAndPassword(auth, email, pass);
+          // Если username был указан, резервируем его
+          if (desired) {
+            try {
+              await createUsernameForUid(desired, uc.user.uid, email.split('@')[0]);
+            } catch(err){
+              console.warn('Не удалось зарезервировать username:', err);
+              // Можно уведомить, но пользователь уже создан — оставим без username
+              alert('Аккаунт создан, но username занять не удалось (возможно, занят). Вы сможете установить его позже в настройках.');
+            }
+          }
+          alert('Регистрация успешна!');
+        } catch(e){
+          alert('Ошибка регистрации: ' + e.message);
+        }
       };
     } else {
       const wrapper = document.createElement('div');
@@ -1029,3 +1062,4 @@
 </script>
 </body>
 </html>
+```
