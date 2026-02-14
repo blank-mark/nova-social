@@ -1,5 +1,3 @@
-Проблема в правилах безопасности Firebase. Вот исправленный HTML-файл. Я добавил предварительную проверку и создание профиля при регистрации, а также изменил обработку ошибок. Если у тебя недостаточно прав в Firestore, нужно будет обновить правила безопасности в консоли Firebase.
-```html
 <!doctype html>
 <html lang="ru">
 <head>
@@ -42,7 +40,7 @@
   .left-top{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.02)}
   .left-logo{width:44px;height:44;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
   .left-search{padding:10px;border-bottom:1px solid rgba(255,255,255,0.02)}
-  .search-input{width:100%;padding:10px;border-radius:12px;border:0;background:rgba(0,0,0,0.18);color:var(--text);outline:none}
+  .search-input{width:100%;Padding:10px;border-radius:12px;border:0;background:rgba(0,0,0,0.18);color:var(--text);outline:none}
   .chat-list{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
   .chat-row{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;cursor:pointer;position:relative}
   .chat-row:hover{background:rgba(124,77,255,0.04)}
@@ -391,26 +389,18 @@
       document.getElementById('emailSignUp').onclick = async () => {
         const email = wrapper.querySelector('#email').value.trim();
         const pass = wrapper.querySelector('#password').value;
-        const desired = wrapper.querySelector('#signupUsername').value.trim().toLowerCase();
+        const desiredRaw = wrapper.querySelector('#signupUsername').value.trim().toLowerCase();
+        const desired = sanitizeUsername(desiredRaw); // проверка формата
+
         if (!email || !pass) return alert('Email и пароль обязательны');
-        
-        // Если username указан, проверяем его доступность заранее
-        if (desired) {
-          const sanitized = sanitizeUsername(desired);
-          if (!sanitized) return alert('Username должен быть 3-32 символа: латиница, цифры, _');
-          const unameRef = doc(db, 'usernames', sanitized);
-          const unameSnap = await getDoc(unameRef);
-          if (unameSnap.exists()) {
-            return alert('Этот username уже занят. Пожалуйста, выберите другой.');
-          }
-        }
-        
+        if (desiredRaw && !desired) return alert('Username должен быть 3-32 символа: латиница, цифры, _');
+
         try {
-          // Создаём пользователя
+          // 1) Создаём пользователя (после этого клиент будет аутентифицирован)
           const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
           const user = userCredential.user;
-          
-          // Сразу создаём профиль пользователя, даже если username не указан
+
+          // 2) Создаём профиль пользователя
           const profileRef = doc(db, 'profiles', user.uid);
           const profileData = {
             email: email,
@@ -418,24 +408,24 @@
             photoURL: null,
             createdAt: serverTimestamp()
           };
-          
-          // Если username был указан, добавляем его и резервируем
+
+          // 3) Если username был указан, пытаемся зарезервировать (в транзакции)
           if (desired) {
             try {
-              await createUsernameForUid(desired, user.uid, email.split('@')[0]);
+              await createUsernameForUid(desired, user.uid, profileData.displayName);
               profileData.username = desired;
-            } catch(err){
+            } catch (err) {
               console.warn('Не удалось зарезервировать username:', err);
               alert('Аккаунт создан, но username занять не удалось. Вы сможете установить его позже в настройках.');
             }
           }
-          
-          // Сохраняем профиль
+
+          // 4) Сохраняем профиль
           await setDoc(profileRef, profileData, { merge: true });
-          
+
           alert('Регистрация успешна!');
-        } catch(e){
-          alert('Ошибка регистрации: ' + e.message);
+        } catch(e) {
+          alert('Ошибка регистрации: ' + (e.message || e));
         }
       };
     } else {
@@ -1163,4 +1153,3 @@
 </script>
 </body>
 </html>
-```
