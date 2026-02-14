@@ -826,6 +826,7 @@
       (async () => {
         try {
           const deepUsername = getUsernameFromURL();
+    if(deepUsername === 'nova-social') return;
           if (deepUsername) {
             const unameSnap = await getDoc(doc(db, 'usernames', deepUsername.toLowerCase()));
             if (unameSnap.exists()) {
