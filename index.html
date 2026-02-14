@@ -43,7 +43,7 @@
   .left-top{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.02)}
   .left-logo{width:44px;height:44;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
   .left-search{padding:10px;border-bottom:1px solid rgba(255,255,255,0.02)}
-  .search-input{width:100%;padding:10px;border-radius:12px;border:0;background:rgba(0,0,0,0.18);color:var(--text);outline:none}
+  .search-input{Width:100%;padding:10px;border-radius:12px;border:0;background:rgba(0,0,0,0.18);color:var(--text);outline:none}
   .chat-list{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
   .chat-row{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;cursor:pointer;position:relative}
   .chat-row:hover{background:rgba(124,77,255,0.04)}
@@ -147,10 +147,6 @@
       border-radius: 32px !important;
       font-weight: 600;
     }
-    .light-theme #authBlock input {
-      background: #f2f4f8 !important;
-      border: 1px solid #ddd !important;
-    }
     .chat-row {
       padding: 14px 10px;
     }
@@ -209,47 +205,43 @@
   .light-theme .left-panel { border-right: 1px solid rgba(0,0,0,0.06) }
   .light-theme #authBlock input { background: #f2f4f8; color: #111; border-color: #ccc; }
 
-  /* --- Добавленные стили для звонков (modal, badge, audio) --- */
-  .call-modal-backdrop {
+  /* ========== CALL UI ========== */
+  .call-overlay {
     position: fixed;
-    inset: 0;
-    background: rgba(2,2,6,0.6);
-    display:flex;
+    left: 0; right: 0; top: 0; bottom: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    background: rgba(0,0,0,0.5);
+  }
+  .call-card {
+    background: var(--bg-chat);
+    padding: 20px;
+    border-radius: 12px;
+    width: 360px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .call-card h3 { margin: 6px 0 10px 0; font-size:18px; color:var(--text) }
+  .call-card p { margin: 0 0 16px 0; color:var(--muted) }
+  .call-actions { display:flex; gap:10px; justify-content:center; }
+  .call-btn { padding:10px 14px; border-radius:10px; border:0; cursor:pointer; font-weight:700 }
+  .call-accept { background: linear-gradient(135deg,var(--accent),var(--accent-2)); color:white }
+  .call-decline { background: rgba(255,255,255,0.06); color:var(--text) }
+  .call-hangup { background: #ff3b30; color: white; }
+
+  .calling-indicator {
+    display:none;
     align-items:center;
-    justify-content:center;
-    z-index:1000;
-  }
-  .call-modal {
-    width:320px;
-    background:var(--bg-chat);
-    border-radius:12px;
-    padding:18px;
-    box-shadow:0 12px 40px rgba(0,0,0,0.6);
-    text-align:center;
-    color:var(--text);
-    border:1px solid rgba(255,255,255,0.02);
-  }
-  .call-modal h3 { margin:0 0 8px 0; font-size:18px; }
-  .call-modal .call-from { color:var(--muted); margin-bottom:14px; }
-  .call-modal .call-actions { display:flex; gap:8px; justify-content:center; }
-  .call-accept { background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:white; padding:10px 14px; border-radius:10px; border:0; cursor:pointer; font-weight:700; }
-  .call-decline { background:transparent; color:var(--muted); padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.04); cursor:pointer; }
-  .call-in-progress {
-    position:fixed;
-    right:18px;
-    bottom:18px;
-    background:linear-gradient(180deg,var(--bg-chat),#0b0910);
-    border-radius:12px;
-    padding:10px 12px;
-    display:flex;
     gap:10px;
-    align-items:center;
-    z-index:1000;
-    border:1px solid rgba(255,255,255,0.03);
+    color:var(--muted);
+    font-size:13px;
   }
-  .call-in-progress .btn { padding:8px 10px; border-radius:8px; border:0; cursor:pointer; }
-  .call-in-progress .btn-hang { background:#ff4d4d; color:white; }
-  audio.remote-audio { display:none; } /* hidden element used for playout */
+
+  /* small remote audio visual (hidden) */
+  #remoteAudio { display:none; }
 </style>
 </head>
 <body>
@@ -292,10 +284,8 @@
         <div id="peerSub" class="main-sub">@username</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <!-- Кнопка звонка (добавлено) -->
-        <button id="callBtn" class="icon-btn" title="Позвонить">📞</button>
-
         <button id="searchInChat" class="icon-btn" title="Поиск в чате">🔎</button>
+        <button id="callBtn" class="icon-btn" title="Позвонить">📞</button> <!-- ДОБАВЛЕНО: кнопка звонка -->
         <button id="moreBtn" class="icon-btn" title="Ещё">⋯</button>
       </div>
     </div>
@@ -330,6 +320,27 @@
   <button id="navChats">Чаты</button>
   <button id="navSettings">Настройки</button>
 </div>
+
+<!-- CALL OVERLAY UI (добавлено) -->
+<div id="callOverlay" class="call-overlay" aria-hidden="true">
+  <div class="call-card" id="callCard">
+    <h3 id="callTitle">Входящий звонок</h3>
+    <p id="callSubtitle">@user</p>
+    <div class="call-actions" id="callActions">
+      <button id="acceptCallBtn" class="call-btn call-accept">Принять</button>
+      <button id="declineCallBtn" class="call-btn call-decline">Сбросить</button>
+    </div>
+    <div class="call-actions" style="margin-top:12px;">
+      <button id="hangupBtn" class="call-btn call-hangup" style="display:none">Завершить</button>
+    </div>
+    <div style="margin-top:12px;">
+      <div id="callingIndicator" class="calling-indicator">Звоню… <span id="callingTo">@user</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- hidden remote audio element -->
+<audio id="remoteAudio" autoplay></audio>
 
 <!-- Firebase v12 modules -->
 <script type="module">
@@ -381,7 +392,6 @@
 
   const bottomNav = document.getElementById('bottomNav');
   const themeToggle = document.getElementById('themeToggle');
-  const callBtn = document.getElementById('callBtn');
 
   // --- favorites (localStorage) ---
   const FAV_KEY = 'np_favs_v1';
@@ -804,13 +814,9 @@
       if ("Notification" in window && Notification.permission === "default") {
         try { await Notification.requestPermission(); } catch(e){ /* ignore */ }
       }
-      // subscribe to incoming calls for this user (added)
-      subscribeIncomingCalls(user.uid);
     } else {
       if (unsubscribeThreads) unsubscribeThreads();
       if (unsubscribeThreadsAll) unsubscribeThreadsAll();
-      // cleanup incoming call subscription if any
-      unsubscribeIncomingCalls();
     }
   });
 
@@ -871,375 +877,371 @@
   // expose setLastSeen for testing
   window.setLastSeen = setLastSeen;
 
-  /* ------------------ Добавленная логика WebRTC звонков через Firestore (Firebase) ------------------ */
-  // Принцип: документ в коллекции "calls" с id = threadIdFor(callerUid, calleeUid)
-  // структура:
-  // calls/{callId} => { from, to, offer, answer, callerUsername, status: 'calling'|'answered'|'declined'|'ended' }
-  // candidates в подколлекции calls/{callId}/candidates -> { candidate, from }
+  /* ===================== */
+  /* === WEBRTC CALLS === */
+  /* ===================== */
 
+  // UI refs for calls
+  const callOverlay = document.getElementById('callOverlay');
+  const callTitle = document.getElementById('callTitle');
+  const callSubtitle = document.getElementById('callSubtitle');
+  const acceptCallBtn = document.getElementById('acceptCallBtn');
+  const declineCallBtn = document.getElementById('declineCallBtn');
+  const hangupBtn = document.getElementById('hangupBtn');
+  const callingIndicator = document.getElementById('callingIndicator');
+  const callingTo = document.getElementById('callingTo');
+  const remoteAudio = document.getElementById('remoteAudio');
+  const callBtn = document.getElementById('callBtn');
+
+  // WebRTC state
+  let pc = null;
+  let localStream = null;
+  let currentCallDocRef = null;
+  let offerCandidatesUnsub = null;
+  let answerCandidatesUnsub = null;
+  let incomingCallsUnsub = null;
+  let currentIncomingCallId = null;
+
+  // STUN server (можно добавить TURN для надёжности)
   const rtcConfig = {
     iceServers: [
-      { urls: "stun:stun.l.google.com:19302" }
-      // В проде добавьте TURN-сервер для надёжности
+      { urls: 'stun:stun.l.google.com:19302' }
+      // Для надёжности в проде: добавь TURN сервер здесь
     ]
   };
 
-  let pc = null;
-  let localStream = null;
-  let remoteAudioEl = null;
-  let currentCallDocUnsub = null;
-  let currentRemoteCandidatesUnsub = null;
-  let currentLocalCandidatesCollection = null;
-  let incomingCallsUnsub = null;
-  let activeCallId = null;
-  let inCall = false;
-
-  // Вызов вызывающего
-  async function startCall() {
-    if (!auth.currentUser) return alert('Войдите');
-    if (!currentPeer) return alert('Откройте чат с пользователем, которому хотите позвонить');
-    if (inCall) return alert('Вы уже в звонке');
-
-    const user = auth.currentUser;
-    const callId = threadIdFor(user.uid, currentPeer.uid);
-    activeCallId = callId;
-
-    try {
-      pc = new RTCPeerConnection(rtcConfig);
-
-      // play remote audio
-      remoteAudioEl = document.createElement('audio');
-      remoteAudioEl.autoplay = true;
-      remoteAudioEl.className = 'remote-audio';
-      document.body.appendChild(remoteAudioEl);
-
-      pc.ontrack = (evt) => {
-        // evt.streams[0] preferred if provided
-        if (evt.streams && evt.streams[0]) {
-          remoteAudioEl.srcObject = evt.streams[0];
-        } else {
-          const ms = new MediaStream();
-          evt.track && ms.addTrack(evt.track);
-          remoteAudioEl.srcObject = ms;
-        }
-      };
-
-      // ICE candidate -> save to Firestore subcollection
-      pc.onicecandidate = async (ev) => {
-        if (ev.candidate) {
-          try {
-            await addDoc(collection(db, 'calls', callId, 'candidates'), { candidate: ev.candidate.toJSON(), from: user.uid });
-          } catch(e){ console.warn('add candidate err', e); }
-        }
-      };
-
-      // get mic
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-      // create offer
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      // write call doc
-      await setDoc(doc(db, 'calls', callId), {
-        offer: pc.localDescription && pc.localDescription.toJSON ? pc.localDescription.toJSON() : pc.localDescription,
-        from: user.uid,
-        to: currentPeer.uid,
-        callerUsername: user.displayName || (user.email || '').split('@')[0],
-        status: 'calling',
-        createdAt: serverTimestamp()
-      }, { merge: true });
-
-      // listen for answer and status changes
-      currentCallDocUnsub = onSnapshot(doc(db, 'calls', callId), async (snap) => {
-        if (!snap.exists()) return;
-        const data = snap.data();
-        if (data.answer && pc && !pc.currentRemoteDescription) {
-          try {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-          } catch(e){ console.warn('setRemoteDesc error', e); }
-        }
-        if (data.status === 'answered') {
-          inCall = true;
-          showInCallWidget(true);
-        }
-        if (data.status === 'declined' || data.status === 'ended') {
-          // сброс
-          cleanupCall();
-        }
-      });
-
-      // подписка на кандидаты (добавляем чужие кандидаты)
-      currentRemoteCandidatesUnsub = onSnapshot(collection(db, 'calls', callId, 'candidates'), (snap) => {
-        snap.docChanges().forEach(async change => {
-          if (change.type === 'added') {
-            const c = change.doc.data();
-            if (c.from !== user.uid) {
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(c.candidate));
-              } catch(e){ console.warn('addIceCandidate', e); }
-            }
-          }
-        });
-      });
-
-      // mark in UI that call is calling
-      showOutgoingCallingUI(currentPeer);
-    } catch (e) {
-      console.error('startCall error', e);
-      alert('Ошибка при старте звонка: ' + (e.message || e));
-      cleanupCall();
+  // Показать/скрыть overlay
+  function showCallOverlay(mode, info) {
+    // mode: 'incoming' | 'outgoing' | 'incall'
+    if (mode === 'incoming') {
+      callTitle.textContent = 'Входящий звонок';
+      callSubtitle.textContent = `@${info.callerName || info.callerUid}`;
+      acceptCallBtn.style.display = '';
+      declineCallBtn.style.display = '';
+      hangupBtn.style.display = 'none';
+      callingIndicator.style.display = 'none';
+    } else if (mode === 'outgoing') {
+      callTitle.textContent = 'Звонок';
+      callSubtitle.textContent = `@${info.calleeName || info.calleeUid}`;
+      acceptCallBtn.style.display = 'none';
+      declineCallBtn.style.display = 'none';
+      hangupBtn.style.display = '';
+      callingIndicator.style.display = '';
+      callingTo.textContent = '@' + (info.calleeName || info.calleeUid);
+    } else if (mode === 'incall') {
+      callTitle.textContent = 'В разговоре';
+      callSubtitle.textContent = `@${info.peerName || info.peerUid}`;
+      acceptCallBtn.style.display = 'none';
+      declineCallBtn.style.display = 'none';
+      hangupBtn.style.display = '';
+      callingIndicator.style.display = 'none';
     }
+    callOverlay.style.display = 'flex';
+    callOverlay.setAttribute('aria-hidden', 'false');
   }
 
-  // Ответ на входящий звонок
-  async function answerCall(callId, callData) {
-    if (!auth.currentUser) return;
-    if (inCall) return alert('Вы уже в звонке');
+  function hideCallOverlay() {
+    callOverlay.style.display = 'none';
+    callOverlay.setAttribute('aria-hidden', 'true');
+  }
 
-    const user = auth.currentUser;
-    activeCallId = callId;
-
+  // Сброс/очистка соединения
+  async function cleanUpCallState(markEnded = true) {
     try {
-      pc = new RTCPeerConnection(rtcConfig);
-
-      // play remote audio
-      remoteAudioEl = document.createElement('audio');
-      remoteAudioEl.autoplay = true;
-      remoteAudioEl.className = 'remote-audio';
-      document.body.appendChild(remoteAudioEl);
-
-      pc.ontrack = (evt) => {
-        if (evt.streams && evt.streams[0]) {
-          remoteAudioEl.srcObject = evt.streams[0];
-        } else {
-          const ms = new MediaStream();
-          evt.track && ms.addTrack(evt.track);
-          remoteAudioEl.srcObject = ms;
-        }
-      };
-
-      pc.onicecandidate = async (ev) => {
-        if (ev.candidate) {
-          try {
-            await addDoc(collection(db, 'calls', callId, 'candidates'), { candidate: ev.candidate.toJSON(), from: user.uid });
-          } catch(e){ console.warn('add candidate err', e); }
-        }
-      };
-
-      // локальный микрофон
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-      // установить offer как remote
-      if (callData && callData.offer) {
-        await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
-      } else {
-        // если нет оффера — нельзя ответить
-        throw new Error('Нет offer для этого звонка');
-      }
-
-      // создать answer
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      // записать answer в документ
-      await setDoc(doc(db, 'calls', callId), {
-        answer: pc.localDescription && pc.localDescription.toJSON ? pc.localDescription.toJSON() : pc.localDescription,
-        answeredAt: serverTimestamp(),
-        status: 'answered'
-      }, { merge: true });
-
-      // подписка на кандидаты
-      currentRemoteCandidatesUnsub = onSnapshot(collection(db, 'calls', callId, 'candidates'), (snap) => {
-        snap.docChanges().forEach(async change => {
-          if (change.type === 'added') {
-            const c = change.doc.data();
-            if (c.from !== user.uid) {
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(c.candidate));
-              } catch(e){ console.warn('addIceCandidate', e); }
-            }
-          }
-        });
-      });
-
-      inCall = true;
-      showInCallWidget(true);
-      removeIncomingModal(); // закрываем модал
-    } catch (e) {
-      console.error('answerCall error', e);
-      alert('Не удалось принять звонок: ' + (e.message || e));
-      cleanupCall();
+      if (offerCandidatesUnsub) { offerCandidatesUnsub(); offerCandidatesUnsub = null; }
+      if (answerCandidatesUnsub) { answerCandidatesUnsub(); answerCandidatesUnsub = null; }
+      if (incomingCallsUnsub) { /* keep incoming listener alive */ }
+    } catch (e) { console.warn('cleanup unsub err', e); }
+    if (pc) {
+      try { pc.getSenders().forEach(s => { try { if (s.track) s.track.stop(); } catch(e){} }); } catch(e){}
+      try { pc.close(); } catch (e) {}
+      pc = null;
     }
+    if (localStream) {
+      try { localStream.getTracks().forEach(t => t.stop()); } catch(e){}
+      localStream = null;
+    }
+    remoteAudio.srcObject = null;
+    if (currentCallDocRef && markEnded) {
+      try {
+        await setDoc(currentCallDocRef, { status: 'ended' }, { merge: true });
+      } catch(e){ console.warn('mark ended err', e); }
+    }
+    currentCallDocRef = null;
+    currentIncomingCallId = null;
+    hideCallOverlay();
   }
 
-  // Отклонить звонок (decline)
-  async function declineCall(callId) {
+  // Запустить исходящий звонок (caller)
+  async function startCallToPeer(peer) {
+    const user = auth.currentUser;
+    if (!user) return alert('Войдите');
+    if (!peer || !peer.uid) return alert('Открой чат с пользователем, которому хочешь позвонить');
+
+    // подготовка RTCPeerConnection
+    pc = new RTCPeerConnection(rtcConfig);
+    // воспроизведение входящего потока
+    pc.ontrack = (event) => {
+      try { remoteAudio.srcObject = event.streams[0]; } catch(e){ console.warn(e); }
+    };
+    // ICE кандидаты отправляем в коллекцию offerCandidates
+    pc.onicecandidate = async (e) => {
+      if (!e.candidate) return;
+      try {
+        await addDoc(collection(currentCallDocRef, 'offerCandidates'), e.candidate.toJSON());
+      } catch (err) { console.warn('add offer candidate err', err); }
+    };
+
     try {
-      await setDoc(doc(db, 'calls', callId), { status: 'declined' }, { merge: true });
-    } catch(e){ console.warn('decline err', e); }
-    removeIncomingModal();
-  }
-
-  // Повесить и закрыть звонок (hangup)
-  async function hangupCall(notifyRemote = true) {
-    if (!activeCallId) {
-      cleanupCall();
+      // получаем микрофон
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    } catch (e) {
+      console.error('getUserMedia failed', e);
+      alert('Нужен доступ к микрофону');
       return;
     }
-    try {
-      if (notifyRemote) {
-        await setDoc(doc(db, 'calls', activeCallId), { status: 'ended' }, { merge: true });
+
+    // создаём документ вызова
+    const callDocRef = doc(collection(db, 'webrtcCalls')); // сгенерит id
+    currentCallDocRef = callDocRef;
+
+    // создаём оффер
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // записываем оффер в firestore
+    await setDoc(callDocRef, {
+      callerUid: user.uid,
+      callerName: user.displayName || (user.email ? user.email.split('@')[0] : user.uid),
+      calleeUid: peer.uid,
+      calleeName: peer.username || peer.displayName || peer.uid,
+      offer: { type: offer.type, sdp: offer.sdp },
+      status: 'ringing',
+      createdAt: serverTimestamp()
+    }, { merge: true });
+
+    // подписываемся на ответ
+    const unsubCall = onSnapshot(callDocRef, (snap) => {
+      const data = snap.data();
+      if (!data) return;
+      if (data.answer && pc && !pc.remoteDescription) {
+        const answerDesc = new RTCSessionDescription(data.answer);
+        pc.setRemoteDescription(answerDesc).catch(e => console.warn('setRemoteDesc err', e));
       }
-    } catch(e){ console.warn('hangup notify err', e); }
-    cleanupCall();
-  }
-
-  // Очистка ресурсов
-  function cleanupCall() {
-    try {
-      if (pc) {
-        try { pc.getSenders().forEach(s => s.track && s.track.stop()); } catch(e){}
-        try { pc.close(); } catch(e){}
+      // callee принял
+      if (data.status === 'accepted') {
+        showCallOverlay('incall', { peerName: peer.username || peer.displayName || peer.uid });
       }
-    } catch(e){}
-    pc = null;
-    inCall = false;
-    activeCallId = null;
-    try { if (localStream) { localStream.getTracks().forEach(t=>t.stop()); } } catch(e){}
-    localStream = null;
-    if (remoteAudioEl) { try { remoteAudioEl.srcObject = null; remoteAudioEl.remove(); } catch(e){} }
-    remoteAudioEl = null;
-    if (currentCallDocUnsub) { currentCallDocUnsub(); currentCallDocUnsub = null; }
-    if (currentRemoteCandidatesUnsub) { currentRemoteCandidatesUnsub(); currentRemoteCandidatesUnsub = null; }
-    removeInCallWidget();
-  }
+      // callee сбросил
+      if (data.status === 'declined' || data.status === 'ended') {
+        // завершить звонок локально
+        cleanUpCallState(false);
+      }
+    }, (err) => console.warn('callDoc sub err', err));
 
-  // Подписка на входящие звонки (которые адресованы текущему пользователю)
-  function subscribeIncomingCalls(uid) {
-    // если уже подписаны — отписать
-    if (incomingCallsUnsub) incomingCallsUnsub();
-
-    const q = query(collection(db, 'calls'), where('to', '==', uid));
-    incomingCallsUnsub = onSnapshot(q, (snap) => {
-      snap.forEach(async docSnap => {
-        const data = docSnap.data();
-        const id = docSnap.id;
-        if (!data) return;
-        // показываем модал, если статус calling и звонок от другого пользователя
-        if (data.status === 'calling' && data.from !== uid && !inCall) {
-          showIncomingModal(id, data);
-        }
-        // если звонок отменён/завершён и модал открыт — убрать
-        if ((data.status === 'declined' || data.status === 'ended') && activeCallId === id) {
-          cleanupCall();
-          removeIncomingModal();
+    // слушаем кандидаты answer
+    answerCandidatesUnsub = onSnapshot(collection(callDocRef, 'answerCandidates'), (snap) => {
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const c = change.doc.data();
+          try { pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('addIceCandidate err', e)); } catch(e){ console.warn(e); }
         }
       });
     });
+
+    // показываем UI как исходящий звонок
+    showCallOverlay('outgoing', { calleeName: peer.username || peer.displayName || peer.uid });
+    // отображаем hangup — он уже виден по CSS
+    hangupBtn.style.display = '';
+    // повесь обработчик hangup
+    hangupBtn.onclick = async () => {
+      await setDoc(callDocRef, { status: 'ended' }, { merge: true });
+      unsubCall(); // отпишемся
+      await cleanUpCallState(false);
+    };
   }
 
-  function unsubscribeIncomingCalls() {
-    if (incomingCallsUnsub) { incomingCallsUnsub(); incomingCallsUnsub = null; }
-  }
+  // Ответ на входящий вызов (callee)
+  async function acceptIncomingCall(callDocId) {
+    try {
+      const user = auth.currentUser;
+      if (!user) return alert('Войдите');
 
-  // UI: показываем исходящий calling (для визуального отклика)
-  function showOutgoingCallingUI(peer) {
-    // просто показать toast-like panel
-    removeInCallWidget();
-    const w = document.createElement('div');
-    w.className = 'call-in-progress';
-    w.id = 'callProgressWidget';
-    w.innerHTML = `
-      <div style="display:flex;flex-direction:column;min-width:160px">
-        <div style="font-weight:700">${peer.displayName || peer.username || 'Пользователь'}</div>
-        <div style="font-size:13px;color:var(--muted)">Звонок... (ожидание ответа)</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-hang" id="hangupBtn">Завершить</button>
-      </div>
-    `;
-    document.body.appendChild(w);
-    document.getElementById('hangupBtn').onclick = () => { hangupCall(true); };
-  }
+      const callDocRef = doc(db, 'webrtcCalls', callDocId);
+      currentCallDocRef = callDocRef;
 
-  function removeInCallWidget(){ const ex = document.getElementById('callProgressWidget'); if (ex) ex.remove(); }
+      const callSnap = await getDoc(callDocRef);
+      if (!callSnap.exists()) return alert('Вызов больше не доступен');
+      const data = callSnap.data();
 
-  // UI: показываем что звонок активен
-  function showInCallWidget(active) {
-    removeInCallWidget();
-    if (!active) return;
-    const w = document.createElement('div');
-    w.className = 'call-in-progress';
-    w.id = 'callProgressWidget';
-    w.innerHTML = `
-      <div style="display:flex;flex-direction:column;min-width:160px">
-        <div style="font-weight:700">В звонке с ${currentPeer ? (currentPeer.displayName || currentPeer.username) : ''}</div>
-        <div style="font-size:13px;color:var(--muted)">Голосовой вызов</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn" id="hangupBtn">Отключиться</button>
-      </div>
-    `;
-    document.body.appendChild(w);
-    document.getElementById('hangupBtn').onclick = () => { hangupCall(true); };
-  }
+      // создаём RTCPeerConnection
+      pc = new RTCPeerConnection(rtcConfig);
+      pc.ontrack = (event) => {
+        try { remoteAudio.srcObject = event.streams[0]; } catch(e){ console.warn(e); }
+      };
+      pc.onicecandidate = async (e) => {
+        if (!e.candidate) return;
+        try {
+          await addDoc(collection(callDocRef, 'answerCandidates'), e.candidate.toJSON());
+        } catch (err) { console.warn('add answer candidate err', err); }
+      };
 
-  // UI: incoming modal
-  let incomingModalEl = null;
-  function showIncomingModal(callId, callData) {
-    removeIncomingModal(); // ensure single
-    incomingModalEl = document.createElement('div');
-    incomingModalEl.className = 'call-modal-backdrop';
-    incomingModalEl.innerHTML = `
-      <div class="call-modal" id="callModal">
-        <h3>Входящий звонок</h3>
-        <div class="call-from">Вам звонит @${escapeHtml(callData.callerUsername || callData.from)}</div>
-        <div class="call-actions">
-          <button class="call-accept" id="acceptCallBtn">Принять</button>
-          <button class="call-decline" id="declineCallBtn">Сбросить</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(incomingModalEl);
-    document.getElementById('acceptCallBtn').onclick = async () => {
-      // при принятии — ответить
+      // берем микрофон
       try {
-        const snap = await getDoc(doc(db, 'calls', callId));
-        if (!snap.exists()) return alert('Звонок недоступен');
-        const data = snap.data();
-        // загрузим профиль вызывающего, если нужно
-        await answerCall(callId, data);
-      } catch(e){ console.error(e); alert('Ошибка при принятии звонка: ' + (e.message || e)); }
-    };
-    document.getElementById('declineCallBtn').onclick = async () => {
-      await declineCall(callId);
-      removeIncomingModal();
-    };
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      } catch (e) {
+        console.error('getUserMedia failed', e);
+        alert('Нужен доступ к микрофону');
+        // можно пометить вызов как declined
+        await setDoc(callDocRef, { status: 'declined' }, { merge: true });
+        return;
+      }
+
+      // устанавливаем remoteDescription = offer
+      const offer = data.offer;
+      if (!offer) return alert('Оффер не найден');
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+      // создаём answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // записываем answer в документ вызова
+      await setDoc(callDocRef, { answer: { type: answer.type, sdp: answer.sdp }, status: 'accepted' }, { merge: true });
+
+      // слушаем оффер-кандидаты и добавляем их
+      offerCandidatesUnsub = onSnapshot(collection(callDocRef, 'offerCandidates'), (snap) => {
+        snap.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const c = change.doc.data();
+            try { pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => console.warn('addIceCandidate err', e)); } catch(e){ console.warn(e); }
+          }
+        });
+      });
+
+      // слушаем дальнейшее изменение статусов (например hangup)
+      const unsubCall = onSnapshot(callDocRef, (snap) => {
+        const d = snap.data();
+        if (!d) return;
+        if (d.status === 'ended' || d.status === 'declined') {
+          cleanUpCallState(false);
+          unsubCall();
+        }
+      });
+
+      // показываем UI "в разговоре"
+      showCallOverlay('incall', { peerName: data.callerName || data.callerUid });
+      hangupBtn.onclick = async () => {
+        await setDoc(callDocRef, { status: 'ended' }, { merge: true });
+        unsubCall();
+        await cleanUpCallState(false);
+      };
+    } catch (e) {
+      console.error('acceptIncomingCall err', e);
+      alert('Ошибка при принятии звонка');
+    }
   }
 
-  function removeIncomingModal() {
-    if (incomingModalEl) { incomingModalEl.remove(); incomingModalEl = null; }
+  // Отклонить входящий звонок
+  async function declineIncomingCall(callDocId) {
+    try {
+      const callDocRef = doc(db, 'webrtcCalls', callDocId);
+      await setDoc(callDocRef, { status: 'declined' }, { merge: true });
+      // просто прячем overlay и очищаем локальное состояние
+      await cleanUpCallState(false);
+    } catch (e) { console.warn('decline err', e); }
   }
 
-  // Привязка кнопки "call"
-  callBtn.onclick = () => {
-    startCall();
-  };
+  // Слушатель новых входящих звонков для текущего пользователя
+  function subscribeIncomingCallsFor(uid) {
+    if (incomingCallsUnsub) incomingCallsUnsub();
+    const q = query(collection(db, 'webrtcCalls'), where('calleeUid', '==', uid));
+    incomingCallsUnsub = onSnapshot(q, (snap) => {
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        const id = docSnap.id;
+        // показываем только свежие и "ringing" вызовы
+        if (data && data.status === 'ringing') {
+          // если у нас уже есть обработывающийся входящий вызов — игнорируем другие
+          if (currentIncomingCallId && currentIncomingCallId !== id) return;
+          currentIncomingCallId = id;
+          // показываем UI входящего
+          callTitle.textContent = 'Вам звонит';
+          callSubtitle.textContent = '@' + (data.callerName || data.callerUid);
+          acceptCallBtn.style.display = '';
+          declineCallBtn.style.display = '';
+          hangupBtn.style.display = 'none';
+          callingIndicator.style.display = 'none';
+          callOverlay.style.display = 'flex';
+          callOverlay.setAttribute('aria-hidden', 'false');
 
-  // если пользователь инициировал звонок — отобразить плашку
-  function showOutgoingCallingUI(peer) {
-    // (реализовано выше) — placeholder
+          // вешаем обработчики
+          acceptCallBtn.onclick = async () => {
+            acceptCallBtn.disabled = true;
+            await acceptIncomingCall(id);
+            acceptCallBtn.disabled = false;
+          };
+          declineCallBtn.onclick = async () => {
+            declineCallBtn.disabled = true;
+            await declineIncomingCall(id);
+            declineCallBtn.disabled = false;
+          };
+        }
+      });
+    }, (err) => {
+      console.warn('incoming calls sub err', err);
+    });
   }
 
-  // небольшой guard: при выгрузивании страницы заканчиваем звонок локально
-  window.addEventListener('beforeunload', () => {
-    try { hangupCall(false); } catch(e) {}
+  // Обработчик кнопки звонка в хедере
+  callBtn.addEventListener('click', async () => {
+    if (!currentPeer || !currentPeer.uid) return alert('Открой чат с человеком, которому хочешь позвонить');
+    // создаём и стартуем звонок
+    try {
+      await startCallToPeer(currentPeer);
+    } catch (e) {
+      console.error('startCallToPeer err', e);
+      alert('Не удалось начать звонок: ' + (e.message || e));
+      await cleanUpCallState();
+    }
   });
 
-  /* ------------------ Конец WebRTC звонков ------------------ */
+  // hangup на overlay (если пользователь нажмёт)
+  hangupBtn.addEventListener('click', async () => {
+    if (currentCallDocRef) {
+      try {
+        await setDoc(currentCallDocRef, { status: 'ended' }, { merge: true });
+      } catch(e){ console.warn(e); }
+    }
+    await cleanUpCallState();
+  });
+
+  // Закрыть overlay при клике вне карточки (необязательно)
+  callOverlay.addEventListener('click', (ev) => {
+    if (ev.target === callOverlay) {
+      // если это в режиме исходящего/входящего, не закрываем автоматически, чтобы не потерять состояние.
+      // Можно оставить пустым или закрывать только если вызов завершён.
+    }
+  });
+
+  // Подписка при авторизации — слушаем входящие звонки
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      subscribeIncomingCallsFor(user.uid);
+    } else {
+      if (incomingCallsUnsub) { incomingCallsUnsub(); incomingCallsUnsub = null; }
+    }
+  });
+
+  // Небольшая подсказка: при тестировании на двух вкладках — авторизуйся под двумя разными аккаунтами,
+  // открой чат между ними, нажми кнопку звонка у одного — у второго появится плашка входящего.
+  // Если пёрл становится нестабильным, добавь TURN серверы в rtcConfig. Сейчас используется только STUN.
+
+  /* ===================== */
+  /* === END OF CALLS === */
+  /* ===================== */
 
 </script>
 </body>
