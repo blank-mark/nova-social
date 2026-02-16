@@ -1,18 +1,29 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Nova Prospect — Messenger (Telegram/Discord style)</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Nova Prospect — Messenger (themes)</title>
 
-<!-- Minimal styling, desktop-style layout (dark theme, simple) -->
+<!-- Minimal CSS with theme variables (light/dark) -->
 <style>
   :root{
     --bg:#0f1720; --panel:#11151a; --muted:#9aa5b1; --accent:#2b8cff; --bubble:#172027;
-    --glass: rgba(255,255,255,0.03);
+    --glass: rgba(255,255,255,0.03); --text:#e6eef6;
   }
+  /* Light theme overrides when data-theme="light" */
+  :root[data-theme="light"]{
+    --bg: #f5f7fb;
+    --panel: #ffffff;
+    --muted: #6b7280;
+    --accent: #1d4ed8;
+    --bubble: #f3f6fb;
+    --glass: rgba(0,0,0,0.03);
+    --text: #0f1720;
+  }
+
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:var(--bg);color:#e6eef6}
+  html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:var(--bg);color:var(--text)}
   .app{display:grid;grid-template-columns:280px 1fr 320px;grid-template-rows:64px 1fr;height:100vh;gap:8px;padding:8px;}
   .header{grid-column:1/-1;height:64px;background:var(--panel);display:flex;align-items:center;padding:12px;border-radius:8px}
   .brand{font-weight:700;margin-right:12px}
@@ -26,21 +37,21 @@
   .contact .name{font-weight:600}
   .searchRow{display:flex;gap:8px}
 
-  .chatPanel{background:linear-gradient(180deg,#071018 0%, #08121a 100%);border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
-  .chatHeader{height:64px;display:flex;align-items:center;padding:12px;border-bottom:1px solid rgba(255,255,255,0.03)}
+  .chatPanel{background:linear-gradient(180deg, transparent 0%, transparent 100%);border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
+  .chatHeader{height:64px;display:flex;align-items:center;padding:12px;border-bottom:1px solid rgba(0,0,0,0.06)}
   .chatBody{flex:1;padding:16px;overflow:auto;display:flex;flex-direction:column;gap:12px}
   .msgRow{max-width:70%;display:flex;flex-direction:column;gap:6px}
   .msgRow.me{align-self:flex-end;text-align:right}
-  .bubble{padding:10px 12px;border-radius:12px;background:linear-gradient(180deg,#0f2a3a,#0b2430);border:1px solid rgba(255,255,255,0.03)}
+  .bubble{padding:10px 12px;border-radius:12px;background:var(--bubble);border:1px solid rgba(0,0,0,0.06);color:var(--text)}
   .bubble.img{padding:6px}
   .time{font-size:11px;color:var(--muted)}
-  .composer{height:72px;border-top:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:center;padding:10px}
-  .input{flex:1;padding:10px;border-radius:10px;background:var(--panel);border:1px solid rgba(255,255,255,0.03);color:#e6eef6}
-  .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
+  .composer{height:72px;border-top:1px solid rgba(0,0,0,0.06);display:flex;gap:8px;align-items:center;padding:10px}
+  .input{flex:1;padding:10px;border-radius:10px;background:var(--panel);border:1px solid rgba(0,0,0,0.06);color:var(--text)}
+  .btn{background:transparent;border:1px solid rgba(0,0,0,0.06);padding:8px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
   .btn.primary{background:var(--accent);border-color:transparent;color:#fff}
   .rightPanel{background:var(--panel);border-radius:8px;padding:12px;overflow:auto}
   .small{font-size:13px;color:var(--muted)}
-  .stickerBtn{background:transparent;border:1px solid rgba(255,255,255,0.03);padding:6px;border-radius:8px;cursor:pointer}
+  .stickerBtn{background:transparent;border:1px solid rgba(0,0,0,0.04);padding:6px;border-radius:8px;cursor:pointer}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:#222;padding:10px 14px;border-radius:8px;color:#fff;border:1px solid rgba(255,255,255,0.04)}
   @media (max-width:1000px){
     .app{grid-template-columns:1fr;grid-template-rows:64px auto 1fr;gap:8px}
@@ -58,7 +69,7 @@
   <div class="app" id="app">
     <div class="header">
       <div class="brand">Nova Prospect</div>
-      <div class="small">Single-file messenger — desktop style</div>
+      <div class="small">Single-file messenger</div>
 
       <div class="actions" id="authArea">
         <button id="loginBtn" class="btn">Войти с Google</button>
@@ -70,6 +81,10 @@
           <div id="meName" style="font-weight:600"></div>
           <div class="small" id="meEmail"></div>
         </div>
+
+        <!-- Theme toggle button for desktop only (hidden on mobile by JS) -->
+        <button id="themeToggleBtn" class="btn" title="Переключить тему" style="margin-left:10px;display:none">🌓</button>
+
         <button id="logoutBtn" class="btn" style="margin-left:8px">Выйти</button>
       </div>
     </div>
@@ -86,9 +101,7 @@
         <div class="small">онлайн</div>
       </div>
 
-      <div class="contacts" id="contactsList">
-        <!-- contacts inserted here -->
-      </div>
+      <div class="contacts" id="contactsList"></div>
 
       <div style="margin-top:12px">
         <div class="small">Стикеры</div>
@@ -145,6 +158,7 @@ const userArea = document.getElementById('userArea');
 const meAvatar = document.getElementById('meAvatar');
 const meName = document.getElementById('meName');
 const meEmail = document.getElementById('meEmail');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
 
 const usernameSearch = document.getElementById('usernameSearch');
 const addBtn = document.getElementById('addBtn');
@@ -164,11 +178,11 @@ const stickersRow = document.getElementById('stickersRow');
 /* ==========================
    State
    ========================== */
-let me = null; // firebase user
-let myDoc = null; // users/{uid} doc
+let me = null;
+let myDoc = null;
 let userUnsub = null;
 let messagesUnsub = null;
-let selected = null; // selected friend doc object
+let selected = null;
 
 const STICKERS = ['😊','👍','🔥','🎉','😅','🤘'];
 STICKERS.forEach(s=>{
@@ -178,9 +192,61 @@ STICKERS.forEach(s=>{
 });
 
 /* ==========================
+   Theme logic
+   - On mobile: auto follow system (prefers-color-scheme), live updates.
+   - On desktop: show toggle button; persistent selection in localStorage.
+   ========================== */
+const isMobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone/.test(navigator.userAgent);
+const root = document.documentElement;
+const prefersDarkMQ = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+
+function applyTheme(theme){ // theme: 'dark'|'light'
+  root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+}
+
+function initTheme(){
+  if(isMobile){
+    // mobile: follow system; do NOT use saved preference
+    const initial = prefersDarkMQ && prefersDarkMQ.matches ? 'dark' : 'light';
+    applyTheme(initial);
+    themeToggleBtn.style.display = 'none'; // hide toggle on mobile
+    // listen for changes
+    if(prefersDarkMQ && prefersDarkMQ.addEventListener){
+      prefersDarkMQ.addEventListener('change', e => {
+        applyTheme(e.matches ? 'dark' : 'light');
+        toast('Тема поменялась: ' + (e.matches ? 'тёмная' : 'светлая'));
+      });
+    } else if (prefersDarkMQ && prefersDarkMQ.addListener){
+      prefersDarkMQ.addListener(e => {
+        applyTheme(e.matches ? 'dark' : 'light');
+        toast('Тема поменялась: ' + (e.matches ? 'тёмная' : 'светлая'));
+      });
+    }
+  } else {
+    // desktop: allow toggle, persist in localStorage
+    themeToggleBtn.style.display = 'inline-block';
+    const saved = localStorage.getItem('np_theme');
+    if(saved === 'light' || saved === 'dark'){
+      applyTheme(saved);
+    } else {
+      // default to dark
+      applyTheme('dark');
+    }
+    themeToggleBtn.onclick = () => {
+      const cur = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      const next = cur === 'light' ? 'dark' : 'light';
+      applyTheme(next);
+      localStorage.setItem('np_theme', next);
+      toast('Тема: ' + (next === 'light' ? 'светлая' : 'тёмная'));
+    };
+  }
+}
+initTheme();
+
+/* ==========================
    Helpers
    ========================== */
-function toast(msg, ms=4000){
+function toast(msg, ms=3500){
   toastEl.textContent = msg; toastEl.style.display='block';
   clearTimeout(toastEl._t); toastEl._t = setTimeout(()=> toastEl.style.display='none', ms);
 }
@@ -194,7 +260,6 @@ loginBtn.onclick = async ()=>{
   try {
     await auth.signInWithPopup(provider);
   } catch(err){
-    // popup closed by user or other auth error
     toast('Ошибка входа: ' + (err.message||err.code));
     console.error('auth err', err);
   }
@@ -222,13 +287,12 @@ auth.onAuthStateChanged(async user=>{
 });
 
 /* ==========================
-   Ensure users/{uid} doc
+   Ensure user doc
    ========================== */
 async function ensureUserDoc(user){
   const ref = db.collection('users').doc(user.uid);
   const doc = await ref.get();
   if(!doc.exists){
-    // create basic doc with temporary username (email prefix) and empty friends
     const basic = {
       uid: user.uid,
       username: (user.email||'user').split('@')[0] + '_' + Math.floor(Math.random()*900),
@@ -267,7 +331,6 @@ async function renderContacts(){
     contactsList.innerHTML = `<div class="small">Список пуст — добавь по username</div>`;
     return;
   }
-  // fetch each friend doc in parallel
   const promises = friends.map(uid => db.collection('users').doc(uid).get().then(d=>d.exists?d.data():null));
   const results = await Promise.all(promises);
   results.filter(Boolean).forEach(f=>{
@@ -279,7 +342,7 @@ async function renderContacts(){
 }
 
 /* ==========================
-   Add friend by username
+   Add friend
    ========================== */
 addBtn.onclick = async ()=>{
   const username = (usernameSearch.value||'').trim();
@@ -301,26 +364,23 @@ addBtn.onclick = async ()=>{
 };
 
 /* ==========================
-   Select contact: subscribe messages
+   Select contact & messages subscription
+   - No server orderBy to avoid index requirement; client sorts
    ========================== */
 function selectContact(friend){
   selected = friend;
   chatHeader.innerHTML = `<img src="${friend.photoURL||''}" class="avatar" style="width:44px;height:44px;margin-right:10px"/> <div style="font-weight:700">${friend.username||friend.email}</div>`;
   rightContent.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><img src="${friend.photoURL||''}" class="avatar" style="width:72px;height:72px;border-radius:10px"/><div><div style="font-weight:700">${friend.username}</div><div class="small">${friend.email||''}</div></div></div>`;
-  // unsubscribe previous
   if(messagesUnsub) messagesUnsub();
-  // subscribe to ANY message where current user participates (no orderBy to avoid index requirement)
   messagesUnsub = db.collection('messages')
     .where('participants','array-contains', me.uid)
     .onSnapshot(snap=>{
       const msgs = [];
       snap.forEach(d=>{
         const data = d.data();
-        // filter only messages that include selected.uid
         if(!data.participants || !data.participants.includes(selected.uid)) return;
         msgs.push(Object.assign({id:d.id}, data));
       });
-      // client-side sort by timestamp (serverTimestamp might be null briefly)
       msgs.sort((a,b)=>{
         const ta = (a.timestamp && a.timestamp.toDate) ? a.timestamp.toDate().getTime() : (a._localTime||0);
         const tb = (b.timestamp && b.timestamp.toDate) ? b.timestamp.toDate().getTime() : (b._localTime||0);
@@ -329,10 +389,8 @@ function selectContact(friend){
       renderMessages(msgs);
     }, err=>{
       console.error('messages listener err', err);
-      // If the error mentions index, give link (no waiting instruction)
       if(err && err.message && err.message.toLowerCase().includes('index')){
-        toast('Firestore: query requires an index. Можно создать индекс в Console (см. лог).');
-        console.info('Index link (from error): open your Firebase Console → Firestore → Indexes');
+        toast('Firestore: запрос требует индекс. Можно создать индекс в Console.');
       } else {
         toast('Ошибка подписки на сообщения: ' + (err.message||err.code));
       }
@@ -367,7 +425,6 @@ function renderMessages(msgs){
     row.appendChild(time);
     chatBody.appendChild(row);
   }
-  // scroll to bottom
   chatBody.scrollTop = chatBody.scrollHeight;
 }
 
@@ -420,10 +477,8 @@ async function sendMessage({ text='', type='text', mediaURL=null }){
     await db.collection('messages').add(payload);
   } catch(err){
     console.error('sendMessage err', err);
-    // If requires index (shouldn't for our query), inform user
     if(err && err.message && err.message.toLowerCase().includes('index')){
-      toast('Ошибка: запрос требует индекса. Откройте Firestore → Indexes и создайте индекс.');
-      console.info('Index error:', err);
+      toast('Ошибка: запрос требует индекса. Создайте индекс в Firestore Console.');
     } else if (err && err.code && err.code.includes('permission')){
       toast('Проблема с правилами Firestore: проверьте security rules.');
     } else {
@@ -433,7 +488,7 @@ async function sendMessage({ text='', type='text', mediaURL=null }){
 }
 
 /* ==========================
-   Clean up on unload
+   Cleanup on unload
    ========================== */
 window.addEventListener('beforeunload', ()=>{
   if(userUnsub) userUnsub();
@@ -442,64 +497,13 @@ window.addEventListener('beforeunload', ()=>{
 </script>
 
 <!--
-  ПРИМЕЧАНИЯ / УСТРАНЕНИЕ ПРОБЛЕМ
-
-  1) "The query requires an index" — в старой версии мы делали .where(...).orderBy('timestamp'),
-     это требовало создания композитного индекса. В этом файле я убрал orderBy на сервере
-     и сортирую результаты на клиенте, чтобы обойти потребность в композитном индексе.
-     Если ты предпочитаешь серверную сортировку — создай индекс в Firebase Console:
-     Firestore -> Indexes -> Add index:
-       collection: messages
-       fields: participants (array), timestamp (asc)
-
-  2) Если ты всё же видишь ошибку индекса в консоли — щёлкни по ссылке из сообщения об ошибке
-     (в консоли браузера/в логах) — она укажет на точную страницу в Firebase Console.
-
-  3) Если сообщения не доставляются из-за правил безопасности (Missing or insufficient permissions),
-     убедись, что правила Firestore и Storage соответствуют примеру, который я прислал ранее.
-     Минимальные рабочие правила (пример):
-
-     Firestore rules:
-     rules_version = '2';
-     service cloud.firestore {
-       match /databases/{database}/documents {
-         function isSignedIn(){ return request.auth != null; }
-         match /users/{userId} {
-           allow read: if isSignedIn();
-           allow create: if isSignedIn() && request.auth.uid == userId;
-           allow update: if isSignedIn() && request.auth.uid == userId;
-         }
-         match /messages/{msgId} {
-           allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants
-                         && request.resource.data.senderId == request.auth.uid;
-           allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
-           allow update, delete: if isSignedIn() && request.auth.uid in resource.data.participants;
-         }
-       }
-     }
-
-     Storage rules (пример):
-     rules_version = '2';
-     service firebase.storage {
-       match /b/{bucket}/o {
-         match /{allPaths=**} {
-           allow read, write: if request.auth != null;
-         }
-       }
-     }
-
-  4) Авторизация: если получаешь `auth/popup-closed-by-user`, это означает, что popup был закрыт
-     до завершения — попробуй снова, либо проверь Authorized domains в Firebase Console (добавь localhost и домен github.io если используешь Pages).
-
-  5) Дизайн: интерфейс ориентирован под настольный вид (как в :contentReference[oaicite:2]{index=2}/:contentReference[oaicite:3]{index=3}).
-     Если хочешь цвета, отступы или «клиентский» режим (узкий sidebar, compact view) — могу прямо сейчас встроить изменения.
-
-  Если хочешь — могу:
-    • добавить server-side orderBy обратно и дать exact JSON для создания индекса автоматически;
-    • улучшить хранение разговоров (threads/{threadId}/messages) — это избавит от многих индексов и упростит правила;
-    • сделать компактный режим или светлую тему.
-
-  Напиши, что из этого приоритетнее — и я прямо сейчас внесу изменения в файл (включая готовый index JSON / инструкцию).
+  Короткая инструкция:
+  - На мобильных устройствах тема автоматически следует системной (когда ты меняешь тему в телефоне — сайт переключится сам).
+  - На компьютере видна кнопка в шапке (рядом с кнопкой выхода) — нажал/нажал, тема переключилась и сохранена в localStorage.
+  - Если хочешь, могу:
+      • добавить переключатель в правую панель вместо шапки;
+      • позволить пользователю вручную переопределять поведение авто-переключения на мобильном;
+      • добавить анимацию перехода темы.
 -->
 </body>
 </html>
