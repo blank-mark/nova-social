@@ -1,514 +1,542 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Messenger</title>
-    <!-- Bootstrap для быстрой вёрстки (опционально) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome для иконок -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { font-family: Arial, sans-serif; background: #f0f2f5; }
-        #app { display: none; }
-        .chat-container { max-width: 800px; margin: 20px auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .sidebar { border-right: 1px solid #ddd; height: 600px; overflow-y: auto; }
-        .chat-area { height: 600px; display: flex; flex-direction: column; }
-        .messages { flex-grow: 1; overflow-y: auto; padding: 15px; background: #e5ddd5; }
-        .message { margin-bottom: 10px; display: flex; }
-        .message.sent { justify-content: flex-end; }
-        .message .bubble { max-width: 70%; padding: 8px 12px; border-radius: 18px; background: white; }
-        .message.sent .bubble { background: #dcf8c6; }
-        .message img { max-width: 200px; max-height: 200px; border-radius: 10px; }
-        .sticker { font-size: 48px; cursor: pointer; }
-        .sticker:hover { opacity: 0.7; }
-        #friendRequests .badge { margin-left: 5px; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Single-file Messenger — Nova Prospect (Firebase)</title>
+
+  <!-- Minimal CSS: just layout, no decoration -->
+  <style>
+    html,body{height:100%;margin:0;font-family:Arial, Helvetica, sans-serif;}
+    .app{display:flex;flex-direction:column;height:100vh;}
+    .header{height:64px;display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #ddd;}
+    .header .brand{font-weight:700;margin-right:12px;}
+    .header .user{margin-left:auto;display:flex;align-items:center;gap:8px;}
+    .header img{width:40px;height:40px;border-radius:50%;}
+    .main{flex:1;display:flex;overflow:hidden;}
+    .left{width:260px;border-right:1px solid #ddd;display:flex;flex-direction:column;padding:8px;box-sizing:border-box;overflow:auto;}
+    .right{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+    .friends-search{display:flex;gap:6px;margin-bottom:8px;}
+    .friends-list{flex:1;overflow:auto;}
+    .friend-item{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer;}
+    .friend-item img{width:36px;height:36px;border-radius:50%;}
+    .chat-header{height:56px;border-bottom:1px solid #ddd;display:flex;align-items:center;padding:8px 12px;box-sizing:border-box;}
+    .messages{flex:1;overflow:auto;padding:12px;box-sizing:border-box;background:#fafafa;}
+    .composer{height:72px;border-top:1px solid #ddd;display:flex;align-items:center;padding:6px;gap:6px;box-sizing:border-box;}
+    .composer input[type="text"]{flex:1;padding:8px;border:1px solid #ccc;border-radius:6px;}
+    .btn{padding:8px 10px;border:1px solid #888;border-radius:6px;background:#fff;cursor:pointer;}
+    .msg{margin-bottom:8px;max-width:70%;}
+    .msg.me{margin-left:auto;text-align:right;}
+    .msg .bubble{display:inline-block;padding:8px;border-radius:8px;border:1px solid #ddd;background:#fff;}
+    .sticker{font-size:24px;}
+    .small{font-size:12px;color:#666;}
+    /* mobile fallback */
+    @media (max-width:600px){
+      .left{width:40%;min-width:200px;}
+    }
+  </style>
+
+  <!-- Firebase compat SDKs (single-file simplicity). Using compat so code is concise. -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 </head>
 <body>
-    <div class="container mt-5" id="login">
-        <div class="row justify-content-center">
-            <div class="col-md-6 text-center">
-                <h1>Мессенджер</h1>
-                <button id="googleSignIn" class="btn btn-primary btn-lg mt-3">
-                    <i class="fab fa-google"></i> Войти через Google
-                </button>
-            </div>
+  <div id="app" class="app">
+    <!-- Header with sign-in button / user info -->
+    <div class="header">
+      <div class="brand">Nova Prospect — Messenger</div>
+      <div id="auth-controls">
+        <button id="loginBtn" class="btn">Войти с Google</button>
+      </div>
+      <div id="userBox" class="user" style="display:none">
+        <img id="userPhoto" src="" alt="avatar"/>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;">
+          <div id="userName"></div>
+          <div id="userEmail" class="small"></div>
         </div>
+        <button id="logoutBtn" class="btn" style="margin-left:10px;">Выйти</button>
+      </div>
     </div>
 
-    <div id="app">
-        <div class="container-fluid chat-container">
-            <div class="row">
-                <!-- Боковая панель: профиль, друзья, запросы -->
-                <div class="col-md-4 sidebar p-3">
-                    <div class="d-flex align-items-center mb-3">
-                        <img id="userPhoto" src="" alt="" class="rounded-circle me-2" width="40" height="40">
-                        <div>
-                            <h5 id="userName"></h5>
-                            <small id="userEmail"></small>
-                        </div>
-                        <button id="signOut" class="btn btn-sm btn-outline-secondary ms-auto">Выйти</button>
-                    </div>
-
-                    <!-- Установка username (если не задан) -->
-                    <div id="usernameSection" class="mb-3">
-                        <input type="text" id="usernameInput" class="form-control" placeholder="Придумайте username">
-                        <button id="saveUsername" class="btn btn-success btn-sm mt-2">Сохранить</button>
-                    </div>
-
-                    <!-- Добавление друга -->
-                    <div class="input-group mb-3">
-                        <input type="text" id="friendUsername" class="form-control" placeholder="Username друга">
-                        <button id="addFriend" class="btn btn-primary">Добавить</button>
-                    </div>
-
-                    <!-- Входящие запросы -->
-                    <div id="friendRequests" class="mb-3"></div>
-
-                    <!-- Список друзей -->
-                    <h6>Друзья</h6>
-                    <div id="friendsList" class="list-group"></div>
-                </div>
-
-                <!-- Область чата -->
-                <div class="col-md-8 p-0">
-                    <div id="chatArea" class="chat-area">
-                        <div class="bg-light p-2 border-bottom" id="chatHeader">
-                            <strong>Выберите друга для общения</strong>
-                        </div>
-                        <div id="messages" class="messages"></div>
-                        <!-- Форма отправки сообщения (скрыта, если нет выбранного чата) -->
-                        <div id="messageForm" class="p-2 border-top bg-light" style="display: none;">
-                            <div class="input-group">
-                                <input type="text" id="messageInput" class="form-control" placeholder="Сообщение">
-                                <button id="sendMessage" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
-                                <button id="stickerBtn" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#stickerPanel">😊</button>
-                                <input type="file" id="imageUpload" accept="image/*" style="display: none;">
-                                <button id="uploadImageBtn" class="btn btn-outline-secondary"><i class="fas fa-image"></i></button>
-                            </div>
-                            <!-- Панель со стикерами (скрыта) -->
-                            <div class="collapse mt-2" id="stickerPanel">
-                                <div class="d-flex">
-                                    <span class="sticker me-2" data-sticker="👍">👍</span>
-                                    <span class="sticker me-2" data-sticker="❤️">❤️</span>
-                                    <span class="sticker me-2" data-sticker="😂">😂</span>
-                                    <span class="sticker me-2" data-sticker="😢">😢</span>
-                                    <span class="sticker me-2" data-sticker="🎉">🎉</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- Main area: left (friends + add), right (chat) -->
+    <div class="main" style="display:none" id="mainUI">
+      <div class="left">
+        <div style="margin-bottom:8px;">
+          <strong>Мои друзья</strong>
         </div>
+
+        <div class="friends-search">
+          <input id="searchUsername" type="text" placeholder="Введите username пользователя" style="flex:1;padding:6px;border:1px solid #ccc;border-radius:6px;" />
+          <button id="addFriendBtn" class="btn">Добавить</button>
+        </div>
+
+        <div id="friendsList" class="friends-list"></div>
+
+        <div style="margin-top:8px;font-size:12px;color:#444">
+          <div><strong>Стикеры:</strong></div>
+          <div id="stickers" style="display:flex;gap:6px;margin-top:6px;"></div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div id="chatHeader" class="chat-header">Выберите друга слева</div>
+        <div id="messages" class="messages"></div>
+
+        <div class="composer">
+          <input id="messageInput" type="text" placeholder="Введите сообщение..." />
+          <input id="fileInput" type="file" accept="image/*" style="display:none" />
+          <button id="uploadBtn" class="btn">Загрузить картинку</button>
+          <button id="sendBtn" class="btn">Отправить</button>
+        </div>
+      </div>
     </div>
 
-    <!-- Firebase SDK (modular) -->
-    <script type="importmap">
-        {
-            "imports": {
-                "firebase/app": "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js",
-                "firebase/auth": "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js",
-                "firebase/firestore": "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js",
-                "firebase/storage": "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js"
-            }
+    <!-- Username modal (simple, inline) -->
+    <div id="usernameModal" style="display:none;position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
+      <div style="background:#fff;padding:16px;border-radius:8px;width:320px;box-sizing:border-box;">
+        <h3>Придумайте username</h3>
+        <p class="small">Username будет уникальным и позволит другим добавлять вас в друзья.</p>
+        <input id="usernameInput" type="text" placeholder="username (только латиница/цифры/_-)" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" />
+        <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end;">
+          <button id="saveUsernameBtn" class="btn">Сохранить</button>
+        </div>
+        <div id="usernameError" class="small" style="color:red;margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /************************************************************************
+   * Single-file Messenger (Firebase compat v9) — main logic
+   *
+   * Features implemented:
+   * - Google Sign-in (popup)
+   * - First-time username creation and uniqueness check
+   * - users collection: users/{uid} with fields: uid, username, email, photoURL, friends[]
+   * - Add friend by username (adds target uid to current user's friends array)
+   * - Left friends list (avatars + username)
+   * - One-to-one messages stored in collection 'messages' with:
+   *     { text, senderId, receiverId, participants: [uidA, uidB], timestamp, type, mediaURL }
+   * - Real-time updates via onSnapshot for user doc and messages
+   * - Image upload to Storage (chat_images/)
+   *
+   * Note: this is intentionally minimal UI and minimal CSS per request.
+   ************************************************************************/
+
+  // ---------- Firebase config (provided) ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
+    authDomain: "nova-prospect-chat.firebaseapp.com",
+    projectId: "nova-prospect-chat",
+    storageBucket: "nova-prospect-chat.firebasestorage.app",
+    messagingSenderId: "256806164650",
+    appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
+    measurementId: "G-9V0Q2E2FNB"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+
+  // ---------- DOM ----------
+  const loginBtn = document.getElementById('loginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const authControls = document.getElementById('auth-controls');
+  const userBox = document.getElementById('userBox');
+  const userPhoto = document.getElementById('userPhoto');
+  const userName = document.getElementById('userName');
+  const userEmail = document.getElementById('userEmail');
+  const mainUI = document.getElementById('mainUI');
+
+  const searchUsername = document.getElementById('searchUsername');
+  const addFriendBtn = document.getElementById('addFriendBtn');
+  const friendsListEl = document.getElementById('friendsList');
+
+  const messagesEl = document.getElementById('messages');
+  const chatHeader = document.getElementById('chatHeader');
+  const messageInput = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const fileInput = document.getElementById('fileInput');
+
+  const usernameModal = document.getElementById('usernameModal');
+  const usernameInput = document.getElementById('usernameInput');
+  const saveUsernameBtn = document.getElementById('saveUsernameBtn');
+  const usernameError = document.getElementById('usernameError');
+
+  const stickersContainer = document.getElementById('stickers');
+  const STICKERS = ['😊','👍','🔥','🎉','😅','🤘'];
+
+  // ---------- App state ----------
+  let currentUser = null; // firebase user auth object
+  let currentUserDoc = null; // user's Firestore doc data
+  let userDocUnsub = null;
+  let messagesUnsub = null;
+  let selectedFriend = null; // { uid, username, email, photoURL }
+
+  // Initialize sticker buttons
+  STICKERS.forEach(s=>{
+    const b = document.createElement('button');
+    b.className = 'btn sticker';
+    b.textContent = s;
+    b.title = 'Отправить стикер ' + s;
+    b.onclick = () => sendSticker(s);
+    stickersContainer.appendChild(b);
+  });
+
+  // ---------- Auth handlers ----------
+  loginBtn.onclick = async () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      await auth.signInWithPopup(provider);
+      // onAuthStateChanged will handle UI
+    } catch (err) {
+      alert('Ошибка входа: ' + err.message);
+      console.error(err);
+    }
+  };
+
+  logoutBtn.onclick = async () => {
+    await auth.signOut();
+    location.reload();
+  };
+
+  // Listen auth state
+  auth.onAuthStateChanged(async user => {
+    if (user) {
+      currentUser = user;
+      showUserInfo(user);
+      await ensureUserDoc(user);
+      startUserListener(user.uid);
+      document.getElementById('app').style.display = 'block';
+      mainUI.style.display = 'flex';
+      authControls.style.display = 'none';
+      userBox.style.display = 'flex';
+      renderFriends(); // initial
+    } else {
+      // show login
+      authControls.style.display = 'block';
+      userBox.style.display = 'none';
+      mainUI.style.display = 'none';
+    }
+  });
+
+  function showUserInfo(user){
+    userPhoto.src = user.photoURL || '';
+    userName.textContent = user.displayName || (user.email || '').split('@')[0];
+    userEmail.textContent = user.email || '';
+  }
+
+  // ---------- Username creation (first login) ----------
+  async function ensureUserDoc(user){
+    const uref = db.collection('users').doc(user.uid);
+    const doc = await uref.get();
+    if (doc.exists) {
+      currentUserDoc = doc.data();
+      return;
+    }
+    // ask for username
+    usernameModal.style.display = 'flex';
+  }
+
+  saveUsernameBtn.onclick = async () => {
+    const val = (usernameInput.value || '').trim();
+    usernameError.textContent = '';
+    if (!val) { usernameError.textContent = 'Введите username'; return; }
+    if (!/^[a-zA-Z0-9_\-]{3,20}$/.test(val)) {
+      usernameError.textContent = 'Допустимы латиница, цифры, _ и -, длина 3-20';
+      return;
+    }
+    // uniqueness check
+    try {
+      const q = await db.collection('users').where('username','==',val).get();
+      if (!q.empty) {
+        usernameError.textContent = 'Этот username уже занят';
+        return;
+      }
+      // create user doc
+      const userObj = {
+        uid: currentUser.uid,
+        username: val,
+        email: currentUser.email || '',
+        photoURL: currentUser.photoURL || '',
+        friends: []
+      };
+      await db.collection('users').doc(currentUser.uid).set(userObj);
+      currentUserDoc = userObj;
+      usernameModal.style.display = 'none';
+      usernameInput.value = '';
+      renderFriends();
+    } catch (err) {
+      console.error(err);
+      usernameError.textContent = 'Ошибка: ' + err.message;
+    }
+  };
+
+  // ---------- User doc realtime listener ----------
+  function startUserListener(uid){
+    if (userDocUnsub) userDocUnsub();
+    userDocUnsub = db.collection('users').doc(uid).onSnapshot(doc=>{
+      if (doc.exists) {
+        currentUserDoc = doc.data();
+        renderFriends();
+      }
+    }, err=>console.error('user listener err',err));
+  }
+
+  // ---------- Friends rendering & adding ----------
+  async function renderFriends(){
+    friendsListEl.innerHTML = '';
+    if (!currentUserDoc) return;
+    const friends = currentUserDoc.friends || [];
+    if (friends.length === 0){
+      friendsListEl.innerHTML = '<div class="small" style="padding:8px">Список друзей пуст. Добавьте по username.</div>';
+      return;
+    }
+    // For each friend uid, fetch user doc (lightweight)
+    for (const fid of friends){
+      try {
+        const fdoc = await db.collection('users').doc(fid).get();
+        if (!fdoc.exists) continue;
+        const f = fdoc.data();
+        const item = document.createElement('div');
+        item.className = 'friend-item';
+        item.dataset.uid = f.uid;
+        item.innerHTML = `<img src="${f.photoURL||''}" alt="a"/><div style="display:flex;flex-direction:column"><div style="font-weight:600">${f.username||f.email||f.uid}</div><div class="small">${f.email||''}</div></div>`;
+        item.onclick = ()=>selectFriend(f);
+        friendsListEl.appendChild(item);
+      } catch (err) {
+        console.error('error fetching friend',err);
+      }
+    }
+  }
+
+  addFriendBtn.onclick = async () => {
+    const username = (searchUsername.value || '').trim();
+    if (!username) { alert('Введите username'); return; }
+    if (!currentUser) { alert('Сначала войдите'); return; }
+    // find user by username
+    try {
+      const q = await db.collection('users').where('username','==',username).get();
+      if (q.empty) { alert('Пользователь не найден'); return; }
+      const found = q.docs[0].data();
+      if (found.uid === currentUser.uid) { alert('Нельзя добавить себя'); return; }
+      const friends = currentUserDoc?.friends || [];
+      if (friends.includes(found.uid)) { alert('Этот пользователь уже в друзьях'); return; }
+      // Add friend uid to current user's friends array
+      await db.collection('users').doc(currentUser.uid).update({
+        friends: firebase.firestore.FieldValue.arrayUnion(found.uid)
+      });
+      // UI will update via onSnapshot
+      searchUsername.value = '';
+      alert('Добавлен в друзья: ' + (found.username || found.email));
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка при добавлении: ' + err.message);
+    }
+  };
+
+  // ---------- Chat selection ----------
+  function selectFriend(friendDoc){
+    selectedFriend = friendDoc;
+    chatHeader.innerHTML = `<img src="${friendDoc.photoURL||''}" style="width:36px;height:36px;border-radius:50%;margin-right:8px;vertical-align:middle"/> <strong>${friendDoc.username||friendDoc.email}</strong>`;
+    messagesEl.innerHTML = '';
+    if (messagesUnsub) messagesUnsub();
+    // subscribe to messages where currentUser is participant (array-contains) and filter by partner
+    messagesUnsub = db.collection('messages')
+      .where('participants','array-contains', currentUser.uid)
+      .orderBy('timestamp')
+      .onSnapshot(snap => {
+        const msgs = [];
+        snap.forEach(d=>{
+          const data = d.data();
+          // filter to the conversation between currentUser and selectedFriend
+          if (!data.participants || !data.participants.includes(selectedFriend.uid)) return;
+          msgs.push({...data, id:d.id});
+        });
+        renderMessages(msgs);
+      }, err => console.error('messages listener err',err));
+  }
+
+  // ---------- Render messages ----------
+  function renderMessages(msgs){
+    messagesEl.innerHTML = '';
+    if (msgs.length === 0){
+      messagesEl.innerHTML = '<div class="small">История пуста. Начните общение.</div>';
+      return;
+    }
+    for (const m of msgs){
+      const div = document.createElement('div');
+      div.className = 'msg ' + (m.senderId === currentUser.uid ? 'me' : 'them');
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      if (m.type === 'image' && m.mediaURL){
+        const img = document.createElement('img');
+        img.src = m.mediaURL;
+        img.style.maxWidth = '240px';
+        img.style.display = 'block';
+        img.style.borderRadius = '6px';
+        bubble.appendChild(img);
+        if (m.text) {
+          const t = document.createElement('div'); t.textContent = m.text; t.className='small'; bubble.appendChild(t);
         }
-    </script>
+      } else if (m.type === 'sticker'){
+        const s = document.createElement('div'); s.textContent = m.text; s.className='sticker'; bubble.appendChild(s);
+      } else {
+        bubble.textContent = m.text || '';
+      }
+      // timestamp
+      const time = document.createElement('div');
+      const ts = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate() : (m.timestamp ? new Date(m.timestamp) : null);
+      time.className = 'small';
+      time.style.marginTop = '6px';
+      time.style.opacity = '0.8';
+      time.textContent = ts ? ts.toLocaleString() : '';
+      bubble.appendChild(time);
 
-    <script type="module">
-        // ---------- ИНИЦИАЛИЗАЦИЯ FIREBASE ----------
-        import { initializeApp } from 'firebase/app';
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, onSnapshot, addDoc, orderBy, serverTimestamp, arrayUnion, arrayRemove, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
-        import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+      div.appendChild(bubble);
+      messagesEl.appendChild(div);
+    }
+    // scroll to bottom
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
 
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
-  authDomain: "nova-prospect-chat.firebaseapp.com",
-  projectId: "nova-prospect-chat",
-  storageBucket: "nova-prospect-chat.firebasestorage.app",
-  messagingSenderId: "256806164650",
-  appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
-  measurementId: "G-9V0Q2E2FNB"
-};
+  // ---------- Sending messages ----------
+  sendBtn.onclick = async () => {
+    const text = (messageInput.value || '').trim();
+    if (!selectedFriend) { alert('Выберите друга'); return; }
+    if (!text) { return; }
+    await sendMessage({ text, type: 'text' });
+    messageInput.value = '';
+  };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
-        const provider = new GoogleAuthProvider();
+  async function sendSticker(emoji){
+    if (!selectedFriend) { alert('Выберите друга'); return; }
+    await sendMessage({ text: emoji, type: 'sticker' });
+  }
 
-        // ---------- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ----------
-        let currentUser = null;
-        let currentFriendId = null;      // выбранный друг для чата
-        let currentFriendshipId = null;  // ID friendship с выбранным другом
-        let unsubscribeFriends = null;
-        let unsubscribeMessages = null;
-        let unsubscribeRequests = null;
+  uploadBtn.onclick = ()=> fileInput.click();
 
-        // DOM элементы
-        const loginDiv = document.getElementById('login');
-        const appDiv = document.getElementById('app');
-        const googleSignInBtn = document.getElementById('googleSignIn');
-        const signOutBtn = document.getElementById('signOut');
-        const userPhoto = document.getElementById('userPhoto');
-        const userNameSpan = document.getElementById('userName');
-        const userEmailSpan = document.getElementById('userEmail');
-        const usernameSection = document.getElementById('usernameSection');
-        const usernameInput = document.getElementById('usernameInput');
-        const saveUsernameBtn = document.getElementById('saveUsername');
-        const friendUsernameInput = document.getElementById('friendUsername');
-        const addFriendBtn = document.getElementById('addFriend');
-        const friendsListDiv = document.getElementById('friendsList');
-        const friendRequestsDiv = document.getElementById('friendRequests');
-        const chatHeader = document.getElementById('chatHeader');
-        const messagesDiv = document.getElementById('messages');
-        const messageForm = document.getElementById('messageForm');
-        const messageInput = document.getElementById('messageInput');
-        const sendMessageBtn = document.getElementById('sendMessage');
-        const uploadImageBtn = document.getElementById('uploadImageBtn');
-        const imageUpload = document.getElementById('imageUpload');
-        const stickerBtn = document.getElementById('stickerBtn');
-        const stickerPanel = document.getElementById('stickerPanel');
+  fileInput.onchange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!selectedFriend) { alert('Выберите друга'); return; }
+    // simple validation
+    if (!file.type.startsWith('image/')) { alert('Только изображения'); return; }
+    const fname = `chat_images/${Date.now()}_${currentUser.uid}_${file.name.replace(/\s/g,'_')}`;
+    try {
+      const ref = storage.ref().child(fname);
+      const snap = await ref.put(file);
+      const url = await snap.ref.getDownloadURL();
+      await sendMessage({ text: '', type: 'image', mediaURL: url });
+      fileInput.value = '';
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка загрузки: ' + err.message);
+    }
+  };
 
-        // ---------- АУТЕНТИФИКАЦИЯ ----------
-        googleSignInBtn.addEventListener('click', async () => {
-            try {
-                await signInWithPopup(auth, provider);
-            } catch (error) {
-                alert('Ошибка входа: ' + error.message);
-            }
-        });
+  async function sendMessage({ text='', type='text', mediaURL=null }){
+    const msg = {
+      text,
+      senderId: currentUser.uid,
+      receiverId: selectedFriend.uid,
+      participants: [currentUser.uid, selectedFriend.uid],
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      type,
+      mediaURL: mediaURL || null
+    };
+    try {
+      await db.collection('messages').add(msg);
+    } catch (err) {
+      console.error('sendMessage err',err);
+      alert('Ошибка отправки: ' + err.message);
+    }
+  }
 
-        signOutBtn.addEventListener('click', () => signOut(auth));
+  // ---------- Cleanup on unload ----------
+  window.addEventListener('beforeunload', ()=>{
+    if (userDocUnsub) userDocUnsub();
+    if (messagesUnsub) messagesUnsub();
+  });
 
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                loginDiv.style.display = 'none';
-                appDiv.style.display = 'block';
+  // ---------- Small helper: show main UI if already signed in (handled by onAuthStateChanged) ----------
 
-                // Отображаем базовую информацию
-                userPhoto.src = user.photoURL || '';
-                userNameSpan.textContent = user.displayName || 'Без имени';
-                userEmailSpan.textContent = user.email;
+  </script>
 
-                // Проверяем, есть ли пользователь в Firestore, и есть ли username
-                const userRef = doc(db, 'users', user.uid);
-                const userSnap = await getDoc(userRef);
-                if (!userSnap.exists()) {
-                    // Создаём документ пользователя
-                    await setDoc(userRef, {
-                        email: user.email,
-                        displayName: user.displayName,
-                        photoURL: user.photoURL,
-                        username: '',
-                        createdAt: serverTimestamp()
-                    });
-                    usernameSection.style.display = 'block';
-                } else {
-                    const userData = userSnap.data();
-                    if (!userData.username) {
-                        usernameSection.style.display = 'block';
-                    } else {
-                        usernameSection.style.display = 'none';
-                        // Подписываемся на данные о друзьях
-                        loadFriendsAndRequests();
-                    }
-                }
-            } else {
-                currentUser = null;
-                loginDiv.style.display = 'block';
-                appDiv.style.display = 'none';
-                // Отписываемся от всех подписок
-                if (unsubscribeFriends) unsubscribeFriends();
-                if (unsubscribeMessages) unsubscribeMessages();
-                if (unsubscribeRequests) unsubscribeRequests();
-            }
-        });
+  <!--
+    FIRESTORE & STORAGE SECURITY RULES (copy & paste into Firebase console — Firestore and Storage respectively).
+    Эти правила — минимально необходимые для безопасности с описанной выше логикой.
+    Пояснения:
+    - Автоматические проверки авторизации: request.auth != null
+    - Пользователи могут читать всех пользователей, но редактировать только свой документ users/{uid}
+    - Сообщения можно читать/писать только если request.auth.uid является участником диалога
+    - Storage разрешён только авторизованным пользователям
 
-        // ---------- СОХРАНЕНИЕ USERNAME ----------
-        saveUsernameBtn.addEventListener('click', async () => {
-            const username = usernameInput.value.trim();
-            if (!username) {
-                alert('Введите username');
-                return;
-            }
-            // Проверяем уникальность
-            const usersRef = collection(db, 'users');
-            const q = query(usersRef, where('username', '==', username));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                alert('Такой username уже занят');
-                return;
-            }
-            // Сохраняем
-            await updateDoc(doc(db, 'users', currentUser.uid), { username });
-            usernameSection.style.display = 'none';
-            loadFriendsAndRequests();
-        });
-
-        // ---------- ЗАГРУЗКА ДРУЗЕЙ И ЗАПРОСОВ (real-time) ----------
-        function loadFriendsAndRequests() {
-            // Подписка на accepted друзей
-            const friendshipsRef = collection(db, 'friendships');
-            const qFriends = query(friendshipsRef, where('participants', 'array-contains', currentUser.uid), where('status', '==', 'accepted'));
-            unsubscribeFriends = onSnapshot(qFriends, (snapshot) => {
-                const friendIds = [];
-                snapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    const otherUid = data.participants.find(uid => uid !== currentUser.uid);
-                    friendIds.push(otherUid);
-                });
-                // Загружаем данные о друзьях
-                loadFriendsData(friendIds);
-            });
-
-            // Подписка на входящие запросы (pending и requester != currentUser)
-            const qRequests = query(friendshipsRef, where('participants', 'array-contains', currentUser.uid), where('status', '==', 'pending'), where('requester', '!=', currentUser.uid));
-            unsubscribeRequests = onSnapshot(qRequests, (snapshot) => {
-                displayFriendRequests(snapshot.docs);
-            });
-        }
-
-        async function loadFriendsData(friendIds) {
-            if (friendIds.length === 0) {
-                friendsListDiv.innerHTML = '<p class="text-muted">Нет друзей</p>';
-                return;
-            }
-            // Получаем данные пользователей
-            const usersData = [];
-            for (const uid of friendIds) {
-                const userSnap = await getDoc(doc(db, 'users', uid));
-                if (userSnap.exists()) {
-                    usersData.push({ id: uid, ...userSnap.data() });
-                }
-            }
-            // Отображаем
-            friendsListDiv.innerHTML = '';
-            usersData.forEach(user => {
-                const btn = document.createElement('button');
-                btn.className = 'list-group-item list-group-item-action d-flex align-items-center';
-                btn.innerHTML = `
-                    <img src="${user.photoURL || ''}" class="rounded-circle me-2" width="30" height="30">
-                    <span>${user.displayName || user.username || user.email}</span>
-                `;
-                btn.onclick = () => selectFriend(user.id, user.displayName || user.username || user.email);
-                friendsListDiv.appendChild(btn);
-            });
-        }
-
-        function displayFriendRequests(requests) {
-            if (requests.length === 0) {
-                friendRequestsDiv.innerHTML = '';
-                return;
-            }
-            let html = '<h6>Запросы в друзья <span class="badge bg-danger">'+requests.length+'</span></h6>';
-            requests.forEach(async (docSnap) => {
-                const data = docSnap.data();
-                const requesterUid = data.requester;
-                const userSnap = await getDoc(doc(db, 'users', requesterUid));
-                if (userSnap.exists()) {
-                    const user = userSnap.data();
-                    html += `
-                        <div class="alert alert-info p-2 mb-2 d-flex justify-content-between align-items-center">
-                            <span>${user.displayName || user.username || user.email}</span>
-                            <button class="btn btn-sm btn-success accept-request" data-friendship="${docSnap.id}">Принять</button>
-                        </div>
-                    `;
-                }
-            });
-            friendRequestsDiv.innerHTML = html;
-            document.querySelectorAll('.accept-request').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const friendshipId = e.target.dataset.friendship;
-                    acceptFriendRequest(friendshipId);
-                });
-            });
-        }
-
-        // ---------- ПРИНЯТЬ ЗАПРОС ----------
-        async function acceptFriendRequest(friendshipId) {
-            await updateDoc(doc(db, 'friendships', friendshipId), { status: 'accepted' });
-        }
-
-        // ---------- ДОБАВИТЬ ДРУГА ПО USERNAME ----------
-        addFriendBtn.addEventListener('click', async () => {
-            const username = friendUsernameInput.value.trim();
-            if (!username) return;
-
-            // Ищем пользователя
-            const usersRef = collection(db, 'users');
-            const q = query(usersRef, where('username', '==', username));
-            const snap = await getDocs(q);
-            if (snap.empty) {
-                alert('Пользователь не найден');
-                return;
-            }
-            const friendUser = snap.docs[0].data();
-            const friendUid = snap.docs[0].id;
-
-            if (friendUid === currentUser.uid) {
-                alert('Нельзя добавить самого себя');
-                return;
-            }
-
-            // Проверяем, не друзья ли уже
-            const participants = [currentUser.uid, friendUid].sort();
-            const friendshipId = participants.join('_');
-            const friendshipRef = doc(db, 'friendships', friendshipId);
-            const friendshipSnap = await getDoc(friendshipRef);
-            if (friendshipSnap.exists()) {
-                alert('Запрос уже отправлен или вы уже друзья');
-                return;
-            }
-
-            // Создаём запрос
-            await setDoc(friendshipRef, {
-                participants,
-                status: 'pending',
-                requester: currentUser.uid,
-                createdAt: serverTimestamp()
-            });
-
-            friendUsernameInput.value = '';
-            alert('Запрос отправлен');
-        });
-
-        // ---------- ВЫБОР ДРУГА ДЛЯ ЧАТА ----------
-        async function selectFriend(friendId, friendName) {
-            currentFriendId = friendId;
-            chatHeader.innerHTML = `<strong>Чат с ${friendName}</strong>`;
-            messageForm.style.display = 'block';
-
-            // Определяем friendshipId
-            const participants = [currentUser.uid, friendId].sort();
-            currentFriendshipId = participants.join('_');
-
-            // Отписываемся от старых сообщений
-            if (unsubscribeMessages) unsubscribeMessages();
-
-            // Подписываемся на сообщения
-            const messagesRef = collection(db, 'friendships', currentFriendshipId, 'messages');
-            const q = query(messagesRef, orderBy('timestamp', 'asc'));
-            unsubscribeMessages = onSnapshot(q, (snapshot) => {
-                messagesDiv.innerHTML = '';
-                snapshot.docs.forEach(doc => {
-                    const msg = doc.data();
-                    displayMessage(msg);
-                });
-                // Скролл вниз
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            });
-        }
-
-        // ---------- ОТОБРАЖЕНИЕ СООБЩЕНИЯ ----------
-        function displayMessage(msg) {
-            const isSent = msg.senderId === currentUser.uid;
-            const div = document.createElement('div');
-            div.className = `message ${isSent ? 'sent' : ''}`;
-            let content = '';
-            if (msg.text) {
-                content = `<div class="bubble">${msg.text}</div>`;
-            } else if (msg.imageUrl) {
-                content = `<div class="bubble"><img src="${msg.imageUrl}" alt="image"></div>`;
-            } else if (msg.sticker) {
-                content = `<div class="bubble sticker">${msg.sticker}</div>`;
-            }
-            div.innerHTML = content;
-            messagesDiv.appendChild(div);
-        }
-
-        // ---------- ОТПРАВКА ТЕКСТОВОГО СООБЩЕНИЯ ----------
-        sendMessageBtn.addEventListener('click', async () => {
-            const text = messageInput.value.trim();
-            if (!text || !currentFriendshipId) return;
-            await addDoc(collection(db, 'friendships', currentFriendshipId, 'messages'), {
-                senderId: currentUser.uid,
-                text,
-                timestamp: serverTimestamp()
-            });
-            messageInput.value = '';
-        });
-
-        // ---------- ОТПРАВКА СТИКЕРА ----------
-        stickerPanel.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('sticker')) {
-                const sticker = e.target.dataset.sticker;
-                if (!currentFriendshipId) return;
-                await addDoc(collection(db, 'friendships', currentFriendshipId, 'messages'), {
-                    senderId: currentUser.uid,
-                    sticker,
-                    timestamp: serverTimestamp()
-                });
-            }
-        });
-
-        // ---------- ЗАГРУЗКА ИЗОБРАЖЕНИЯ ----------
-        uploadImageBtn.addEventListener('click', () => imageUpload.click());
-        imageUpload.addEventListener('change', async () => {
-            const file = imageUpload.files[0];
-            if (!file || !currentFriendshipId) return;
-
-            const storageRef = ref(storage, `chat_images/${currentFriendshipId}/${Date.now()}_${file.name}`);
-            await uploadBytes(storageRef, file);
-            const imageUrl = await getDownloadURL(storageRef);
-
-            await addDoc(collection(db, 'friendships', currentFriendshipId, 'messages'), {
-                senderId: currentUser.uid,
-                imageUrl,
-                timestamp: serverTimestamp()
-            });
-
-            imageUpload.value = '';
-        });
-
-        // ---------- ОТПРАВКА ПО ENTER ----------
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessageBtn.click();
-        });
-
-    </script>
-
-    <!-- ========== ПРАВИЛА БЕЗОПАСНОСТИ FIRESTORE ========== 
+    ---------------------------
+    Firestore rules (Firestore → Rules)
+    ---------------------------
     rules_version = '2';
     service cloud.firestore {
       match /databases/{database}/documents {
-        // Пользователи: чтение разрешено всем авторизованным, запись только своему документу
+        // USERS collection
         match /users/{userId} {
-          allow read: if request.auth != null;
-          allow write: if request.auth != null && request.auth.uid == userId;
+          allow read: if request.auth != null; // any authenticated user can read users
+          allow create: if request.auth != null && request.auth.uid == userId
+                        && request.resource.data.uid == userId
+                        && request.resource.data.keys().hasAll(['uid','username','email','photoURL','friends']);
+          // only owner can update their own doc; they can update friends array and their fields
+          allow update: if request.auth != null && request.auth.uid == userId
+                        && request.resource.data.uid == userId;
+          allow delete: if false; // prevent deleting user docs via client (handle via admin)
         }
-        // Дружбы: проверка участников
-        match /friendships/{friendship} {
-          allow read, write: if request.auth != null && 
-            request.auth.uid in resource.data.participants;
-          // Для создания проверяем, что участники - текущий и другой
-          allow create: if request.auth != null && 
-            request.resource.data.participants.size() == 2 &&
-            request.auth.uid in request.resource.data.participants;
+
+        // MESSAGES collection
+        match /messages/{messageId} {
+          allow create: if request.auth != null
+                        // new message must include participants array and senderId must be request.auth.uid
+                        && request.resource.data.keys().hasAll(['participants','senderId','receiverId','timestamp','type'])
+                        && request.resource.data.participants.size() == 2
+                        && request.resource.data.participants.contains(request.auth.uid)
+                        && request.resource.data.senderId == request.auth.uid;
+          allow read: if request.auth != null
+                      && resource.data.participants != null
+                      && resource.data.participants.contains(request.auth.uid);
+          allow update, delete: if request.auth != null
+                                && resource.data.participants != null
+                                && resource.data.participants.contains(request.auth.uid);
         }
-        // Сообщения в дружбе
-        match /friendships/{friendship}/messages/{message} {
-          allow read, write: if request.auth != null && 
-            exists(/databases/$(database)/documents/friendships/$(friendship)) &&
-            request.auth.uid in get(/databases/$(database)/documents/friendships/$(friendship)).data.participants;
-        }
+
+        // Optionally allow other collections rules...
       }
     }
-    ========== ПРАВИЛА STORAGE ==========
+
+    ---------------------------
+    Storage rules (Storage → Rules)
+    ---------------------------
     rules_version = '2';
     service firebase.storage {
       match /b/{bucket}/o {
-        match /chat_images/{friendshipId}/{fileName} {
-          allow read: if request.auth != null;
-          allow write: if request.auth != null && 
-            friendshipId.split('_').hasAny([request.auth.uid]);
+        // Allow authenticated users to read/write files
+        match /{allPaths=**} {
+          allow read, write: if request.auth != null;
         }
       }
     }
-    -->
+
+    ---------------------------
+    Notes and recommendations:
+    - Эти правила допускают, что клиенты будут записывать сообщения и user-документы корректно.
+    - Если вы хотите запретить запись в чужой users/{uid} (например добавление друзей к чужому документу),
+      уже реализовано: update разрешён только владельцу.
+    - Правила для коллекции messages проверяют, что автор сообщения находится в participants.
+    - Для более строгой модели можно добавить структуру "threads" (диалоги) и помещать сообщения в subcollections,
+      а также валидировать что participants не меняются после создания.
+    - Для production: рассмотрите дополнительные проверки (например, длину текста, размер/тип загружаемых файлов),
+      лимиты на частоту отправки и т.п.
+  -->
 </body>
 </html>
