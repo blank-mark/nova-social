@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="ru">
 <head>
@@ -46,6 +47,24 @@
     .app{grid-template-columns:1fr;grid-template-rows:64px auto 1fr;gap:8px}
     .rightPanel{display:none}
   }
+
+  /* ====== Username modal (added feature) ====== */
+  .username-modal {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(180deg, rgba(5,8,12,0.6), rgba(5,8,12,0.8)); z-index:9999;
+  }
+  .username-card {
+    background:var(--panel); padding:20px; border-radius:12px; width:360px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
+    display:flex; flex-direction:column; gap:10px; align-items:stretch;
+  }
+  .username-card h3{margin:0;font-size:18px}
+  .username-card .hint{font-size:13px;color:var(--muted)}
+  .username-card .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+  .username-input{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  .username-btn{padding:10px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+  .username-btn[disabled]{opacity:0.5;cursor:not-allowed}
+  /* small note */
+  .username-note{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
 </style>
 
 <!-- Firebase compat SDKs -->
@@ -55,6 +74,19 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 </head>
 <body>
+  <!-- Username modal: shown on first load (only change requested) -->
+  <div id="usernameModal" class="username-modal" style="display:none">
+    <div class="username-card" role="dialog" aria-modal="true" aria-labelledby="usernameTitle">
+      <h3 id="usernameTitle">Введите юзернейм</h3>
+      <div class="hint">Придумайте username — он будет сохранён и использован при входе через Google.</div>
+      <input id="startupUsername" class="username-input" placeholder="например: cool_user123" autocomplete="off" />
+      <div class="actions">
+        <button id="startupBtn" class="username-btn" disabled>Продолжить</button>
+      </div>
+      <div class="username-note">Окно появится только один раз — имя сохранится в браузере.</div>
+    </div>
+  </div>
+
   <div class="app" id="app">
     <div class="header">
       <div class="brand">Nova Prospect</div>
@@ -116,6 +148,49 @@
   </div>
 
   <div id="toast" class="toast" style="display:none"></div>
+
+<script>
+/* ==========================
+   Small startup modal logic (ADDED)
+   - Shows a "Введите юзернейм" prompt once (stored in localStorage 'np_username')
+   - Hides the modal and reveals the app after user enters username
+   - Does not change any other app logic except that ensureUserDoc (below) will prefer this saved username
+   ========================== */
+(function(){
+  const modal = document.getElementById('usernameModal');
+  const app = document.getElementById('app');
+  const input = document.getElementById('startupUsername');
+  const btn = document.getElementById('startupBtn');
+
+  // If username already saved, don't show the modal and show the app immediately
+  const saved = localStorage.getItem('np_username');
+  if(saved){
+    app.style.display = 'grid';
+  } else {
+    // hide main app UI until user provides username
+    app.style.display = 'none';
+    modal.style.display = 'flex';
+    input.focus();
+  }
+
+  input.addEventListener('input', ()=>{
+    const v = (input.value||'').trim();
+    btn.disabled = v.length < 3;
+  });
+
+  btn.addEventListener('click', ()=>{
+    const v = (input.value||'').trim();
+    if(!v || v.length < 3) return;
+    // Save username and hide modal
+    localStorage.setItem('np_username', v);
+    modal.style.display = 'none';
+    app.style.display = 'grid';
+    // optional: focus login button so user can sign in
+    const login = document.getElementById('loginBtn');
+    if(login) login.focus();
+  });
+})();
+</script>
 
 <script>
 /* ==========================
@@ -229,9 +304,11 @@ async function ensureUserDoc(user){
   const doc = await ref.get();
   if(!doc.exists){
     // create basic doc with temporary username (email prefix) and empty friends
+    // <-- MODIFICATION: prefer username entered at startup (localStorage 'np_username') if available
+    const storedUsername = localStorage.getItem('np_username');
     const basic = {
       uid: user.uid,
-      username: (user.email||'user').split('@')[0] + '_' + Math.floor(Math.random()*900),
+      username: storedUsername ? storedUsername : (user.email||'user').split('@')[0] + '_' + Math.floor(Math.random()*900),
       email: user.email||'',
       photoURL: user.photoURL||'',
       friends: []
@@ -503,3 +580,4 @@ window.addEventListener('beforeunload', ()=>{
 -->
 </body>
 </html>
+```
