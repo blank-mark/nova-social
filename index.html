@@ -3,15 +3,14 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Nova Prospect — Messenger (themes)</title>
+<title>Nova Prospect — Messenger (username required)</title>
 
-<!-- Minimal CSS with theme variables (light/dark) -->
+<!-- Minimal CSS with theme variables (light/dark) + modal styles -->
 <style>
   :root{
     --bg:#0f1720; --panel:#11151a; --muted:#9aa5b1; --accent:#2b8cff; --bubble:#172027;
     --glass: rgba(255,255,255,0.03); --text:#e6eef6;
   }
-  /* Light theme overrides when data-theme="light" */
   :root[data-theme="light"]{
     --bg: #f5f7fb;
     --panel: #ffffff;
@@ -21,7 +20,6 @@
     --glass: rgba(0,0,0,0.03);
     --text: #0f1720;
   }
-
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:var(--bg);color:var(--text)}
   .app{display:grid;grid-template-columns:280px 1fr 320px;grid-template-rows:64px 1fr;height:100vh;gap:8px;padding:8px;}
@@ -57,6 +55,14 @@
     .app{grid-template-columns:1fr;grid-template-rows:64px auto 1fr;gap:8px}
     .rightPanel{display:none}
   }
+
+  /* Modal for username */
+  .modal-backdrop{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999}
+  .modal{background:var(--panel);padding:20px;border-radius:10px;min-width:320px;max-width:420px}
+  .modal h3{margin:0 0 8px 0}
+  .modal .small{margin-bottom:8px}
+  .input-inline{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);background:transparent;color:var(--text);margin-bottom:8px}
+  .err{color:#ff7b7b;font-size:13px;margin-top:6px}
 </style>
 
 <!-- Firebase compat SDKs -->
@@ -78,11 +84,12 @@
       <div class="actions" id="userArea" style="display:none">
         <img id="meAvatar" class="avatar" src="" alt="me"/>
         <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:8px;">
-          <div id="meName" style="font-weight:600"></div>
-          <div class="small" id="meEmail"></div>
+          <!-- Display both displayName (Google) and username (app) -->
+          <div id="meName" style="font-weight:700"></div>
+          <div class="small" id="meUsername" style="margin-top:4px"></div>
+          <div class="small" id="meEmail" style="margin-top:2px"></div>
         </div>
 
-        <!-- Theme toggle button for desktop only (hidden on mobile by JS) -->
         <button id="themeToggleBtn" class="btn" title="Переключить тему" style="margin-left:10px;display:none">🌓</button>
 
         <button id="logoutBtn" class="btn" style="margin-left:8px">Выйти</button>
@@ -128,6 +135,20 @@
     </div>
   </div>
 
+  <!-- Username modal (hidden by default) -->
+  <div id="usernameModal" class="modal-backdrop" style="display:none">
+    <div class="modal">
+      <h3>Придумай уникальный username</h3>
+      <div class="small">Username нужен, чтобы тебя могли добавить друзья. Допустимы латиница, цифры, "_" и "-", длина 3–20.</div>
+      <input id="usernameField" class="input-inline" placeholder="username (например: mark_ivan)" />
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button id="usernameCancel" class="btn">Выйти</button>
+        <button id="usernameSave" class="btn primary">Сохранить</button>
+      </div>
+      <div id="usernameErr" class="err"></div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" style="display:none"></div>
 
 <script>
@@ -157,6 +178,7 @@ const authArea = document.getElementById('authArea');
 const userArea = document.getElementById('userArea');
 const meAvatar = document.getElementById('meAvatar');
 const meName = document.getElementById('meName');
+const meUsername = document.getElementById('meUsername');
 const meEmail = document.getElementById('meEmail');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 
@@ -175,6 +197,12 @@ const rightContent = document.getElementById('rightContent');
 const toastEl = document.getElementById('toast');
 const stickersRow = document.getElementById('stickersRow');
 
+const usernameModal = document.getElementById('usernameModal');
+const usernameField = document.getElementById('usernameField');
+const usernameSave = document.getElementById('usernameSave');
+const usernameCancel = document.getElementById('usernameCancel');
+const usernameErr = document.getElementById('usernameErr');
+
 /* ==========================
    State
    ========================== */
@@ -192,46 +220,35 @@ STICKERS.forEach(s=>{
 });
 
 /* ==========================
-   Theme logic
-   - On mobile: auto follow system (prefers-color-scheme), live updates.
-   - On desktop: show toggle button; persistent selection in localStorage.
+   Theme logic (unchanged)
    ========================== */
 const isMobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone/.test(navigator.userAgent);
 const root = document.documentElement;
 const prefersDarkMQ = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
 
-function applyTheme(theme){ // theme: 'dark'|'light'
-  root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
-}
+function applyTheme(theme){ root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark'); }
 
 function initTheme(){
   if(isMobile){
-    // mobile: follow system; do NOT use saved preference
     const initial = prefersDarkMQ && prefersDarkMQ.matches ? 'dark' : 'light';
     applyTheme(initial);
-    themeToggleBtn.style.display = 'none'; // hide toggle on mobile
-    // listen for changes
+    themeToggleBtn.style.display = 'none';
     if(prefersDarkMQ && prefersDarkMQ.addEventListener){
       prefersDarkMQ.addEventListener('change', e => {
         applyTheme(e.matches ? 'dark' : 'light');
-        toast('Тема поменялась: ' + (e.matches ? 'тёмная' : 'светлая'));
+        toast('Тема: ' + (e.matches ? 'тёмная' : 'светлая'));
       });
     } else if (prefersDarkMQ && prefersDarkMQ.addListener){
       prefersDarkMQ.addListener(e => {
         applyTheme(e.matches ? 'dark' : 'light');
-        toast('Тема поменялась: ' + (e.matches ? 'тёмная' : 'светлая'));
+        toast('Тема: ' + (e.matches ? 'тёмная' : 'светлая'));
       });
     }
   } else {
-    // desktop: allow toggle, persist in localStorage
     themeToggleBtn.style.display = 'inline-block';
     const saved = localStorage.getItem('np_theme');
-    if(saved === 'light' || saved === 'dark'){
-      applyTheme(saved);
-    } else {
-      // default to dark
-      applyTheme('dark');
-    }
+    if(saved === 'light' || saved === 'dark'){ applyTheme(saved); }
+    else applyTheme('dark');
     themeToggleBtn.onclick = () => {
       const cur = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
       const next = cur === 'light' ? 'dark' : 'light';
@@ -278,6 +295,8 @@ auth.onAuthStateChanged(async user=>{
     meName.textContent = user.displayName || '';
     meEmail.textContent = user.email || '';
     await ensureUserDoc(user);
+    // enforce username creation if needed
+    await promptForUsernameIfNeeded();
     startUserListener(user.uid);
     renderContacts();
   } else {
@@ -287,12 +306,13 @@ auth.onAuthStateChanged(async user=>{
 });
 
 /* ==========================
-   Ensure user doc
+   Ensure user doc (no change to structure)
    ========================== */
 async function ensureUserDoc(user){
   const ref = db.collection('users').doc(user.uid);
   const doc = await ref.get();
   if(!doc.exists){
+    // create basic doc with temporary username (email prefix + random) — but require the user to set their own username afterwards
     const basic = {
       uid: user.uid,
       username: (user.email||'user').split('@')[0] + '_' + Math.floor(Math.random()*900),
@@ -308,12 +328,87 @@ async function ensureUserDoc(user){
 }
 
 /* ==========================
+   Check if username needs to be defined by user
+   - If user doc doesn't exist OR username looks auto-generated (has trailing _digits),
+     show modal and block usage until user saves a custom username.
+   ========================== */
+function looksAutoGenerated(username){
+  if(!username) return true;
+  // pattern like something_123 or random suffix created earlier
+  return /_[0-9]{1,4}$/.test(username);
+}
+
+async function promptForUsernameIfNeeded(){
+  // If myDoc is not ready, wait a bit (shouldn't happen)
+  if(!myDoc) return;
+  if(!myDoc.username || looksAutoGenerated(myDoc.username)){
+    // show modal and block (we already hide nothing else, but we prevent showing username in header and prevent actions by checking this flag)
+    usernameField.value = '';
+    usernameErr.textContent = '';
+    usernameModal.style.display = 'flex';
+    // prevent interacting with main UI effectively — rely on modal's presence and checks
+    // Save handler
+    const saveHandler = async () => {
+      usernameErr.textContent = '';
+      const val = (usernameField.value || '').trim();
+      if(!val){ usernameErr.textContent = 'Введите username'; return; }
+      if(!/^[a-zA-Z0-9_\-]{3,20}$/.test(val)){
+        usernameErr.textContent = 'Допустимы латиница, цифры, "_" и "-", длина 3–20';
+        return;
+      }
+      try {
+        // uniqueness check
+        const q = await db.collection('users').where('username','==',val).get();
+        if(!q.empty){
+          // if the only document is the user's own doc, allow (case of rare same value)
+          if(!(q.docs.length === 1 && q.docs[0].id === me.uid)){
+            usernameErr.textContent = 'Этот username уже занят';
+            return;
+          }
+        }
+        // persist username to user's doc
+        await db.collection('users').doc(me.uid).update({ username: val });
+        myDoc.username = val;
+        // update UI: show in header under name
+        meUsername.textContent = '@' + val;
+        toast('Username сохранён: @' + val, 4000);
+        // hide modal and remove listeners
+        usernameModal.style.display = 'none';
+        usernameSave.removeEventListener('click', saveHandler);
+        usernameCancel.removeEventListener('click', cancelHandler);
+      } catch(err){
+        console.error('username save err', err);
+        usernameErr.textContent = 'Ошибка: ' + (err.message||err.code);
+      }
+    };
+    const cancelHandler = () => {
+      // If user closes without username, sign them out — enforced requirement
+      usernameModal.style.display = 'none';
+      usernameSave.removeEventListener('click', saveHandler);
+      usernameCancel.removeEventListener('click', cancelHandler);
+      toast('Username обязателен. Выход из аккаунта.');
+      auth.signOut();
+    };
+    usernameSave.addEventListener('click', saveHandler);
+    usernameCancel.addEventListener('click', cancelHandler);
+  } else {
+    // show username in header
+    meUsername.textContent = '@' + myDoc.username;
+  }
+}
+
+/* ==========================
    User doc listener
    ========================== */
 function startUserListener(uid){
   if(userUnsub) userUnsub();
   userUnsub = db.collection('users').doc(uid).onSnapshot(doc=>{
-    if(doc.exists) { myDoc = doc.data(); renderContacts(); }
+    if(doc.exists) {
+      myDoc = doc.data();
+      // ensure header username sync
+      if(myDoc.username) meUsername.textContent = '@' + myDoc.username;
+      renderContacts();
+    }
   }, err=>{
     console.error('user listener err', err);
     toast('Ошибка listeners: ' + (err.message||err.code));
@@ -348,11 +443,17 @@ addBtn.onclick = async ()=>{
   const username = (usernameSearch.value||'').trim();
   if(!username){ toast('Введите username'); return; }
   if(!me){ toast('Сначала войдите'); return; }
+  // enforce that current user has username set
+  if(!myDoc || !myDoc.username || looksAutoGenerated(myDoc.username)){
+    toast('Сначала установите свой username');
+    return;
+  }
   try {
     const q = await db.collection('users').where('username','==',username).get();
     if(q.empty){ toast('Пользователь не найден'); return; }
     const target = q.docs[0].data();
     if(target.uid === me.uid){ toast('Нельзя добавить себя'); return; }
+    if((myDoc.friends||[]).includes(target.uid){}){}
     if((myDoc.friends||[]).includes(target.uid)){ toast('Уже в друзьях'); return; }
     await db.collection('users').doc(me.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(target.uid) });
     usernameSearch.value = '';
@@ -364,8 +465,7 @@ addBtn.onclick = async ()=>{
 };
 
 /* ==========================
-   Select contact & messages subscription
-   - No server orderBy to avoid index requirement; client sorts
+   Select contact & messages subscription (unchanged)
    ========================== */
 function selectContact(friend){
   selected = friend;
@@ -398,7 +498,7 @@ function selectContact(friend){
 }
 
 /* ==========================
-   Render messages
+   Render messages & senders (unchanged)
    ========================== */
 function renderMessages(msgs){
   chatBody.innerHTML = '';
@@ -429,7 +529,7 @@ function renderMessages(msgs){
 }
 
 /* ==========================
-   Sending messages
+   Sending messages (unchanged)
    ========================== */
 sendBtn.onclick = async ()=>{
   const text = (msgInput.value||'').trim();
@@ -464,6 +564,11 @@ fileInput.onchange = async (e)=>{
 };
 
 async function sendMessage({ text='', type='text', mediaURL=null }){
+  // prevent sending if user hasn't set username
+  if(!myDoc || !myDoc.username || looksAutoGenerated(myDoc.username)){
+    toast('Сначала установите свой username');
+    return;
+  }
   const payload = {
     text,
     senderId: me.uid,
@@ -497,13 +602,12 @@ window.addEventListener('beforeunload', ()=>{
 </script>
 
 <!--
-  Короткая инструкция:
-  - На мобильных устройствах тема автоматически следует системной (когда ты меняешь тему в телефоне — сайт переключится сам).
-  - На компьютере видна кнопка в шапке (рядом с кнопкой выхода) — нажал/нажал, тема переключилась и сохранена в localStorage.
-  - Если хочешь, могу:
-      • добавить переключатель в правую панель вместо шапки;
-      • позволить пользователю вручную переопределять поведение авто-переключения на мобильном;
-      • добавить анимацию перехода темы.
+  Пояснение про поведение:
+  - При первом входе (или если username выглядит автоматически сгенерированным),
+    приложение откроет модальное окно и до установки username не позволит работать с чатом.
+  - В модале username проверяется на формат и уникальность.
+  - Если пользователь выйдет, не установив username, он будет разлогинен (по кнопке "Выйти" в модале).
+  - Я не менял остальную логику приложения и security rules — только добавил обязательную функцию задания username.
 -->
 </body>
 </html>
