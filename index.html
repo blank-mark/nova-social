@@ -1,4 +1,3 @@
-```html
 <!doctype html>
 <html lang="ru">
 <head>
@@ -17,22 +16,12 @@
     #chat{display:flex;gap:12px;margin-top:12px}
     #convoList{width:260px}
     #messages{flex:1;display:flex;flex-direction:column;height:420px}
-    #msgs{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column}
-    .msg{margin:6px 0;padding:8px;border-radius:10px;max-width:70%;position:relative;word-break:break-word}
+    #msgs{flex:1;overflow:auto;padding:8px}
+    .msg{margin:6px 0;padding:8px;border-radius:10px;max-width:70%}
     .me{align-self:flex-end;background:#e2f0ff}
     .other{align-self:flex-start;background:#f0f4f8}
-    .msg img{max-width:260px;border-radius:8px;display:block}
-    .time{font-size:11px;color:#6b7280;margin-top:6px;display:inline-block}
     #composer{display:flex;gap:8px;padding:8px}
-    input, button, select{font-size:14px}
-    .convoRow{display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(0,0,0,0.04)}
-    .convoInfo{display:flex;gap:8px;align-items:center}
-    .convoName{font-weight:600}
-    .unreadBadge{background:#ef4444;color:#fff;border-radius:12px;padding:2px 6px;font-size:12px}
-    .favoriteBtn{background:transparent;border:none;cursor:pointer;font-size:16px}
-    .smallMuted{font-size:12px;color:#6b7280}
-    .msg .bubble-content{display:block}
-    /* keep original overall design and colors */
+    input, button{font-size:14px}
   </style>
 </head>
 <body>
@@ -51,7 +40,6 @@
         <li>При первом входе настройте уникальный <em>username</em>.</li>
       </ol>
       <p>Внизу — готовые правила безопасности и файл индексов для Firestore.</p>
-      <p style="color:#b94a48"><strong>Важно:</strong> если фото не загружаются из-за CORS/404 — проверьте параметр <code>storageBucket</code> в вашем <code>firebaseConfig</code> (обычно заканчивается на <code>.appspot.com</code>), и при необходимости настройте CORS для bucket через gsutil или консоль GCP. В коде ниже я сохранил текущую структуру конфигурации, но если у вас возникают 404/CORS-проблемы — замените значение <code>storageBucket</code> на корректное из Firebase Console.</p>
     </section>
 
     <section class="card" style="margin-top:12px">
@@ -98,23 +86,18 @@
   <script type="module">
     // --- ВАЖНО: Замените значение FIREBASE_CONFIG ниже на ваш конфиг из Firebase Console ---
     const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
-      authDomain: "nova-prospect-chat.firebaseapp.com",
-      projectId: "nova-prospect-chat",
-      // <- проверьте это поле: обычно "your-project-id.appspot.com"
-      storageBucket: "nova-prospect-chat.firebasestorage.app",
-      messagingSenderId: "256806164650",
-      appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
-      measurementId: "G-9V0Q2E2FNB"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "...",
+      appId: "..."
     };
 
     // Импорт модулей Firebase (CDN)
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
-    import {
-      getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp,
-      orderBy, limit, onSnapshot, writeBatch, updateDoc, increment, arrayUnion, arrayRemove
-    } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+    import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, orderBy, limit, onSnapshot, writeBatch } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
     import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js';
 
     const app = initializeApp(FIREBASE_CONFIG);
@@ -143,27 +126,8 @@
     let currentUser = null;
     let currentConvoId = null;
     let messagesUnsub = null;
-    let convosUnsub = null;
-    let convoListeners = {}; // for per-convo listeners if needed
 
-    // --- Utility helpers ---
-    function convoIdFor(uidA, uidB){ return [uidA, uidB].sort().join('_'); }
-
-    function formatHM(timestamp){
-      if(!timestamp) return '';
-      const d = (timestamp instanceof Date) ? timestamp : timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      const hh = String(d.getHours()).padStart(2,'0');
-      const mm = String(d.getMinutes()).padStart(2,'0');
-      return `${hh}:${mm}`;
-    }
-
-    const STICKER_MAP = {
-      'sticker1': '😺',
-      'sticker2': '🎵',
-      'sticker3': '🔥'
-    };
-
-    // --- Auth ---
+    // Auth
     loginBtn.addEventListener('click', async ()=>{
       const provider = new GoogleAuthProvider();
       try{ await signInWithPopup(auth, provider); }catch(e){alert('Ошибка входа: '+e.message)}
@@ -175,14 +139,10 @@
         userArea.innerHTML = `Привет, ${user.displayName} <button id="signOut">Выйти</button>`;
         document.getElementById('signOut').addEventListener('click', ()=>signOut(auth));
 
-        // request notification permission once user logged in
-        if("Notification" in window && Notification.permission === "default"){
-          try{ await Notification.requestPermission(); }catch(e){}
-        }
-
-        // Проверим профиль пользователя
+        // Проверим есть ли профиль пользователя
         const uDoc = await getDoc(doc(db,'users',user.uid));
         if(!uDoc.exists()){
+          // ask for username
           chooseUsername.style.display = 'block';
           appUI.style.display = 'none';
         } else {
@@ -195,21 +155,21 @@
         document.getElementById('loginBtn').addEventListener('click', async ()=>{ const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); });
         chooseUsername.style.display = 'none';
         appUI.style.display = 'none';
-        // cleanup listeners
-        if(convosUnsub) convosUnsub();
-        if(messagesUnsub) messagesUnsub();
       }
     });
 
-    // Сохранение username
+    // Сохранение username: создаём user doc и document /usernames/{username} чтобы зафиксировать уникальность
     saveUsername.addEventListener('click', async ()=>{
       const username = usernameInput.value.trim().toLowerCase();
       if(!/^[a-z0-9_-]{3,20}$/.test(username)){ usernameMsg.textContent = 'Неверный формат username (3-20 символов: a-z0-9_-).'; return; }
       try{
+        // используем транзакцию с резервированием имени: здесь делаем простую проверку existence
         const unameDocRef = doc(db,'usernames',username);
         const uDocRef = doc(db,'users',currentUser.uid);
+        // Проверим вручную, затем попробуем создать (правила безопасности запретят дубль)
         const check = await getDoc(unameDocRef);
         if(check.exists()){ usernameMsg.textContent = 'Это имя уже занято.'; return; }
+        // создаём оба документа
         await setDoc(unameDocRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
         await setDoc(uDocRef, { uid: currentUser.uid, displayName: currentUser.displayName, email: currentUser.email, username, photoURL: currentUser.photoURL, createdAt: serverTimestamp() });
         usernameMsg.textContent = 'Готово — имя сохранено.';
@@ -224,6 +184,7 @@
       usersList.innerHTML = 'Поиск...';
       const qTxt = searchUser.value.trim().toLowerCase();
       if(!qTxt){ usersList.innerHTML = ''; return; }
+      // Мы храним в коллекции usernames документы с id=username, поэтому можно попробовать прям получить doc
       try{
         const unameDoc = await getDoc(doc(db,'usernames',qTxt));
         if(!unameDoc.exists()){ usersList.innerHTML = 'Не найдено'; return; }
@@ -242,241 +203,72 @@
     async function addFriend(friendUid){
       if(!currentUser) return;
       if(friendUid === currentUser.uid) return alert('Это вы сами.');
+      // создаём под-коллекцию friends у текущего пользователя
       try{
         await setDoc(doc(db,`users/${currentUser.uid}/friends`,friendUid), { uid: friendUid, createdAt: serverTimestamp() });
         alert('Друг добавлен.');
       }catch(e){ alert('Ошибка: '+e.message) }
     }
 
-    // --- Conversation & messages logic ---
+    // Конвертация пары uid -> convoId (чтобы был один разговор на пару участников)
+    function convoIdFor(uidA, uidB){ return [uidA, uidB].sort().join('_'); }
 
-    // Initialize conversations list and listener
-    function initApp(){
-      // unsubscribe previous
-      if(convosUnsub) convosUnsub();
-
-      const convosQuery = query(collection(db,'conversations'), where('participants','array-contains', currentUser.uid), orderBy('updatedAt','desc'));
-      convosUnsub = onSnapshot(convosQuery, async snap=>{
-        convosDiv.innerHTML = '';
-        const promises = [];
-        snap.forEach(docSnap=>{
-          const data = docSnap.data();
-          const convoId = docSnap.id;
-          promises.push(renderConvoRow(convoId, data));
-        });
-        await Promise.all(promises);
-      });
-    }
-
-    // Render a single conversation row
-    async function renderConvoRow(convoId, data){
-      const otherUid = (data.participants || []).find(uid => uid !== currentUser.uid) || null;
-      let otherUser = { displayName: otherUid, username: otherUid };
-      if(otherUid){
-        const u = await getDoc(doc(db,'users',otherUid));
-        if(u.exists()) otherUser = u.data();
-      }
-      const row = document.createElement('div');
-      row.className = 'convoRow';
-      const nameHtml = `<div class="convoInfo"><div><div class="convoName">${otherUser.displayName || otherUser.username}</div><div class="smallMuted">${data.lastMessage || ''}</div></div></div>`;
-      const rightHtml = `<div style="display:flex;gap:8px;align-items:center">
-                          ${data.unreadCounts && data.unreadCounts[currentUser.uid] ? `<div class="unreadBadge">${data.unreadCounts[currentUser.uid]}</div>` : ''}
-                          <button class="favoriteBtn" data-convo="${convoId}">${(data.favorites && data.favorites.includes(currentUser.uid)) ? '★' : '☆'}</button>
-                          <button data-open="${convoId}">Открыть</button>
-                         </div>`;
-      row.innerHTML = nameHtml + rightHtml;
-      // click handlers
-      row.querySelector('[data-open]').addEventListener('click', ()=>openConversationById(convoId, otherUid));
-      row.querySelector('.favoriteBtn').addEventListener('click', async (e)=>{
-        const btn = e.currentTarget;
-        const convoRef = doc(db,'conversations',convoId);
-        const convSnap = await getDoc(convoRef);
-        const isFav = convSnap.exists() && convSnap.data().favorites && convSnap.data().favorites.includes(currentUser.uid);
-        if(isFav){
-          await updateDoc(convoRef, { favorites: arrayRemove(currentUser.uid) });
-        } else {
-          await updateDoc(convoRef, { favorites: arrayUnion(currentUser.uid) });
-        }
-      });
-      // replace or append
-      const existing = document.getElementById('convo_'+convoId);
-      row.id = 'convo_'+convoId;
-      if(existing) convosDiv.replaceChild(row, existing);
-      else convosDiv.appendChild(row);
-    }
-
-    // Open conversation by conversation id (used from convo list)
-    async function openConversationById(convoId, otherUid){
-      currentConvoId = convoId;
+    async function openConversationWith(otherUid){
+      currentConvoId = convoIdFor(currentUser.uid, otherUid);
+      // показать окно сообщений
+      convosDiv.innerHTML = `<div>Разговор с ${otherUid}</div>`;
       if(messagesUnsub) messagesUnsub();
-      convosDiv.querySelectorAll('.convoRow').forEach(r=>r.classList.remove('active'));
-      const el = document.getElementById('convo_'+convoId); if(el) el.classList.add('active');
-
-      // Clear unread for current user
-      const convoRef = doc(db,'conversations',convoId);
-      const convoSnap = await getDoc(convoRef);
-      if(convoSnap.exists()){
-        const updateObj = {};
-        updateObj[`unreadCounts.${currentUser.uid}`] = 0;
-        try{ await updateDoc(convoRef, updateObj); }catch(e){}
-      }
-
-      // subscribe to messages
-      const msgsRef = collection(db,'conversations',convoId,'messages');
+      // Подписка на сообщения (в простом виде orderBy timestamp)
+      const msgsRef = collection(db,'conversations',currentConvoId,'messages');
       const q = query(msgsRef, orderBy('timestamp'));
       messagesUnsub = onSnapshot(q, snap=>{
         msgsDiv.innerHTML = '';
         snap.forEach(docSnap=>{
           const m = docSnap.data();
-          const isMe = m.sender === currentUser.uid;
-          const el = document.createElement('div'); el.className = 'msg '+(isMe? 'me':'other');
-          let content = '';
-          if(m.type === 'text') content = `<span class="bubble-content">${escapeHtml(m.text)}</span>`;
-          else if(m.type === 'image') content = `<div class="bubble-content"><img src="${m.url}" alt="image"/></div>`;
-          else if(m.type === 'sticker') content = `<span class="bubble-content">${STICKER_MAP[m.sticker] || ('[Стикер:'+escapeHtml(m.sticker)+']')}</span>`;
-          const time = formatHM(m.timestamp);
-          el.innerHTML = content + `<div class="time">${time}</div>`;
+          const el = document.createElement('div'); el.className = 'msg '+(m.sender===currentUser.uid? 'me':'other');
+          if(m.type === 'text') el.textContent = m.text;
+          else if(m.type === 'image') el.innerHTML = `<img src="${m.url}" style="max-width:260px;border-radius:8px"/>`;
+          else if(m.type === 'sticker') el.textContent = 'СТИКЕР: '+m.sticker;
           msgsDiv.appendChild(el);
         });
         msgsDiv.scrollTop = msgsDiv.scrollHeight;
       });
     }
 
-    // Open conversation with a specific uid (creates convo doc if missing)
-    async function openConversationWith(otherUid){
-      if(!currentUser) return alert('Войдите');
-      if(otherUid === currentUser.uid) return alert('Нельзя открыть чат с самим собой.');
-      const convoId = convoIdFor(currentUser.uid, otherUid);
-      const convoRef = doc(db,'conversations',convoId);
-      const cSnap = await getDoc(convoRef);
-      if(!cSnap.exists()){
-        // create minimal convo doc
-        await setDoc(convoRef, { participants: [currentUser.uid, otherUid], lastMessage: '', updatedAt: serverTimestamp(), unreadCounts: { [currentUser.uid]: 0, [otherUid]: 0 }, favorites: [] });
-      }
-      openConversationById(convoId, otherUid);
+    // Инициализация приложения (подгрузка бесед и т.д.)
+    function initApp(){
+      // Подписка на собственных друзей/беседы: здесь простой пример — список друзей
+      // Для demo просто покажем «Мои беседы» по user subcollections (в проде нужно отдельную коллекцию conversations)
+      // TODO: списки бесед — можно реализовать с коллекцией conversations
+      convosDiv.innerHTML = '<p>Выберите пользователя и откройте чат</p>';
     }
 
-    // Send message (text/image/sticker)
+    // Отправка сообщений (текст/фото/стикер)
     sendBtn.addEventListener('click', async ()=>{
-      if(!currentUser) return alert('Войдите');
       if(!currentConvoId) return alert('Откройте чат');
       const text = messageInput.value.trim();
       const sticker = stickerSelect.value;
       const file = imageInput.files[0];
-
       try{
         const msgsRef = collection(db,'conversations',currentConvoId,'messages');
-
-        // find other user id from convoId
-        const parts = currentConvoId.split('_');
-        const otherUid = parts[0] === currentUser.uid ? parts[1] : parts[0];
-
-        let preview = '';
         if(file){
           const path = `images/${currentUser.uid}/${Date.now()}_${file.name}`;
           const storageRef = sRef(storage,path);
-          // upload
           const snap = await uploadBytes(storageRef, file);
-          // get URL
           const url = await getDownloadURL(storageRef);
           await addDoc(msgsRef, { sender: currentUser.uid, type:'image', url, timestamp: serverTimestamp() });
-          preview = 'Фото';
         } else if(sticker){
           await addDoc(msgsRef, { sender: currentUser.uid, type:'sticker', sticker, timestamp: serverTimestamp() });
-          preview = STICKER_MAP[sticker] || 'Стикер';
         } else if(text){
           await addDoc(msgsRef, { sender: currentUser.uid, type:'text', text, timestamp: serverTimestamp() });
-          preview = text.slice(0,120);
-        } else {
-          return;
         }
-
-        // update/create conversation doc (lastMessage, updatedAt, unread counts)
-        const convoRef = doc(db,'conversations',currentConvoId);
-        const convoSnap = await getDoc(convoRef);
-        if(!convoSnap.exists()){
-          await setDoc(convoRef, { participants: [currentUser.uid, otherUid], lastMessage: preview, updatedAt: serverTimestamp(), unreadCounts: { [currentUser.uid]: 0, [otherUid]: 1 }, favorites: [] });
-        } else {
-          // increment unread for other user
-          const updateObj = { lastMessage: preview, updatedAt: serverTimestamp() };
-          updateObj[`unreadCounts.${otherUid}`] = increment(1);
-          await updateDoc(convoRef, updateObj);
-        }
-
-        // clear composer
         messageInput.value = '';
         imageInput.value = '';
         stickerSelect.value = '';
       }catch(e){ alert('Ошибка отправки: '+e.message) }
     });
 
-    // Helper to escape text into safe HTML
-    function escapeHtml(unsafe){
-      return unsafe
-           .replaceAll('&','&amp;')
-           .replaceAll('<','&lt;')
-           .replaceAll('>','&gt;')
-           .replaceAll('"','&quot;')
-           .replaceAll("'",'&#039;');
-    }
-
-    // Listen globally for incoming messages to show browser notification and ensure convo appears
-    // We set up a collectionGroup listener for messages where recipient is currentUser (we don't store recipient in message; we'll infer by convo participants).
-    // Simpler approach: listen to conversations where currentUser is participant and react to updatedAt changes.
-    // We'll use the same convosUnsub snapshot handler to detect new messages and show notifications for ones not sent by me.
-    // The onSnapshot above (initApp) will run when convos update; we can detect lastMessage changes and notify.
-
-    // We'll keep a small in-memory map of lastKnownUpdatedAt to compare and detect new incoming messages
-    const convoLastSeen = {};
-
-    // Wrap initApp change to detect notifications
-    async function initApp(){
-      if(convosUnsub) convosUnsub();
-      const convosQuery = query(collection(db,'conversations'), where('participants','array-contains', currentUser.uid), orderBy('updatedAt','desc'));
-      convosUnsub = onSnapshot(convosQuery, async snap=>{
-        convosDiv.innerHTML = '';
-        const promises = [];
-        for(const docSnap of snap.docs){
-          const data = docSnap.data();
-          const convoId = docSnap.id;
-
-          // detect incoming message (updatedAt changed and lastMessage author is not me)
-          const lastUpdated = data.updatedAt ? data.updatedAt.toMillis ? data.updatedAt.toMillis() : new Date(data.updatedAt).getTime() : 0;
-          const prev = convoLastSeen[convoId] || 0;
-          if(lastUpdated && lastUpdated > prev){
-            // if last message didn't originate from me (we check unreadCounts for current user >0) -> show notification
-            const unread = data.unreadCounts && data.unreadCounts[currentUser.uid];
-            if(unread && unread > 0){
-              // show browser notification
-              if("Notification" in window && Notification.permission === "granted"){
-                const otherUid = (data.participants || []).find(u => u !== currentUser.uid) || '';
-                let otherName = otherUid;
-                try{
-                  const u = await getDoc(doc(db,'users',otherUid));
-                  if(u.exists()) otherName = u.data().displayName || u.data().username || otherUid;
-                }catch(e){}
-                new Notification(`${otherName}`, { body: data.lastMessage || 'Новое сообщение', silent: false });
-              }
-            }
-          }
-          convoLastSeen[convoId] = lastUpdated;
-
-          promises.push(renderConvoRow(convoId, data));
-        }
-        await Promise.all(promises);
-      });
-    }
-
-    // ensure initApp available early
-    // (no-op - real init happens on auth state change)
-
-    // If user clicks a conversation opened from a search/open button, open it by id
-    // (openConversationWith already handles creation)
-
-    // small helper to ensure images show properly: if getDownloadURL fails due to CORS/404, we include a placeholder text (handled on render).
-    // But usually getDownloadURL returns a proper URL. If you see 404/CORS in console, check storageBucket config and CORS bucket settings.
-
-    // --- End of main script ---
+    // Маленькая подсказка: простые стикеры (в проде хранить в storage и показывать preview)
   </script>
 
   <!--
@@ -487,17 +279,20 @@
     service cloud.firestore {
       match /databases/{database}/documents {
 
+        // usernames collection: allow create only if not exists and owner is auth.uid
         match /usernames/{username} {
           allow create: if request.auth != null && request.resource.data.uid == request.auth.uid && !exists(/databases/$(database)/documents/usernames/$(username));
           allow read: if true;
-          allow delete: if false;
+          allow delete: if false; // не даём удалять из клиентского приложения
         }
 
+        // users collection: only owner can write their document
         match /users/{userId} {
           allow read: if true;
           allow create: if request.auth != null && request.auth.uid == userId;
           allow update, delete: if request.auth != null && request.auth.uid == userId;
 
+          // friends subcollection
           match /friends/{friendId} {
             allow read: if request.auth != null && request.auth.uid == userId;
             allow create: if request.auth != null && request.auth.uid == userId;
@@ -505,20 +300,21 @@
           }
         }
 
-        match /conversations/{convoId} {
-          allow read: if request.auth != null && request.auth.uid in resource.data.participants;
-          allow create: if request.auth != null && request.auth.uid in request.resource.data.participants;
-          allow update: if request.auth != null && request.auth.uid in request.resource.data.participants;
-          allow delete: if false;
+        // conversations/{convoId}/messages/{msgId} - only participants can read/write
+        match /conversations/{convoId}/messages/{msgId} {
+          allow read: if request.auth != null && isParticipant(convoId, request.auth.uid);
+          allow create: if request.auth != null && isParticipant(convoId, request.auth.uid) && request.resource.data.sender == request.auth.uid && (request.resource.data.type in ['text','image','sticker']) && request.resource.data.timestamp == request.time;
+          allow delete, update: if false;
+        }
 
-          match /messages/{msgId} {
-            allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
-            allow create: if request.auth != null && request.auth.uid == request.resource.data.sender && request.resource.data.type in ['text','image','sticker'] && request.resource.data.timestamp == request.time;
-            allow delete, update: if false;
-          }
+        function isParticipant(convoId, uid){
+          // Принимаем, что convoId — это два uid, отсортированных через '_'
+          return convoId.split('_').hasAny([uid]);
         }
       }
     }
+
+    NOTE: security rules не дают 100% защиты от всех атак (проверяйте внимательно), но это начальная версия.
 
     --- STORAGE RULES (копируйте в Firebase Console -> Storage -> Rules) ---
 
@@ -542,13 +338,6 @@
           "fields": [
             { "fieldPath": "timestamp", "order": "ASCENDING" }
           ]
-        },
-        {
-          "collectionGroup": "conversations",
-          "queryScope": "COLLECTION",
-          "fields": [
-            { "fieldPath": "updatedAt", "order": "DESCENDING" }
-          ]
         }
       ],
       "fieldOverrides": []
@@ -557,4 +346,3 @@
 
 </body>
 </html>
-```
