@@ -1,4 +1,3 @@
-```html
 <!doctype html>
 <html lang="ru">
 <head>
@@ -65,6 +64,30 @@
   .username-btn[disabled]{opacity:0.5;cursor:not-allowed}
   /* small note */
   .username-note{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
+
+  /* ====== Mobile contacts modal (ADDED) ====== */
+  .mobile-contacts-button { display:none; }
+  @media (max-width:1000px){
+    .mobile-contacts-button { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:8px; background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted); cursor:pointer; margin-left:8px; }
+  }
+
+  .contacts-modal {
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:linear-gradient(180deg, rgba(5,8,12,0.55), rgba(5,8,12,0.85)); z-index:9998;
+  }
+  .contacts-card {
+    background:var(--panel); width:92%; max-width:420px; height:80%; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;
+  }
+  .contacts-card .top {
+    display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.02);
+  }
+  .contacts-card .tabs { display:flex; gap:8px; align-items:center; }
+  .contacts-card .tab { padding:8px 12px; border-radius:8px; cursor:pointer; border:1px solid transparent; background:transparent; color:var(--muted) }
+  .contacts-card .tab.active { background:rgba(255,255,255,0.03); color:#fff; border-color:rgba(255,255,255,0.03) }
+  .contacts-card .closeBtn { padding:6px 10px; border-radius:8px; background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted); cursor:pointer }
+  .contacts-card .content { padding:12px; overflow:auto; flex:1; display:flex; flex-direction:column; gap:10px; }
+  .contacts-card .content .searchRow { margin-top:0; }
+
 </style>
 
 <!-- Firebase compat SDKs -->
@@ -87,6 +110,35 @@
     </div>
   </div>
 
+  <!-- Mobile contacts modal (ADDED) -->
+  <div id="mobileContactsModal" class="contacts-modal" aria-hidden="true">
+    <div class="contacts-card" role="dialog" aria-modal="true" aria-labelledby="contactsTitle">
+      <div class="top">
+        <div class="tabs" role="tablist">
+          <button id="tabAdd" class="tab active" role="tab" aria-selected="true">Добавить</button>
+          <button id="tabList" class="tab" role="tab" aria-selected="false">Контакты</button>
+        </div>
+        <button id="closeContactsBtn" class="closeBtn" aria-label="Закрыть">Закрыть</button>
+      </div>
+      <div class="content" id="mobileContactsContent">
+        <!-- Add tab content -->
+        <div id="mobileAddArea">
+          <div class="searchRow">
+            <input id="mobileUsernameSearch" class="input" placeholder="Добавить по username" />
+            <button id="mobileAddBtn" class="btn">Добавить</button>
+          </div>
+          <div class="small" style="margin-top:8px">Найденные контакты будут добавлены в ваш список.</div>
+        </div>
+        <!-- Contacts list tab content -->
+        <div id="mobileContactsListWrap" style="display:none">
+          <div class="contacts" id="mobileContactsList">
+            <!-- mobile contacts inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="app" id="app">
     <div class="header">
       <div class="brand">Nova Prospect</div>
@@ -104,6 +156,9 @@
         </div>
         <button id="logoutBtn" class="btn" style="margin-left:8px">Выйти</button>
       </div>
+
+      <!-- Mobile button to open contacts (ADDED) -->
+      <button id="openContactsBtn" class="mobile-contacts-button" title="Контакты" aria-label="Контакты" style="display:none">☰</button>
     </div>
 
     <!-- Left: contacts/search -->
@@ -151,10 +206,10 @@
 
 <script>
 /* ==========================
-   Small startup modal logic (ADDED)
+   Small startup modal logic (ADDED EARLIER)
    - Shows a "Введите юзернейм" prompt once (stored in localStorage 'np_username')
    - Hides the modal and reveals the app after user enters username
-   - Does not change any other app logic except that ensureUserDoc (below) will prefer this saved username
+   - Does not change any other app logic except that ensureUserDoc will prefer this saved username
    ========================== */
 (function(){
   const modal = document.getElementById('usernameModal');
@@ -235,6 +290,18 @@ const rightContent = document.getElementById('rightContent');
 
 const toastEl = document.getElementById('toast');
 const stickersRow = document.getElementById('stickersRow');
+
+/* Mobile contacts modal elements (ADDED) */
+const openContactsBtn = document.getElementById('openContactsBtn');
+const mobileContactsModal = document.getElementById('mobileContactsModal');
+const closeContactsBtn = document.getElementById('closeContactsBtn');
+const tabAdd = document.getElementById('tabAdd');
+const tabList = document.getElementById('tabList');
+const mobileAddArea = document.getElementById('mobileAddArea');
+const mobileContactsListWrap = document.getElementById('mobileContactsListWrap');
+const mobileContactsList = document.getElementById('mobileContactsList');
+const mobileUsernameSearch = document.getElementById('mobileUsernameSearch');
+const mobileAddBtn = document.getElementById('mobileAddBtn');
 
 /* ==========================
    State
@@ -334,7 +401,7 @@ function startUserListener(uid){
 }
 
 /* ==========================
-   Render contacts
+   Render contacts (MODIFIED to also update mobile list)
    ========================== */
 async function renderContacts(){
   contactsList.innerHTML = '';
@@ -342,6 +409,8 @@ async function renderContacts(){
   const friends = myDoc.friends || [];
   if(friends.length === 0){
     contactsList.innerHTML = `<div class="small">Список пуст — добавь по username</div>`;
+    // also update mobile list
+    if(mobileContactsList) mobileContactsList.innerHTML = contactsList.innerHTML;
     return;
   }
   // fetch each friend doc in parallel
@@ -353,10 +422,20 @@ async function renderContacts(){
     el.onclick = ()=>selectContact(f);
     contactsList.appendChild(el);
   });
+  // Clone the contacts list HTML into mobile view (keep both in sync)
+  if(mobileContactsList) {
+    mobileContactsList.innerHTML = contactsList.innerHTML;
+    // rewire mobile contacts click handlers (because clones don't have listeners)
+    const mobileItems = mobileContactsList.querySelectorAll('.contact');
+    const desktopItems = contactsList.querySelectorAll('.contact');
+    mobileItems.forEach((mi, idx) => {
+      mi.onclick = desktopItems[idx] ? desktopItems[idx].onclick : mi.onclick;
+    });
+  }
 }
 
 /* ==========================
-   Add friend by username
+   Add friend by username (desktop)
    ========================== */
 addBtn.onclick = async ()=>{
   const username = (usernameSearch.value||'').trim();
@@ -376,6 +455,31 @@ addBtn.onclick = async ()=>{
     toast('Ошибка добавления: ' + (err.message||err.code));
   }
 };
+
+/* ==========================
+   Add friend by username (mobile) (ADDED)
+   - Reuses same logic as desktop addBtn but with mobile inputs
+   ========================== */
+mobileAddBtn && mobileAddBtn.addEventListener('click', async ()=>{
+  const username = (mobileUsernameSearch.value||'').trim();
+  if(!username){ toast('Введите username'); return; }
+  if(!me){ toast('Сначала войдите'); return; }
+  try {
+    const q = await db.collection('users').where('username','==',username).get();
+    if(q.empty){ toast('Пользователь не найден'); return; }
+    const target = q.docs[0].data();
+    if(target.uid === me.uid){ toast('Нельзя добавить себя'); return; }
+    if((myDoc.friends||[]).includes(target.uid)){ toast('Уже в друзьях'); return; }
+    await db.collection('users').doc(me.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(target.uid) });
+    mobileUsernameSearch.value = '';
+    toast('Добавлен: ' + (target.username||target.email));
+    // update lists (renderContacts listener will update both)
+    renderContacts();
+  } catch(err){
+    console.error('add friend err', err);
+    toast('Ошибка добавления: ' + (err.message||err.code));
+  }
+});
 
 /* ==========================
    Select contact: subscribe messages
@@ -459,6 +563,19 @@ sendBtn.onclick = async ()=>{
   msgInput.value = '';
 };
 
+/* ==========================
+   Send on Enter key (ADDED)
+   - Works for desktop and mobile keyboards
+   - If Shift+Enter, allow line breaks (input is single-line; keep consistent: prevent default only when Enter and not Shift)
+   ========================== */
+msgInput && msgInput.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    // emulate click on send button
+    sendBtn.click();
+  }
+});
+
 async function sendSticker(s){
   if(!selected){ toast('Выберите контакт'); return; }
   await sendMessage({ text: s, type: 'sticker' });
@@ -508,6 +625,77 @@ async function sendMessage({ text='', type='text', mediaURL=null }){
     }
   }
 }
+
+/* ==========================
+   Mobile contacts modal behavior (ADDED)
+   - openContactsBtn visible only on small screens
+   - opens modal with two tabs: Добавить and Контакты
+   - modal is dismissible via close button or backdrop click
+   ========================== */
+(function(){
+  // show/hide mobile open button based on viewport
+  function updateMobileBtnVisibility(){
+    const btn = openContactsBtn;
+    if(!btn) return;
+    if(window.matchMedia && window.matchMedia('(max-width:1000px)').matches){
+      btn.style.display = 'inline-flex';
+    } else {
+      btn.style.display = 'none';
+      // ensure modal hidden on desktop
+      if(mobileContactsModal) mobileContactsModal.style.display = 'none';
+    }
+  }
+  updateMobileBtnVisibility();
+  window.addEventListener('resize', updateMobileBtnVisibility);
+
+  // open modal
+  openContactsBtn && openContactsBtn.addEventListener('click', ()=>{
+    if(mobileContactsModal) {
+      mobileContactsModal.style.display = 'flex';
+      mobileContactsModal.setAttribute('aria-hidden','false');
+      // ensure mobile list is synced
+      if(mobileContactsList) mobileContactsList.innerHTML = contactsList.innerHTML || `<div class="small">Список пуст — добавь по username</div>`;
+    }
+  });
+  // close modal
+  closeContactsBtn && closeContactsBtn.addEventListener('click', ()=>{
+    if(mobileContactsModal) {
+      mobileContactsModal.style.display = 'none';
+      mobileContactsModal.setAttribute('aria-hidden','true');
+    }
+  });
+  // backdrop click closes modal
+  mobileContactsModal && mobileContactsModal.addEventListener('click', (e)=>{
+    if(e.target === mobileContactsModal){
+      mobileContactsModal.style.display = 'none';
+      mobileContactsModal.setAttribute('aria-hidden','true');
+    }
+  });
+
+  // tabs
+  tabAdd && tabAdd.addEventListener('click', ()=>{
+    tabAdd.classList.add('active'); tabAdd.setAttribute('aria-selected','true');
+    tabList.classList.remove('active'); tabList.setAttribute('aria-selected','false');
+    mobileAddArea.style.display = 'block';
+    mobileContactsListWrap.style.display = 'none';
+  });
+  tabList && tabList.addEventListener('click', ()=>{
+    tabList.classList.add('active'); tabList.setAttribute('aria-selected','true');
+    tabAdd.classList.remove('active'); tabAdd.setAttribute('aria-selected','false');
+    mobileAddArea.style.display = 'none';
+    mobileContactsListWrap.style.display = 'block';
+    // sync the contacts list just in case
+    if(mobileContactsList) mobileContactsList.innerHTML = contactsList.innerHTML || `<div class="small">Список пуст — добавь по username</div>`;
+    // rewire click handlers for mobile list items (after cloning)
+    if(mobileContactsList){
+      const mobileItems = mobileContactsList.querySelectorAll('.contact');
+      const desktopItems = contactsList.querySelectorAll('.contact');
+      mobileItems.forEach((mi, idx) => {
+        mi.onclick = desktopItems[idx] ? desktopItems[idx].onclick : mi.onclick;
+      });
+    }
+  });
+})();
 
 /* ==========================
    Clean up on unload
@@ -580,4 +768,3 @@ window.addEventListener('beforeunload', ()=>{
 -->
 </body>
 </html>
-```
