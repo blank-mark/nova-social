@@ -2,63 +2,125 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Nova Prospect Chat</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Nova Prospect — Messenger (Telegram/Discord style)</title>
 
+<!-- Minimal styling, desktop-style layout (dark theme, simple) -->
 <style>
-body, html { margin:0; padding:0; font-family:sans-serif; height:100%; }
-#app { display:flex; height:100vh; width:100vw; }
-#sidebar { width:250px; background:#1e1e1e; color:white; display:flex; flex-direction:column; }
-#friendsList { flex:1; overflow:auto; }
-#chat { flex:1; display:flex; flex-direction:column; }
-#chatHeader { height:50px; background:#2a2a2a; color:white; display:flex; align-items:center; padding:0 10px; }
-#messages { flex:1; overflow:auto; padding:10px; background:#111; color:white; }
-#inputArea { display:flex; padding:5px; background:#222; }
-#inputArea input { flex:1; padding:5px; margin-right:5px; }
-#inputArea button { padding:5px; }
-.friend { cursor:pointer; padding:5px; display:flex; align-items:center; }
-.friend img { width:30px; height:30px; border-radius:50%; margin-right:5px; }
-.toast { position:fixed; bottom:10px; right:10px; background:#333; color:white; padding:5px 10px; border-radius:5px; opacity:0.9; }
-.light-theme { --bg-main: #f5f5f5; --bg-chat: #fff; --color-text: #000; }
-.light-theme #sidebar { background:#ddd; color:#000; }
-.light-theme #chatHeader { background:#ccc; color:#000; }
-.light-theme #messages { background:#eee; color:#000; }
-.light-theme #inputArea { background:#ddd; }
+  :root{
+    --bg:#0f1720; --panel:#11151a; --muted:#9aa5b1; --accent:#2b8cff; --bubble:#172027;
+    --glass: rgba(255,255,255,0.03);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:var(--bg);color:#e6eef6}
+  .app{display:grid;grid-template-columns:280px 1fr 320px;grid-template-rows:64px 1fr;height:100vh;gap:8px;padding:8px;}
+  .header{grid-column:1/-1;height:64px;background:var(--panel);display:flex;align-items:center;padding:12px;border-radius:8px}
+  .brand{font-weight:700;margin-right:12px}
+  .header .actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+  img.avatar{width:40px;height:40px;border-radius:8px;object-fit:cover}
+
+  .sidebar{background:var(--panel);border-radius:8px;padding:12px;overflow:auto}
+  .contacts{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .contact{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer}
+  .contact:hover{background:var(--glass)}
+  .contact .name{font-weight:600}
+  .searchRow{display:flex;gap:8px}
+
+  .chatPanel{background:linear-gradient(180deg,#071018 0%, #08121a 100%);border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
+  .chatHeader{height:64px;display:flex;align-items:center;padding:12px;border-bottom:1px solid rgba(255,255,255,0.03)}
+  .chatBody{flex:1;padding:16px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+  .msgRow{max-width:70%;display:flex;flex-direction:column;gap:6px}
+  .msgRow.me{align-self:flex-end;text-align:right}
+  .bubble{padding:10px 12px;border-radius:12px;background:linear-gradient(180deg,#0f2a3a,#0b2430);border:1px solid rgba(255,255,255,0.03)}
+  .bubble.img{padding:6px}
+  .time{font-size:11px;color:var(--muted)}
+  .composer{height:72px;border-top:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:center;padding:10px}
+  .input{flex:1;padding:10px;border-radius:10px;background:var(--panel);border:1px solid rgba(255,255,255,0.03);color:#e6eef6}
+  .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
+  .btn.primary{background:var(--accent);border-color:transparent;color:#fff}
+  .rightPanel{background:var(--panel);border-radius:8px;padding:12px;overflow:auto}
+  .small{font-size:13px;color:var(--muted)}
+  .stickerBtn{background:transparent;border:1px solid rgba(255,255,255,0.03);padding:6px;border-radius:8px;cursor:pointer}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:#222;padding:10px 14px;border-radius:8px;color:#fff;border:1px solid rgba(255,255,255,0.04)}
+  @media (max-width:1000px){
+    .app{grid-template-columns:1fr;grid-template-rows:64px auto 1fr;gap:8px}
+    .rightPanel{display:none}
+  }
 </style>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-
+<!-- Firebase compat SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 </head>
 <body>
-<div id="app" class="">
-  <div id="sidebar" style="display:none;">
-    <div style="padding:10px;">
-      <div id="meInfo"></div>
-      <input type="text" id="usernameInput" placeholder="Найти username">
-      <button id="addBtn">Добавить</button>
-      <button id="themeBtn">Сменить тему</button>
+  <div class="app" id="app">
+    <div class="header">
+      <div class="brand">Nova Prospect</div>
+      <div class="small">Single-file messenger — desktop style</div>
+
+      <div class="actions" id="authArea">
+        <button id="loginBtn" class="btn">Войти с Google</button>
+      </div>
+
+      <div class="actions" id="userArea" style="display:none">
+        <img id="meAvatar" class="avatar" src="" alt="me"/>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:8px;">
+          <div id="meName" style="font-weight:600"></div>
+          <div class="small" id="meEmail"></div>
+        </div>
+        <button id="logoutBtn" class="btn" style="margin-left:8px">Выйти</button>
+      </div>
     </div>
-    <div id="friendsList"></div>
-  </div>
-  <div id="chat" style="display:none;">
-    <div id="chatHeader"></div>
-    <div id="messages"></div>
-    <div id="inputArea">
-      <input type="text" id="msgInput" placeholder="Написать сообщение">
-      <button id="sendBtn">Отправить</button>
+
+    <!-- Left: contacts/search -->
+    <div class="sidebar">
+      <div class="searchRow">
+        <input id="usernameSearch" class="input" placeholder="Добавить по username" />
+        <button id="addBtn" class="btn">Добавить</button>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:space-between">
+        <div style="font-weight:700">Контакты</div>
+        <div class="small">онлайн</div>
+      </div>
+
+      <div class="contacts" id="contactsList">
+        <!-- contacts inserted here -->
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="small">Стикеры</div>
+        <div style="display:flex;gap:6px;margin-top:8px" id="stickersRow"></div>
+      </div>
+    </div>
+
+    <!-- Center: chat -->
+    <div class="chatPanel" id="chatPanel">
+      <div class="chatHeader" id="chatHeader">Выберите контакт</div>
+      <div class="chatBody" id="chatBody"></div>
+
+      <div class="composer">
+        <input id="msgInput" class="input" placeholder="Сообщение..." />
+        <input id="fileInput" type="file" accept="image/*" style="display:none"/>
+        <button id="attachBtn" class="btn">📎</button>
+        <button id="sendBtn" class="btn primary">Отправить</button>
+      </div>
+    </div>
+
+    <!-- Right: info -->
+    <div class="rightPanel" id="rightPanel">
+      <div id="rightContent"><div class="small">Информация о контакте</div></div>
     </div>
   </div>
-</div>
-<div id="loginArea" style="padding:20px;">
-  <button id="loginBtn">Войти с Google</button>
-</div>
-<div id="toast" class="toast" style="display:none;"></div>
+
+  <div id="toast" class="toast" style="display:none"></div>
 
 <script>
+/* ==========================
+   Config (provided)
+   ========================== */
 const firebaseConfig = {
   apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
   authDomain: "nova-prospect-chat.firebaseapp.com",
@@ -73,159 +135,371 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 
-let me = null;
-let myDoc = null;
-let currentChat = null;
-let messagesListener = null;
+/* ==========================
+   DOM
+   ========================== */
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const authArea = document.getElementById('authArea');
+const userArea = document.getElementById('userArea');
+const meAvatar = document.getElementById('meAvatar');
+const meName = document.getElementById('meName');
+const meEmail = document.getElementById('meEmail');
 
-// 🍞 Тост
-function toast(text){
-  const t = document.getElementById('toast');
-  t.innerText = text; t.style.display='block';
-  setTimeout(()=>{t.style.display='none';},2000);
+const usernameSearch = document.getElementById('usernameSearch');
+const addBtn = document.getElementById('addBtn');
+const contactsList = document.getElementById('contactsList');
+
+const chatHeader = document.getElementById('chatHeader');
+const chatBody = document.getElementById('chatBody');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const attachBtn = document.getElementById('attachBtn');
+const fileInput = document.getElementById('fileInput');
+const rightContent = document.getElementById('rightContent');
+
+const toastEl = document.getElementById('toast');
+const stickersRow = document.getElementById('stickersRow');
+
+/* ==========================
+   State
+   ========================== */
+let me = null; // firebase user
+let myDoc = null; // users/{uid} doc
+let userUnsub = null;
+let messagesUnsub = null;
+let selected = null; // selected friend doc object
+
+const STICKERS = ['😊','👍','🔥','🎉','😅','🤘'];
+STICKERS.forEach(s=>{
+  const b = document.createElement('button'); b.className='stickerBtn'; b.textContent=s;
+  b.onclick = ()=>sendSticker(s);
+  stickersRow.appendChild(b);
+});
+
+/* ==========================
+   Helpers
+   ========================== */
+function toast(msg, ms=4000){
+  toastEl.textContent = msg; toastEl.style.display='block';
+  clearTimeout(toastEl._t); toastEl._t = setTimeout(()=> toastEl.style.display='none', ms);
+}
+function safeLog(){ console.log.apply(console, arguments); }
+
+/* ==========================
+   Auth
+   ========================== */
+loginBtn.onclick = async ()=>{
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await auth.signInWithPopup(provider);
+  } catch(err){
+    // popup closed by user or other auth error
+    toast('Ошибка входа: ' + (err.message||err.code));
+    console.error('auth err', err);
+  }
+};
+logoutBtn.onclick = async ()=>{
+  await auth.signOut();
+  location.reload();
+};
+
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    me = user;
+    authArea.style.display = 'none';
+    userArea.style.display = 'flex';
+    meAvatar.src = user.photoURL || '';
+    meName.textContent = user.displayName || '';
+    meEmail.textContent = user.email || '';
+    await ensureUserDoc(user);
+    startUserListener(user.uid);
+    renderContacts();
+  } else {
+    authArea.style.display = 'flex';
+    userArea.style.display = 'none';
+  }
+});
+
+/* ==========================
+   Ensure users/{uid} doc
+   ========================== */
+async function ensureUserDoc(user){
+  const ref = db.collection('users').doc(user.uid);
+  const doc = await ref.get();
+  if(!doc.exists){
+    // create basic doc with temporary username (email prefix) and empty friends
+    const basic = {
+      uid: user.uid,
+      username: (user.email||'user').split('@')[0] + '_' + Math.floor(Math.random()*900),
+      email: user.email||'',
+      photoURL: user.photoURL||'',
+      friends: []
+    };
+    await ref.set(basic);
+    myDoc = basic;
+  } else {
+    myDoc = doc.data();
+  }
 }
 
-// 🌈 Тема
-const themeBtn = document.getElementById('themeBtn');
-themeBtn.onclick = ()=>{document.body.classList.toggle('light-theme');};
-if(window.innerWidth<768){ document.body.classList.add('light-theme'); } // мобилка белая по дефолту
-
-// 🛠️ Обновление списка друзей
-function updateFriends(){
-  const list = document.getElementById('friendsList');
-  list.innerHTML='';
-  const seen = new Set(); // чтобы не дублировались
-  (myDoc.friends||[]).forEach(async uid=>{
-    if(seen.has(uid)) return;
-    seen.add(uid);
-    const fdoc = await db.collection('users').doc(uid).get();
-    const f = fdoc.data();
-    const div = document.createElement('div');
-    div.className='friend';
-    div.innerHTML=`<img src="${f.photoURL}"><span>${f.username}</span>`;
-    div.onclick = ()=>openChat(f);
-    list.appendChild(div);
+/* ==========================
+   User doc listener
+   ========================== */
+function startUserListener(uid){
+  if(userUnsub) userUnsub();
+  userUnsub = db.collection('users').doc(uid).onSnapshot(doc=>{
+    if(doc.exists) { myDoc = doc.data(); renderContacts(); }
+  }, err=>{
+    console.error('user listener err', err);
+    toast('Ошибка listeners: ' + (err.message||err.code));
   });
 }
 
-// 📨 Открытие чата
-function openChat(friend){
-  currentChat=friend;
-  document.getElementById('chatHeader').innerText=friend.username;
-  const msgsDiv=document.getElementById('messages');
-  msgsDiv.innerHTML='';
-  if(messagesListener) messagesListener(); // отписка старого
-  messagesListener=db.collection('messages')
-    .where('participants','array-contains',me.uid)
-    .orderBy('timestamp')
+/* ==========================
+   Render contacts
+   ========================== */
+async function renderContacts(){
+  contactsList.innerHTML = '';
+  if(!myDoc) return;
+  const friends = myDoc.friends || [];
+  if(friends.length === 0){
+    contactsList.innerHTML = `<div class="small">Список пуст — добавь по username</div>`;
+    return;
+  }
+  // fetch each friend doc in parallel
+  const promises = friends.map(uid => db.collection('users').doc(uid).get().then(d=>d.exists?d.data():null));
+  const results = await Promise.all(promises);
+  results.filter(Boolean).forEach(f=>{
+    const el = document.createElement('div'); el.className='contact';
+    el.innerHTML = `<img src="${f.photoURL||''}" class="avatar" style="width:44px;height:44px;border-radius:8px"/><div><div class="name">${f.username||f.email}</div><div class="small">${f.email||''}</div></div>`;
+    el.onclick = ()=>selectContact(f);
+    contactsList.appendChild(el);
+  });
+}
+
+/* ==========================
+   Add friend by username
+   ========================== */
+addBtn.onclick = async ()=>{
+  const username = (usernameSearch.value||'').trim();
+  if(!username){ toast('Введите username'); return; }
+  if(!me){ toast('Сначала войдите'); return; }
+  try {
+    const q = await db.collection('users').where('username','==',username).get();
+    if(q.empty){ toast('Пользователь не найден'); return; }
+    const target = q.docs[0].data();
+    if(target.uid === me.uid){ toast('Нельзя добавить себя'); return; }
+    if((myDoc.friends||[]).includes(target.uid)){ toast('Уже в друзьях'); return; }
+    await db.collection('users').doc(me.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(target.uid) });
+    usernameSearch.value = '';
+    toast('Добавлен: ' + (target.username||target.email));
+  } catch(err){
+    console.error('add friend err', err);
+    toast('Ошибка добавления: ' + (err.message||err.code));
+  }
+};
+
+/* ==========================
+   Select contact: subscribe messages
+   ========================== */
+function selectContact(friend){
+  selected = friend;
+  chatHeader.innerHTML = `<img src="${friend.photoURL||''}" class="avatar" style="width:44px;height:44px;margin-right:10px"/> <div style="font-weight:700">${friend.username||friend.email}</div>`;
+  rightContent.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><img src="${friend.photoURL||''}" class="avatar" style="width:72px;height:72px;border-radius:10px"/><div><div style="font-weight:700">${friend.username}</div><div class="small">${friend.email||''}</div></div></div>`;
+  // unsubscribe previous
+  if(messagesUnsub) messagesUnsub();
+  // subscribe to ANY message where current user participates (no orderBy to avoid index requirement)
+  messagesUnsub = db.collection('messages')
+    .where('participants','array-contains', me.uid)
     .onSnapshot(snap=>{
-      msgsDiv.innerHTML='';
-      snap.docs.forEach(doc=>{
-        const m = doc.data();
-        if(!m.participants.includes(friend.uid)) return;
-        const d = document.createElement('div');
-        d.innerText=(m.senderId===me.uid?'Я: ':'')+m.text;
-        msgsDiv.appendChild(d);
-        msgsDiv.scrollTop=msgsDiv.scrollHeight;
+      const msgs = [];
+      snap.forEach(d=>{
+        const data = d.data();
+        // filter only messages that include selected.uid
+        if(!data.participants || !data.participants.includes(selected.uid)) return;
+        msgs.push(Object.assign({id:d.id}, data));
       });
+      // client-side sort by timestamp (serverTimestamp might be null briefly)
+      msgs.sort((a,b)=>{
+        const ta = (a.timestamp && a.timestamp.toDate) ? a.timestamp.toDate().getTime() : (a._localTime||0);
+        const tb = (b.timestamp && b.timestamp.toDate) ? b.timestamp.toDate().getTime() : (b._localTime||0);
+        return ta - tb;
+      });
+      renderMessages(msgs);
+    }, err=>{
+      console.error('messages listener err', err);
+      // If the error mentions index, give link (no waiting instruction)
+      if(err && err.message && err.message.toLowerCase().includes('index')){
+        toast('Firestore: query requires an index. Можно создать индекс в Console (см. лог).');
+        console.info('Index link (from error): open your Firebase Console → Firestore → Indexes');
+      } else {
+        toast('Ошибка подписки на сообщения: ' + (err.message||err.code));
+      }
     });
 }
 
-// ✉️ Отправка
-document.getElementById('sendBtn').onclick=async ()=>{
-  const text=document.getElementById('msgInput').value;
-  if(!text||!currentChat) return;
-  await db.collection('messages').add({
-    text,
-    senderId:me.uid,
-    participants:[me.uid,currentChat.uid],
-    timestamp:firebase.firestore.FieldValue.serverTimestamp()
-  });
-  document.getElementById('msgInput').value='';
-};
-
-// ➕ Добавление друга
-document.getElementById('addBtn').onclick=async ()=>{
-  const username=document.getElementById('usernameInput').value.trim();
-  if(!username) return;
-  const q=await db.collection('users').where('username','==',username).get();
-  if(q.empty){ toast('Пользователь не найден'); return; }
-  const target=q.docs[0].data();
-  if(target.uid===me.uid){ toast('Нельзя добавить себя'); return; }
-  if((myDoc.friends||[]).includes(target.uid)){ toast('Уже в друзьях'); return; }
-  await db.collection('users').doc(me.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(target.uid) });
-  myDoc=(await db.collection('users').doc(me.uid).get()).data();
-  updateFriends();
-  document.getElementById('usernameInput').value='';
-};
-
-// 🔑 Вход
-document.getElementById('loginBtn').onclick=async ()=>{
-  const provider=new firebase.auth.GoogleAuthProvider();
-  try{
-    const res=await auth.signInWithPopup(provider);
-    me=res.user;
-    let doc=await db.collection('users').doc(me.uid).get();
-    if(!doc.exists){
-      let username='';
-      while(!username){
-        username=prompt('Придумайте username (уникальный)');
-        if(!username) continue;
-        const uq=await db.collection('users').where('username','==',username).get();
-        if(!uq.empty){ toast('Username занят'); username=''; }
-      }
-      await db.collection('users').doc(me.uid).set({
-        uid:me.uid,
-        username,
-        email:me.email,
-        photoURL:me.photoURL,
-        friends:[]
-      });
-      doc=await db.collection('users').doc(me.uid).get();
+/* ==========================
+   Render messages
+   ========================== */
+function renderMessages(msgs){
+  chatBody.innerHTML = '';
+  if(msgs.length === 0){
+    chatBody.innerHTML = `<div class="small">История пуста — напишите первое сообщение</div>`;
+    return;
+  }
+  for(const m of msgs){
+    const row = document.createElement('div'); row.className='msgRow ' + (m.senderId===me.uid ? 'me':'');
+    const bubble = document.createElement('div'); bubble.className='bubble';
+    if(m.type === 'image' && m.mediaURL){
+      const img = document.createElement('img'); img.src = m.mediaURL; img.style.maxWidth='360px'; img.style.borderRadius='8px';
+      bubble.appendChild(img);
+      if(m.text) { const t = document.createElement('div'); t.className='small'; t.textContent = m.text; bubble.appendChild(t); }
+    } else if(m.type === 'sticker'){
+      const s = document.createElement('div'); s.style.fontSize='28px'; s.textContent = m.text; bubble.appendChild(s);
+    } else {
+      bubble.textContent = m.text || '';
     }
-    myDoc=doc.data();
-    document.getElementById('loginArea').style.display='none';
-    document.getElementById('sidebar').style.display='flex';
-    document.getElementById('chat').style.display='flex';
-    document.getElementById('meInfo').innerHTML=`<img src="${me.photoURL}" width="30" style="border-radius:50%"> ${myDoc.username}`;
-    updateFriends();
-  }catch(e){console.log(e); toast('Ошибка входа'); }
+    const time = document.createElement('div'); time.className='time';
+    const ts = (m.timestamp && m.timestamp.toDate) ? m.timestamp.toDate() : null;
+    time.textContent = ts ? ts.toLocaleString() : '';
+    row.appendChild(bubble);
+    row.appendChild(time);
+    chatBody.appendChild(row);
+  }
+  // scroll to bottom
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+/* ==========================
+   Sending messages
+   ========================== */
+sendBtn.onclick = async ()=>{
+  const text = (msgInput.value||'').trim();
+  if(!selected){ toast('Выберите контакт'); return; }
+  if(!text) return;
+  await sendMessage({ text, type: 'text' });
+  msgInput.value = '';
 };
 
-// 🔄 Проверка авторизации при загрузке
-auth.onAuthStateChanged(async u=>{
-  if(u){ document.getElementById('loginBtn').click(); }
+async function sendSticker(s){
+  if(!selected){ toast('Выберите контакт'); return; }
+  await sendMessage({ text: s, type: 'sticker' });
+}
+
+attachBtn.onclick = ()=> fileInput.click();
+
+fileInput.onchange = async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  if(!selected){ toast('Выберите контакт'); return; }
+  const path = `chat_images/${Date.now()}_${me.uid}_${file.name.replace(/\s/g,'_')}`;
+  try {
+    const ref = storage.ref().child(path);
+    const snap = await ref.put(file);
+    const url = await snap.ref.getDownloadURL();
+    await sendMessage({ text: '', type: 'image', mediaURL: url });
+    fileInput.value = '';
+  } catch(err){
+    console.error('upload err', err);
+    toast('Ошибка загрузки: ' + (err.message||err.code));
+  }
+};
+
+async function sendMessage({ text='', type='text', mediaURL=null }){
+  const payload = {
+    text,
+    senderId: me.uid,
+    receiverId: selected.uid,
+    participants: [me.uid, selected.uid],
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    type,
+    mediaURL: mediaURL || null
+  };
+  try {
+    await db.collection('messages').add(payload);
+  } catch(err){
+    console.error('sendMessage err', err);
+    // If requires index (shouldn't for our query), inform user
+    if(err && err.message && err.message.toLowerCase().includes('index')){
+      toast('Ошибка: запрос требует индекса. Откройте Firestore → Indexes и создайте индекс.');
+      console.info('Index error:', err);
+    } else if (err && err.code && err.code.includes('permission')){
+      toast('Проблема с правилами Firestore: проверьте security rules.');
+    } else {
+      toast('Ошибка отправки: ' + (err.message||err.code));
+    }
+  }
+}
+
+/* ==========================
+   Clean up on unload
+   ========================== */
+window.addEventListener('beforeunload', ()=>{
+  if(userUnsub) userUnsub();
+  if(messagesUnsub) messagesUnsub();
 });
 </script>
 
-<!-- 
-🔥 FIRESTORE SECURITY RULES 🔥
+<!--
+  ПРИМЕЧАНИЯ / УСТРАНЕНИЕ ПРОБЛЕМ
 
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /messages/{msgId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid in resource.data.participants;
-    }
-  }
-}
+  1) "The query requires an index" — в старой версии мы делали .where(...).orderBy('timestamp'),
+     это требовало создания композитного индекса. В этом файле я убрал orderBy на сервере
+     и сортирую результаты на клиенте, чтобы обойти потребность в композитном индексе.
+     Если ты предпочитаешь серверную сортировку — создай индекс в Firebase Console:
+     Firestore -> Indexes -> Add index:
+       collection: messages
+       fields: participants (array), timestamp (asc)
 
-storage.rules:
+  2) Если ты всё же видишь ошибку индекса в консоли — щёлкни по ссылке из сообщения об ошибке
+     (в консоли браузера/в логах) — она укажет на точную страницу в Firebase Console.
 
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
+  3) Если сообщения не доставляются из-за правил безопасности (Missing or insufficient permissions),
+     убедись, что правила Firestore и Storage соответствуют примеру, который я прислал ранее.
+     Минимальные рабочие правила (пример):
+
+     Firestore rules:
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{database}/documents {
+         function isSignedIn(){ return request.auth != null; }
+         match /users/{userId} {
+           allow read: if isSignedIn();
+           allow create: if isSignedIn() && request.auth.uid == userId;
+           allow update: if isSignedIn() && request.auth.uid == userId;
+         }
+         match /messages/{msgId} {
+           allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants
+                         && request.resource.data.senderId == request.auth.uid;
+           allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
+           allow update, delete: if isSignedIn() && request.auth.uid in resource.data.participants;
+         }
+       }
+     }
+
+     Storage rules (пример):
+     rules_version = '2';
+     service firebase.storage {
+       match /b/{bucket}/o {
+         match /{allPaths=**} {
+           allow read, write: if request.auth != null;
+         }
+       }
+     }
+
+  4) Авторизация: если получаешь `auth/popup-closed-by-user`, это означает, что popup был закрыт
+     до завершения — попробуй снова, либо проверь Authorized domains в Firebase Console (добавь localhost и домен github.io если используешь Pages).
+
+  5) Дизайн: интерфейс ориентирован под настольный вид (как в :contentReference[oaicite:2]{index=2}/:contentReference[oaicite:3]{index=3}).
+     Если хочешь цвета, отступы или «клиентский» режим (узкий sidebar, compact view) — могу прямо сейчас встроить изменения.
+
+  Если хочешь — могу:
+    • добавить server-side orderBy обратно и дать exact JSON для создания индекса автоматически;
+    • улучшить хранение разговоров (threads/{threadId}/messages) — это избавит от многих индексов и упростит правила;
+    • сделать компактный режим или светлую тему.
+
+  Напиши, что из этого приоритетнее — и я прямо сейчас внесу изменения в файл (включая готовый index JSON / инструкцию).
 -->
-
 </body>
 </html>
