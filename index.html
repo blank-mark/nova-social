@@ -453,7 +453,7 @@ addBtn.onclick = async ()=>{
     if(q.empty){ toast('Пользователь не найден'); return; }
     const target = q.docs[0].data();
     if(target.uid === me.uid){ toast('Нельзя добавить себя'); return; }
-    if((myDoc.friends||[]).includes(target.uid){}){}
+    if((myDoc.friends||[]).includes(target.uid)){}
     if((myDoc.friends||[]).includes(target.uid)){ toast('Уже в друзьях'); return; }
     await db.collection('users').doc(me.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(target.uid) });
     usernameSearch.value = '';
@@ -611,3 +611,4 @@ window.addEventListener('beforeunload', ()=>{
 -->
 </body>
 </html>
+
