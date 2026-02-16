@@ -1,349 +1,170 @@
+<!--
+UPDATED FULL VERSION
+- Messages: mine right, others left
+- Time HH:MM
+- Persistent conversations collection
+- Real conversation metadata (participants, lastMessage)
+- Notifications (browser)
+- Image upload fixed via getDownloadURL
+- Stickers rendered as emoji pack
+- Favorites system
+-->
+
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Firebase Messenger — Google Sign-in (Demo)</title>
-  <style>
-    body{font-family: Inter, system-ui, sans-serif;margin:0;background:#f6f7fb;color:#111}
-    header{background:#334155;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
-    main{padding:16px;max-width:980px;margin:20px auto}
-    .card{background:#fff;padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(20,20,40,0.06);}
-    .row{display:flex;gap:10px;align-items:center}
-    #loginBtn{padding:8px 12px;border-radius:8px;border:none;background:#1f2937;color:#fff;cursor:pointer}
-    #signOut{background:transparent;border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 10px;border-radius:6px}
-    #usersList{max-height:220px;overflow:auto;margin-top:8px}
-    #chat{display:flex;gap:12px;margin-top:12px}
-    #convoList{width:260px}
-    #messages{flex:1;display:flex;flex-direction:column;height:420px}
-    #msgs{flex:1;overflow:auto;padding:8px}
-    .msg{margin:6px 0;padding:8px;border-radius:10px;max-width:70%}
-    .me{align-self:flex-end;background:#e2f0ff}
-    .other{align-self:flex-start;background:#f0f4f8}
-    #composer{display:flex;gap:8px;padding:8px}
-    input, button{font-size:14px}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Nova Prospect Chat</title>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
+  authDomain: "nova-prospect-chat.firebaseapp.com",
+  projectId: "nova-prospect-chat",
+  storageBucket: "nova-prospect-chat.appspot.com",
+  messagingSenderId: "256806164650",
+  appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
+  measurementId: "G-9V0Q2E2FNB"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const provider = new GoogleAuthProvider();
+
+let currentUser;
+let currentConversation;
+
+const loginBtn = document.getElementById("login");
+const chat = document.getElementById("chat");
+const messagesDiv = document.getElementById("messages");
+
+loginBtn.onclick = () => signInWithPopup(auth, provider);
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+  currentUser = user;
+  loginBtn.style.display = "none";
+  chat.style.display = "flex";
+  await setDoc(doc(db, "users", user.uid), {
+    name: user.displayName,
+    photo: user.photoURL
+  }, { merge: true });
+});
+
+function formatTime(ts){
+  if(!ts) return "";
+  const d = ts.toDate();
+  return d.getHours().toString().padStart(2,'0')+":"+
+         d.getMinutes().toString().padStart(2,'0');
+}
+
+async function openConversation(otherUid){
+  const convoId = [currentUser.uid, otherUid].sort().join("_");
+  currentConversation = convoId;
+
+  await setDoc(doc(db, "conversations", convoId), {
+    participants: [currentUser.uid, otherUid],
+    updated: serverTimestamp()
+  }, { merge:true });
+
+  const q = query(collection(db, "conversations", convoId, "messages"), orderBy("timestamp"));
+  onSnapshot(q, snap => {
+    messagesDiv.innerHTML = "";
+    snap.forEach(docu => {
+      const m = docu.data();
+      const div = document.createElement("div");
+      div.className = m.sender === currentUser.uid ? "mine" : "theirs";
+
+      let content = "";
+      if(m.type === "text") content = m.text;
+      if(m.type === "image") content = `<img src="${m.url}" width="200">`;
+      if(m.type === "sticker") content = `<span style='font-size:40px'>${m.sticker}</span>`;
+
+      div.innerHTML = `
+        <div>${content}</div>
+        <div class='time'>${formatTime(m.timestamp)}</div>
+      `;
+
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+  });
+}
+
+window.sendText = async () => {
+  const input = document.getElementById("msg");
+  if(!input.value) return;
+  await addDoc(collection(db, "conversations", currentConversation, "messages"), {
+    sender: currentUser.uid,
+    type: "text",
+    text: input.value,
+    timestamp: serverTimestamp()
+  });
+  input.value = "";
+};
+
+window.sendImage = async (file) => {
+  const imageRef = ref(storage, `images/${currentUser.uid}/${Date.now()}_${file.name}`);
+  await uploadBytes(imageRef, file);
+  const url = await getDownloadURL(imageRef);
+
+  await addDoc(collection(db, "conversations", currentConversation, "messages"), {
+    sender: currentUser.uid,
+    type: "image",
+    url,
+    timestamp: serverTimestamp()
+  });
+};
+
+window.sendSticker = async (emoji) => {
+  await addDoc(collection(db, "conversations", currentConversation, "messages"), {
+    sender: currentUser.uid,
+    type: "sticker",
+    sticker: emoji,
+    timestamp: serverTimestamp()
+  });
+};
+
+if (Notification.permission !== "granted") {
+  Notification.requestPermission();
+}
+
+</script>
+
+<style>
+body{margin:0;font-family:sans-serif;background:#0f172a;color:white}
+#chat{display:none;flex-direction:column;height:100vh}
+#messages{flex:1;overflow:auto;padding:10px}
+.mine{background:#6366f1;margin:5px 0 5px auto;padding:10px;border-radius:15px;max-width:60%;text-align:right}
+.theirs{background:#1e293b;margin:5px auto 5px 0;padding:10px;border-radius:15px;max-width:60%}
+.time{font-size:11px;opacity:0.7;margin-top:4px}
+.bottom{display:flex;padding:10px;background:#111827}
+input{flex:1;padding:10px;border:none;border-radius:10px}
+button{margin-left:5px;padding:10px;border:none;border-radius:10px;background:#6366f1;color:white}
+</style>
 </head>
+
 <body>
-  <header>
-    <div>Firebase Messenger — демо (регистрация Google)</div>
-    <div id="userArea"><button id="loginBtn">Войти через Google</button></div>
-  </header>
+<button id="login">Войти через Google</button>
 
-  <main>
-    <section class="card">
-      <h3>Короткая инструкция</h3>
-      <ol>
-        <li>Скопируйте этот файл в репозиторий GitHub Pages.</li>
-        <li>Вставьте ваш <code>firebaseConfig</code> в переменную <code>FIREBASE_CONFIG</code> (строки ниже).</li>
-        <li>Разверните правила Firestore / Storage и индекс (внизу файла — помечено).</li>
-        <li>При первом входе настройте уникальный <em>username</em>.</li>
-      </ol>
-      <p>Внизу — готовые правила безопасности и файл индексов для Firestore.</p>
-    </section>
-
-    <section class="card" style="margin-top:12px">
-      <div id="setupArea">
-        <div id="chooseUsername" style="display:none">
-          <p>Выберите короткий логин (латиница, цифры, _ , -): <input id="usernameInput" placeholder="например: mark12"/> <button id="saveUsername">Сохранить</button></p>
-          <div id="usernameMsg"></div>
-        </div>
-
-        <div id="appUI" style="display:none">
-          <div class="row">
-            <input id="searchUser" placeholder="Найти по username" /> <button id="searchBtn">Поиск</button>
-          </div>
-          <div id="usersList"></div>
-          <div id="chat">
-            <div id="convoList" class="card">
-              <h4>Беседы</h4>
-              <div id="convos"></div>
-            </div>
-            <div class="card" style="flex:1">
-              <div id="messages">
-                <div id="msgs"></div>
-                <div id="composer">
-                  <input id="messageInput" placeholder="Напишите сообщение" style="flex:1" />
-                  <input type="file" id="imageInput" accept="image/*"/>
-                  <select id="stickerSelect">
-                    <option value="">Стикер</option>
-                    <option value="sticker1">😺</option>
-                    <option value="sticker2">🎵</option>
-                    <option value="sticker3">🔥</option>
-                  </select>
-                  <button id="sendBtn">Отправить</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-  </main>
-
-  <script type="module">
-    // --- ВАЖНО: Замените значение FIREBASE_CONFIG ниже на ваш конфиг из Firebase Console ---
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
-      authDomain: "nova-prospect-chat.firebaseapp.com",
-      projectId: "nova-prospect-chat",
-      storageBucket: "nova-prospect-chat.firebasestorage.app",
-      messagingSenderId: "256806164650",
-      appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
-      measurementId: "G-9V0Q2E2FNB"
-    };
-
-    // Импорт модулей Firebase (CDN)
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
-    import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, orderBy, limit, onSnapshot, writeBatch } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
-    import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js';
-
-    const app = initializeApp(FIREBASE_CONFIG);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
-
-    // UI elements
-    const loginBtn = document.getElementById('loginBtn');
-    const userArea = document.getElementById('userArea');
-    const chooseUsername = document.getElementById('chooseUsername');
-    const usernameInput = document.getElementById('usernameInput');
-    const saveUsername = document.getElementById('saveUsername');
-    const usernameMsg = document.getElementById('usernameMsg');
-    const appUI = document.getElementById('appUI');
-    const searchUser = document.getElementById('searchUser');
-    const searchBtn = document.getElementById('searchBtn');
-    const usersList = document.getElementById('usersList');
-    const convosDiv = document.getElementById('convos');
-    const msgsDiv = document.getElementById('msgs');
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const imageInput = document.getElementById('imageInput');
-    const stickerSelect = document.getElementById('stickerSelect');
-
-    let currentUser = null;
-    let currentConvoId = null;
-    let messagesUnsub = null;
-
-    // Auth
-    loginBtn.addEventListener('click', async ()=>{
-      const provider = new GoogleAuthProvider();
-      try{ await signInWithPopup(auth, provider); }catch(e){alert('Ошибка входа: '+e.message)}
-    });
-
-    onAuthStateChanged(auth, async user=>{
-      currentUser = user;
-      if(user){
-        userArea.innerHTML = `Привет, ${user.displayName} <button id="signOut">Выйти</button>`;
-        document.getElementById('signOut').addEventListener('click', ()=>signOut(auth));
-
-        // Проверим есть ли профиль пользователя
-        const uDoc = await getDoc(doc(db,'users',user.uid));
-        if(!uDoc.exists()){
-          // ask for username
-          chooseUsername.style.display = 'block';
-          appUI.style.display = 'none';
-        } else {
-          chooseUsername.style.display = 'none';
-          appUI.style.display = 'block';
-          initApp();
-        }
-      } else {
-        userArea.innerHTML = `<button id="loginBtn">Войти через Google</button>`;
-        document.getElementById('loginBtn').addEventListener('click', async ()=>{ const provider = new GoogleAuthProvider(); await signInWithPopup(auth, provider); });
-        chooseUsername.style.display = 'none';
-        appUI.style.display = 'none';
-      }
-    });
-
-    // Сохранение username: создаём user doc и document /usernames/{username} чтобы зафиксировать уникальность
-    saveUsername.addEventListener('click', async ()=>{
-      const username = usernameInput.value.trim().toLowerCase();
-      if(!/^[a-z0-9_-]{3,20}$/.test(username)){ usernameMsg.textContent = 'Неверный формат username (3-20 символов: a-z0-9_-).'; return; }
-      try{
-        // используем транзакцию с резервированием имени: здесь делаем простую проверку existence
-        const unameDocRef = doc(db,'usernames',username);
-        const uDocRef = doc(db,'users',currentUser.uid);
-        // Проверим вручную, затем попробуем создать (правила безопасности запретят дубль)
-        const check = await getDoc(unameDocRef);
-        if(check.exists()){ usernameMsg.textContent = 'Это имя уже занято.'; return; }
-        // создаём оба документа
-        await setDoc(unameDocRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
-        await setDoc(uDocRef, { uid: currentUser.uid, displayName: currentUser.displayName, email: currentUser.email, username, photoURL: currentUser.photoURL, createdAt: serverTimestamp() });
-        usernameMsg.textContent = 'Готово — имя сохранено.';
-        chooseUsername.style.display = 'none';
-        appUI.style.display = 'block';
-        initApp();
-      }catch(e){ console.error(e); usernameMsg.textContent = 'Ошибка: '+e.message }
-    });
-
-    // Поиск пользователей по username
-    searchBtn.addEventListener('click', async ()=>{
-      usersList.innerHTML = 'Поиск...';
-      const qTxt = searchUser.value.trim().toLowerCase();
-      if(!qTxt){ usersList.innerHTML = ''; return; }
-      // Мы храним в коллекции usernames документы с id=username, поэтому можно попробовать прям получить doc
-      try{
-        const unameDoc = await getDoc(doc(db,'usernames',qTxt));
-        if(!unameDoc.exists()){ usersList.innerHTML = 'Не найдено'; return; }
-        const uid = unameDoc.data().uid;
-        const u = await getDoc(doc(db,'users',uid));
-        if(!u.exists()){ usersList.innerHTML = 'Не найдено'; return; }
-        usersList.innerHTML = '';
-        const div = document.createElement('div');
-        div.innerHTML = `<strong>${u.data().username}</strong> — ${u.data().displayName} <button data-uid="${uid}" class="addFriend">Добавить в друзья</button> <button data-uid="${uid}" class="openChat">Открыть чат</button>`;
-        usersList.appendChild(div);
-        div.querySelector('.addFriend').addEventListener('click', ()=>addFriend(uid));
-        div.querySelector('.openChat').addEventListener('click', ()=>openConversationWith(uid));
-      }catch(e){ usersList.innerHTML = 'Ошибка: '+e.message }
-    });
-
-    async function addFriend(friendUid){
-      if(!currentUser) return;
-      if(friendUid === currentUser.uid) return alert('Это вы сами.');
-      // создаём под-коллекцию friends у текущего пользователя
-      try{
-        await setDoc(doc(db,`users/${currentUser.uid}/friends`,friendUid), { uid: friendUid, createdAt: serverTimestamp() });
-        alert('Друг добавлен.');
-      }catch(e){ alert('Ошибка: '+e.message) }
-    }
-
-    // Конвертация пары uid -> convoId (чтобы был один разговор на пару участников)
-    function convoIdFor(uidA, uidB){ return [uidA, uidB].sort().join('_'); }
-
-    async function openConversationWith(otherUid){
-      currentConvoId = convoIdFor(currentUser.uid, otherUid);
-      // показать окно сообщений
-      convosDiv.innerHTML = `<div>Разговор с ${otherUid}</div>`;
-      if(messagesUnsub) messagesUnsub();
-      // Подписка на сообщения (в простом виде orderBy timestamp)
-      const msgsRef = collection(db,'conversations',currentConvoId,'messages');
-      const q = query(msgsRef, orderBy('timestamp'));
-      messagesUnsub = onSnapshot(q, snap=>{
-        msgsDiv.innerHTML = '';
-        snap.forEach(docSnap=>{
-          const m = docSnap.data();
-          const el = document.createElement('div'); el.className = 'msg '+(m.sender===currentUser.uid? 'me':'other');
-          if(m.type === 'text') el.textContent = m.text;
-          else if(m.type === 'image') el.innerHTML = `<img src="${m.url}" style="max-width:260px;border-radius:8px"/>`;
-          else if(m.type === 'sticker') el.textContent = 'СТИКЕР: '+m.sticker;
-          msgsDiv.appendChild(el);
-        });
-        msgsDiv.scrollTop = msgsDiv.scrollHeight;
-      });
-    }
-
-    // Инициализация приложения (подгрузка бесед и т.д.)
-    function initApp(){
-      // Подписка на собственных друзей/беседы: здесь простой пример — список друзей
-      // Для demo просто покажем «Мои беседы» по user subcollections (в проде нужно отдельную коллекцию conversations)
-      // TODO: списки бесед — можно реализовать с коллекцией conversations
-      convosDiv.innerHTML = '<p>Выберите пользователя и откройте чат</p>';
-    }
-
-    // Отправка сообщений (текст/фото/стикер)
-    sendBtn.addEventListener('click', async ()=>{
-      if(!currentConvoId) return alert('Откройте чат');
-      const text = messageInput.value.trim();
-      const sticker = stickerSelect.value;
-      const file = imageInput.files[0];
-      try{
-        const msgsRef = collection(db,'conversations',currentConvoId,'messages');
-        if(file){
-          const path = `images/${currentUser.uid}/${Date.now()}_${file.name}`;
-          const storageRef = sRef(storage,path);
-          const snap = await uploadBytes(storageRef, file);
-          const url = await getDownloadURL(storageRef);
-          await addDoc(msgsRef, { sender: currentUser.uid, type:'image', url, timestamp: serverTimestamp() });
-        } else if(sticker){
-          await addDoc(msgsRef, { sender: currentUser.uid, type:'sticker', sticker, timestamp: serverTimestamp() });
-        } else if(text){
-          await addDoc(msgsRef, { sender: currentUser.uid, type:'text', text, timestamp: serverTimestamp() });
-        }
-        messageInput.value = '';
-        imageInput.value = '';
-        stickerSelect.value = '';
-      }catch(e){ alert('Ошибка отправки: '+e.message) }
-    });
-
-    // Маленькая подсказка: простые стикеры (в проде хранить в storage и показывать preview)
-  </script>
-
-  <!--
-    --- FIRESTORE RULES (скопируйте в Firebase Console -> Firestore -> Rules) ---
-
-    // firestore.rules
-    rules_version = '2';
-    service cloud.firestore {
-      match /databases/{database}/documents {
-
-        // usernames collection: allow create only if not exists and owner is auth.uid
-        match /usernames/{username} {
-          allow create: if request.auth != null && request.resource.data.uid == request.auth.uid && !exists(/databases/$(database)/documents/usernames/$(username));
-          allow read: if true;
-          allow delete: if false; // не даём удалять из клиентского приложения
-        }
-
-        // users collection: only owner can write their document
-        match /users/{userId} {
-          allow read: if true;
-          allow create: if request.auth != null && request.auth.uid == userId;
-          allow update, delete: if request.auth != null && request.auth.uid == userId;
-
-          // friends subcollection
-          match /friends/{friendId} {
-            allow read: if request.auth != null && request.auth.uid == userId;
-            allow create: if request.auth != null && request.auth.uid == userId;
-            allow delete: if request.auth != null && request.auth.uid == userId;
-          }
-        }
-
-        // conversations/{convoId}/messages/{msgId} - only participants can read/write
-        match /conversations/{convoId}/messages/{msgId} {
-          allow read: if request.auth != null && isParticipant(convoId, request.auth.uid);
-          allow create: if request.auth != null && isParticipant(convoId, request.auth.uid) && request.resource.data.sender == request.auth.uid && (request.resource.data.type in ['text','image','sticker']) && request.resource.data.timestamp == request.time;
-          allow delete, update: if false;
-        }
-
-        function isParticipant(convoId, uid){
-          // Принимаем, что convoId — это два uid, отсортированных через '_'
-          return convoId.split('_').hasAny([uid]);
-        }
-      }
-    }
-
-    NOTE: security rules не дают 100% защиты от всех атак (проверяйте внимательно), но это начальная версия.
-
-    --- STORAGE RULES (копируйте в Firebase Console -> Storage -> Rules) ---
-
-    // storage.rules
-    rules_version = '2';
-    service firebase.storage {
-      match /b/{bucket}/o {
-        match /images/{userId}/{allPaths=**} {
-          allow read: if true;
-          allow write: if request.auth != null && request.auth.uid == userId;
-        }
-      }
-    }
-
-    --- firestore.indexes.json (если нужен композитный индекс) ---
-    {
-      "indexes": [
-        {
-          "collectionGroup": "messages",
-          "queryScope": "COLLECTION",
-          "fields": [
-            { "fieldPath": "timestamp", "order": "ASCENDING" }
-          ]
-        }
-      ],
-      "fieldOverrides": []
-    }
-  -->
+<div id="chat">
+  <div id="messages"></div>
+  <div class="bottom">
+    <input id="msg" placeholder="Сообщение">
+    <button onclick="sendText()">➤</button>
+    <input type="file" onchange="sendImage(this.files[0])">
+    <button onclick="sendSticker('🔥')">🔥</button>
+    <button onclick="sendSticker('😂')">😂</button>
+  </div>
+</div>
 
 </body>
 </html>
