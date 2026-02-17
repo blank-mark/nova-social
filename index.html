@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="ru">
 <head>
@@ -767,4 +768,173 @@ window.addEventListener('beforeunload', ()=>{
   Напиши, что из этого приоритетнее — и я прямо сейчас внесу изменения в файл (включая готовый index JSON / инструкцию).
 -->
 </body>
+<!-- =======================================
+     ДОБАВЛЕНИЯ (только добавлено, ничего существующее не заменено)
+     - Небольшой toggle светлой/тёмной темы
+     - Горячие клавиши: Ctrl+K для поиска, C (на мобиле) открывает контакты, Esc убирает фокус
+     - "Избранное": звезда у каждого контакта (локально, в localStorage)
+     - Стили для звезды и светлой темы
+     ======================================= -->
+<style id="extraStyles">
+  /* light theme overrides */
+  body.light {
+    --bg: #f6f8fb;
+    --panel: #ffffff;
+    --muted: #475569;
+    --accent: #1557ff;
+    --bubble: #ffffff;
+    color: #0b1220;
+  }
+  body.light .input { background: #f3f6fb; color: #0b1220; border-color: rgba(0,0,0,0.06); }
+  body.light .header { background: #ffffff; }
+  body.light .chatPanel { background: linear-gradient(180deg,#ffffff 0%, #f6f9ff 100%); color: #0b1220; }
+  body.light .btn { border-color: rgba(0,0,0,0.06); color: var(--muted); }
+  /* favorite star */
+  .fav-star {
+    background:transparent;
+    border:0;
+    font-size:16px;
+    margin-right:8px;
+    cursor:pointer;
+    color:var(--muted);
+    width:28px;
+    height:28px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .fav-star:hover { transform:scale(1.05); }
+</style>
+
+<script>
+(function(){
+  try{
+    // Theme toggle button (appended, does not modify existing HTML)
+    const actions = document.querySelector('.header .actions');
+    if(actions){
+      const themeBtn = document.createElement('button');
+      themeBtn.className = 'btn';
+      themeBtn.id = 'themeToggle';
+      themeBtn.setAttribute('title','Переключить свет/тёмную тему (сохраняется)');
+      // emoji as icon
+      themeBtn.textContent = '🌗';
+      actions.insertBefore(themeBtn, actions.firstChild || null);
+
+      const applyTheme = (t) => {
+        if(t === 'light'){ document.body.classList.add('light'); localStorage.setItem('np_theme','light'); }
+        else { document.body.classList.remove('light'); localStorage.setItem('np_theme','dark'); }
+      };
+      const saved = localStorage.getItem('np_theme') || 'dark';
+      applyTheme(saved);
+      themeBtn.addEventListener('click', ()=>{
+        applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
+        toast('Тема переключена');
+      });
+    }
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e)=>{
+      // Ctrl/Cmd + K focuses usernameSearch
+      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){
+        e.preventDefault();
+        if(window.usernameSearch) { usernameSearch.focus(); usernameSearch.select(); toast('Поиск: введите username'); }
+      }
+      // 'c' to open mobile contacts (for convenience)
+      if(e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey){
+        if(window.matchMedia && window.matchMedia('(max-width:1000px)').matches){
+          const modal = document.getElementById('mobileContactsModal');
+          if(modal){ modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false'); toast('Контакты (мобильный)'); }
+        }
+      }
+      // Esc to blur focused inputs
+      if(e.key === 'Escape'){
+        const active = document.activeElement;
+        if(active && (active === usernameSearch || active === mobileUsernameSearch || active === msgInput)){
+          active.blur();
+          toast('Фокус снят');
+        }
+      }
+    });
+
+    // Favorites: inject star buttons into contacts (local only)
+    function updateFavorites(){
+      try{
+        const favs = JSON.parse(localStorage.getItem('np_favs') || '[]');
+        const items = contactsList ? contactsList.querySelectorAll('.contact') : [];
+        items.forEach((el)=>{
+          // ensure we don't inject twice
+          if(el.querySelector('.fav-star')) return;
+          const nameEl = el.querySelector('.name');
+          const name = nameEl ? nameEl.textContent : '';
+          const star = document.createElement('button');
+          star.className = 'fav-star';
+          star.setAttribute('aria-label','Добавить в избранное');
+          star.textContent = favs.includes(name) ? '★' : '☆';
+          star.addEventListener('click', (ev)=>{
+            ev.stopPropagation();
+            const cur = JSON.parse(localStorage.getItem('np_favs') || '[]');
+            const has = cur.includes(name);
+            if(has){
+              const nf = cur.filter(x=>x !== name);
+              localStorage.setItem('np_favs', JSON.stringify(nf));
+              star.textContent = '☆';
+              toast('Удалено из избранного');
+            } else {
+              cur.push(name);
+              localStorage.setItem('np_favs', JSON.stringify(cur));
+              star.textContent = '★';
+              toast('Добавлено в избранное');
+            }
+          });
+          el.insertBefore(star, el.firstChild);
+        });
+        // update existing
+        const stars = contactsList ? contactsList.querySelectorAll('.fav-star') : [];
+        stars.forEach(s=>{
+          const el = s.parentElement;
+          const nameEl = el ? el.querySelector('.name') : null;
+          const name = nameEl ? nameEl.textContent : '';
+          const cur = JSON.parse(localStorage.getItem('np_favs') || '[]');
+          s.textContent = cur.includes(name) ? '★' : '☆';
+        });
+      }catch(err){ console.error('fav err', err); }
+    }
+
+    // Hook renderContacts to run updateFavorites after run (non-destructive)
+    if(typeof renderContacts === 'function'){
+      const orig = renderContacts;
+      window.renderContacts = async function(){
+        await orig();
+        updateFavorites();
+      };
+      // call once to initialize favorites if contacts already rendered
+      setTimeout(()=>{ try{ updateFavorites(); }catch(e){} }, 600);
+    }
+
+    // Debounced local search helper (client-only filter of current contact list names)
+    (function(){
+      let timer = null;
+      usernameSearch && usernameSearch.addEventListener('input', (e)=>{
+        if(timer) clearTimeout(timer);
+        timer = setTimeout(()=>{
+          const q = (usernameSearch.value||'').trim().toLowerCase();
+          if(!contactsList) return;
+          const items = contactsList.querySelectorAll('.contact');
+          items.forEach(it=>{
+            const name = (it.querySelector('.name') ? it.querySelector('.name').textContent : '').toLowerCase();
+            it.style.display = (q === '' || name.includes(q)) ? '' : 'none';
+          });
+        }, 200);
+      });
+    })();
+
+    // Small hint toast on load (non-intrusive)
+    setTimeout(()=>{ toast('Мелкие улучшения: Ctrl+K — поиск, звезда — избранное, C — мобильные контакты'); }, 1200);
+
+  }catch(e){
+    console.error('extras init error', e);
+  }
+})();
+</script>
 </html>
+```
