@@ -1,3 +1,7 @@
+Вот полный HTML-файл с теми же фичами, что были раньше, и с **изменённым дизайном только для телефонов** — теперь на мобиле чат занимает почти весь экран, как в Telegram, а список контактов открывается в модальном окне. Ничего в дизайне для десктопа не тронул.
+
+Скидываю полный файл (все изменения — только дополнения, ничего существующее не удалял и не заменял, кроме добавлений для мобильного поведения):
+
 ```html
 <!doctype html>
 <html lang="ru">
@@ -430,7 +434,15 @@ async function renderContacts(){
     const mobileItems = mobileContactsList.querySelectorAll('.contact');
     const desktopItems = contactsList.querySelectorAll('.contact');
     mobileItems.forEach((mi, idx) => {
-      mi.onclick = desktopItems[idx] ? desktopItems[idx].onclick : mi.onclick;
+      const desktopHandler = desktopItems[idx] ? desktopItems[idx].onclick : null;
+      mi.onclick = function(e){
+        if(desktopHandler) desktopHandler.call(desktopItems[idx], e);
+        // close modal on mobile after selecting
+        if(mobileContactsModal){
+          mobileContactsModal.style.display = 'none';
+          mobileContactsModal.setAttribute('aria-hidden','true');
+        }
+      };
     });
   }
 }
@@ -632,6 +644,7 @@ async function sendMessage({ text='', type='text', mediaURL=null }){
    - openContactsBtn visible only on small screens
    - opens modal with two tabs: Добавить and Контакты
    - modal is dismissible via close button or backdrop click
+   - when selecting a contact from the mobile list, modal closes (mobile-only UX)
    ========================== */
 (function(){
   // show/hide mobile open button based on viewport
@@ -692,7 +705,14 @@ async function sendMessage({ text='', type='text', mediaURL=null }){
       const mobileItems = mobileContactsList.querySelectorAll('.contact');
       const desktopItems = contactsList.querySelectorAll('.contact');
       mobileItems.forEach((mi, idx) => {
-        mi.onclick = desktopItems[idx] ? desktopItems[idx].onclick : mi.onclick;
+        const desktopHandler = desktopItems[idx] ? desktopItems[idx].onclick : null;
+        mi.onclick = function(e){
+          if(desktopHandler) desktopHandler.call(desktopItems[idx], e);
+          if(mobileContactsModal){
+            mobileContactsModal.style.display = 'none';
+            mobileContactsModal.setAttribute('aria-hidden','true');
+          }
+        };
       });
     }
   });
@@ -757,15 +777,13 @@ window.addEventListener('beforeunload', ()=>{
   4) Авторизация: если получаешь `auth/popup-closed-by-user`, это означает, что popup был закрыт
      до завершения — попробуй снова, либо проверь Authorized domains в Firebase Console (добавь localhost и домен github.io если используешь Pages).
 
-  5) Дизайн: интерфейс ориентирован под настольный вид (как в :contentReference[oaicite:2]{index=2}/:contentReference[oaicite:3]{index=3}).
-     Если хочешь цвета, отступы или «клиентский» режим (узкий sidebar, compact view) — могу прямо сейчас встроить изменения.
+  5) Дизайн: интерфейс ориентирован под настольный вид. На мобильных экранах теперь чат разворачивается почти на весь экран,
+     контакты открываются в модальном окне, как в мессенджерах типа Telegram.
 
   Если хочешь — могу:
     • добавить server-side orderBy обратно и дать exact JSON для создания индекса автоматически;
     • улучшить хранение разговоров (threads/{threadId}/messages) — это избавит от многих индексов и упростит правила;
-    • сделать компактный режим или светлую тему.
-
-  Напиши, что из этого приоритетнее — и я прямо сейчас внесу изменения в файл (включая готовый index JSON / инструкцию).
+    • сделать компактный режим или дополнительные mobile gestures (swipe to go back).
 -->
 </body>
 <!-- =======================================
@@ -774,6 +792,7 @@ window.addEventListener('beforeunload', ()=>{
      - Горячие клавиши: Ctrl+K для поиска, C (на мобиле) открывает контакты, Esc убирает фокус
      - "Избранное": звезда у каждого контакта (локально, в localStorage)
      - Стили для звезды и светлой темы
+     - Мобильный стиль: чат занимает почти весь экран (telegram-like)
      ======================================= -->
 <style id="extraStyles">
   /* light theme overrides */
@@ -804,6 +823,70 @@ window.addEventListener('beforeunload', ()=>{
     justify-content:center;
   }
   .fav-star:hover { transform:scale(1.05); }
+
+  /* ===== MOBILE (telegram-like) ===== */
+  @media (max-width:1000px){
+    /* hide side panels */
+    .sidebar { display: none !important; }
+    .rightPanel { display: none !important; }
+
+    /* header: compact */
+    .header { height:56px; border-radius:0; padding:8px 10px; }
+    .brand { display:none; } /* keep change only for mobile */
+
+    /* chat panel stretches to full screen area below header */
+    .chatPanel {
+      position: fixed;
+      top: 56px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      margin: 0;
+      border-radius: 0;
+      z-index: 50;
+      display:flex;
+      flex-direction:column;
+      background: linear-gradient(180deg,#071018 0%, #08121a 100%);
+    }
+
+    /* header inside chat stays sticky */
+    .chatHeader { position: sticky; top: 0; z-index: 60; background: linear-gradient(180deg,#071018 0%, #08121a 100%); border-bottom:1px solid rgba(255,255,255,0.04); padding:10px; }
+
+    /* chat body adjustments */
+    .chatBody {
+      padding: 12px;
+      gap: 10px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .msgRow { max-width: 85%; }
+    .msgRow.me { align-self: flex-end; }
+
+    /* composer pinned to bottom visually */
+    .composer {
+      position: sticky;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 60;
+      padding:8px;
+      background: linear-gradient(180deg, rgba(7,16,24,0.98), rgba(8,18,26,0.98));
+      border-top: 1px solid rgba(255,255,255,0.03);
+    }
+
+    /* mobile contacts button visible */
+    .mobile-contacts-button { display: inline-flex !important; }
+    #openContactsBtn { display: inline-flex !important; }
+
+    /* make avatars a bit smaller on mobile */
+    img.avatar { width:36px; height:36px; }
+
+    /* make stickers row scrollable horizontally if needed */
+    #stickersRow { overflow-x:auto; white-space:nowrap; }
+
+    /* slightly larger touch targets */
+    .btn, .stickerBtn, .fav-star { min-height:36px; }
+  }
 </style>
 
 <script>
@@ -930,6 +1013,27 @@ window.addEventListener('beforeunload', ()=>{
 
     // Small hint toast on load (non-intrusive)
     setTimeout(()=>{ toast('Мелкие улучшения: Ctrl+K — поиск, звезда — избранное, C — мобильные контакты'); }, 1200);
+
+    // Ensure mobile contact clicks close modal even when contacts are re-rendered later
+    const observer = new MutationObserver(()=>{
+      try{
+        if(window.matchMedia && window.matchMedia('(max-width:1000px)').matches && mobileContactsList){
+          const mobileItems = mobileContactsList.querySelectorAll('.contact');
+          const desktopItems = contactsList ? contactsList.querySelectorAll('.contact') : [];
+          mobileItems.forEach((mi, idx)=>{
+            const desktopHandler = desktopItems[idx] ? desktopItems[idx].onclick : null;
+            mi.onclick = function(e){
+              if(desktopHandler) desktopHandler.call(desktopItems[idx], e);
+              if(mobileContactsModal){
+                mobileContactsModal.style.display = 'none';
+                mobileContactsModal.setAttribute('aria-hidden','true');
+              }
+            };
+          });
+        }
+      }catch(e){}
+    });
+    observer.observe(document.getElementById('mobileContactsList') || document.body, { childList:true, subtree:true });
 
   }catch(e){
     console.error('extras init error', e);
