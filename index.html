@@ -1,1040 +1,331 @@
-```html
-<!doctype html>
-<html lang="ru">
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Nova Prospect — Messenger (Telegram/Discord style)</title>
-
-<!-- Minimal styling, desktop-style layout (dark theme, simple) -->
+<meta charset="UTF-8">
+<title>Nova Prospect Chat</title>
 <style>
-  :root{
-    --bg:#0f1720; --panel:#11151a; --muted:#9aa5b1; --accent:#2b8cff; --bubble:#172027;
-    --glass: rgba(255,255,255,0.03);
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:var(--bg);color:#e6eef6}
-  .app{display:grid;grid-template-columns:280px 1fr 320px;grid-template-rows:64px 1fr;height:100vh;gap:8px;padding:8px;}
-  .header{grid-column:1/-1;height:64px;background:var(--panel);display:flex;align-items:center;padding:12px;border-radius:8px}
-  .brand{font-weight:700;margin-right:12px}
-  .header .actions{margin-left:auto;display:flex;gap:8px;align-items:center}
-  img.avatar{Width:40px;height:40px;border-radius:8px;object-fit:cover}
 
-  .sidebar{background:var(--panel);border-radius:8px;padding:12px;overflow:auto}
-  .contacts{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-  .contact{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer}
-  .contact:hover{background:var(--glass)}
-  .contact .name{font-weight:600}
-  .searchRow{display:flex;gap:8px}
+body{
+font-family:Arial;
+background:#111;
+color:white;
+padding:20px;
+}
 
-  .chatPanel{background:linear-gradient(180deg,#071018 0%, #08121a 100%);border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
-  .chatHeader{height:64px;display:flex;align-items:center;padding:12px;border-bottom:1px solid rgba(255,255,255,0.03)}
-  .chatBody{flex:1;padding:16px;overflow:auto;display:flex;flex-direction:column;gap:12px}
-  .msgRow{max-width:70%;display:flex;flex-direction:column;gap:6px}
-  .msgRow.me{align-self:flex-end;text-align:right}
-  .bubble{padding:10px 12px;border-radius:12px;background:linear-gradient(180deg,#0f2a3a,#0b2430);border:1px solid rgba(255,255,255,0.03)}
-  .bubble.img{padding:6px}
-  .time{font-size:11px;color:var(--muted)}
-  .composer{height:72px;border-top:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:center;padding:10px}
-  .input{flex:1;padding:10px;border-radius:10px;background:var(--panel);border:1px solid rgba(255,255,255,0.03);color:#e6eef6}
-  .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
-  .btn.primary{background:var(--accent);border-color:transparent;color:#fff}
-  .rightPanel{background:var(--panel);border-radius:8px;padding:12px;overflow:auto}
-  .small{font-size:13px;color:var(--muted)}
-  .stickerBtn{background:transparent;border:1px solid rgba(255,255,255,0.03);padding:6px;border-radius:8px;cursor:pointer}
-  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:#222;padding:10px 14px;border-radius:8px;color:#fff;border:1px solid rgba(255,255,255,0.04)}
-  @media (max-width:1000px){
-    .app{grid-template-columns:1fr;grid-template-rows:64px auto 1fr;gap:8px}
-    .rightPanel{display:none}
-  }
+input{
+margin:5px;
+padding:5px;
+}
 
-  /* ====== Username modal (added feature) ====== */
-  .username-modal {
-    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(180deg, rgba(5,8,12,0.6), rgba(5,8,12,0.8)); z-index:9999;
-  }
-  .username-card {
-    background:var(--panel); padding:20px; border-radius:12px; width:360px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
-    display:flex; flex-direction:column; gap:10px; align-items:stretch;
-  }
-  .username-card h3{margin:0;font-size:18px}
-  .username-card .hint{font-size:13px;color:var(--muted)}
-  .username-card .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
-  .username-input{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
-  .username-btn{padding:10px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
-  .username-btn[disabled]{opacity:0.5;cursor:not-allowed}
-  /* small note */
-  .username-note{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
+button{
+margin:5px;
+padding:5px;
+}
 
-  /* ====== Mobile contacts modal (ADDED) ====== */
-  .mobile-contacts-button { display:none; }
-  @media (max-width:1000px){
-    .mobile-contacts-button { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:8px; background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted); cursor:pointer; margin-left:8px; }
-  }
-
-  .contacts-modal {
-    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-    background:linear-gradient(180deg, rgba(5,8,12,0.55), rgba(5,8,12,0.85)); z-index:9998;
-  }
-  .contacts-card {
-    background:var(--panel); width:92%; max-width:420px; height:80%; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;
-  }
-  .contacts-card .top {
-    display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.02);
-  }
-  .contacts-card .tabs { display:flex; gap:8px; align-items:center; }
-  .contacts-card .tab { padding:8px 12px; border-radius:8px; cursor:pointer; border:1px solid transparent; background:transparent; color:var(--muted) }
-  .contacts-card .tab.active { background:rgba(255,255,255,0.03); color:#fff; border-color:rgba(255,255,255,0.03) }
-  .contacts-card .closeBtn { padding:6px 10px; border-radius:8px; background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted); cursor:pointer }
-  .contacts-card .content { padding:12px; overflow:auto; flex:1; display:flex; flex-direction:column; gap:10px; }
-  .contacts-card .content .searchRow { margin-top:0; }
+.box{
+border:1px solid gray;
+padding:10px;
+margin-top:10px;
+}
 
 </style>
-
-<!-- Firebase compat SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 </head>
+
 <body>
-  <!-- Username modal: shown on first load (only change requested) -->
-  <div id="usernameModal" class="username-modal" style="display:none">
-    <div class="username-card" role="dialog" aria-modal="true" aria-labelledby="usernameTitle">
-      <h3 id="usernameTitle">Введите юзернейм</h3>
-      <div class="hint">Придумайте username — он будет сохранён и использован при входе через Google.</div>
-      <input id="startupUsername" class="username-input" placeholder="например: cool_user123" autocomplete="off" />
-      <div class="actions">
-        <button id="startupBtn" class="username-btn" disabled>Продолжить</button>
-      </div>
-      <div class="username-note">Окно появится только один раз — имя сохранится в браузере.</div>
-    </div>
-  </div>
 
-  <!-- Mobile contacts modal (ADDED) -->
-  <div id="mobileContactsModal" class="contacts-modal" aria-hidden="true">
-    <div class="contacts-card" role="dialog" aria-modal="true" aria-labelledby="contactsTitle">
-      <div class="top">
-        <div class="tabs" role="tablist">
-          <button id="tabAdd" class="tab active" role="tab" aria-selected="true">Добавить</button>
-          <button id="tabList" class="tab" role="tab" aria-selected="false">Контакты</button>
-        </div>
-        <button id="closeContactsBtn" class="closeBtn" aria-label="Закрыть">Закрыть</button>
-      </div>
-      <div class="content" id="mobileContactsContent">
-        <!-- Add tab content -->
-        <div id="mobileAddArea">
-          <div class="searchRow">
-            <input id="mobileUsernameSearch" class="input" placeholder="Добавить по username" />
-            <button id="mobileAddBtn" class="btn">Добавить</button>
-          </div>
-          <div class="small" style="margin-top:8px">Найденные контакты будут добавлены в ваш список.</div>
-        </div>
-        <!-- Contacts list tab content -->
-        <div id="mobileContactsListWrap" style="display:none">
-          <div class="contacts" id="mobileContactsList">
-            <!-- mobile contacts inserted here -->
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+<h2>Nova Prospect Chat</h2>
 
-  <div class="app" id="app">
-    <div class="header">
-      <div class="brand">Nova Prospect</div>
-      <div class="small">Single-file messenger — desktop style</div>
+<div class="box">
 
-      <div class="actions" id="authArea">
-        <button id="loginBtn" class="btn">Войти с Google</button>
-      </div>
+<h3>Авторизация</h3>
 
-      <div class="actions" id="userArea" style="display:none">
-        <img id="meAvatar" class="avatar" src="" alt="me"/>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:8px;">
-          <div id="meName" style="font-weight:600"></div>
-          <div class="small" id="meEmail"></div>
-        </div>
-        <button id="logoutBtn" class="btn" style="margin-left:8px">Выйти</button>
-      </div>
+<input id="email" placeholder="email">
+<input id="password" placeholder="password">
 
-      <!-- Mobile button to open contacts (ADDED) -->
-      <button id="openContactsBtn" class="mobile-contacts-button" title="Контакты" aria-label="Контакты" style="display:none">☰</button>
-    </div>
+<button onclick="register()">Регистрация</button>
+<button onclick="login()">Вход</button>
+<button onclick="googleLogin()">Google</button>
 
-    <!-- Left: contacts/search -->
-    <div class="sidebar">
-      <div class="searchRow">
-        <input id="usernameSearch" class="input" placeholder="Добавить по username" />
-        <button id="addBtn" class="btn">Добавить</button>
-      </div>
+</div>
 
-      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:space-between">
-        <div style="font-weight:700">Контакты</div>
-        <div class="small">онлайн</div>
-      </div>
+<div class="box">
 
-      <div class="contacts" id="contactsList">
-        <!-- contacts inserted here -->
-      </div>
+<h3>Логин</h3>
 
-      <div style="margin-top:12px">
-        <div class="small">Стикеры</div>
-        <div style="display:flex;gap:6px;margin-top:8px" id="stickersRow"></div>
-      </div>
-    </div>
+<input id="username" placeholder="придумай логин">
+<button onclick="setUsername()">Сохранить</button>
 
-    <!-- Center: chat -->
-    <div class="chatPanel" id="chatPanel">
-      <div class="chatHeader" id="chatHeader">Выберите контакт</div>
-      <div class="chatBody" id="chatBody"></div>
+<p id="me"></p>
 
-      <div class="composer">
-        <input id="msgInput" class="input" placeholder="Сообщение..." />
-        <input id="fileInput" type="file" accept="image/*" style="display:none"/>
-        <button id="attachBtn" class="btn">📎</button>
-        <button id="sendBtn" class="btn primary">Отправить</button>
-      </div>
-    </div>
+</div>
 
-    <!-- Right: info -->
-    <div class="rightPanel" id="rightPanel">
-      <div id="rightContent"><div class="small">Информация о контакте</div></div>
-    </div>
-  </div>
+<div class="box">
 
-  <div id="toast" class="toast" style="display:none"></div>
+<h3>Добавить друга</h3>
 
-<script>
-/* ==========================
-   Small startup modal logic (ADDED EARLIER)
-   - Shows a "Введите юзернейм" prompt once (stored in localStorage 'np_username')
-   - Hides the modal and reveals the app after user enters username
-   - Does not change any other app logic except that ensureUserDoc will prefer this saved username
-   ========================== */
-(function(){
-  const modal = document.getElementById('usernameModal');
-  const app = document.getElementById('app');
-  const input = document.getElementById('startupUsername');
-  const btn = document.getElementById('startupBtn');
+<input id="addFriendName" placeholder="логин друга">
+<button onclick="sendRequest()">Отправить</button>
 
-  // If username already saved, don't show the modal and show the app immediately
-  const saved = localStorage.getItem('np_username');
-  if(saved){
-    app.style.display = 'grid';
-  } else {
-    // hide main app UI until user provides username
-    app.style.display = 'none';
-    modal.style.display = 'flex';
-    input.focus();
-  }
+</div>
 
-  input.addEventListener('input', ()=>{
-    const v = (input.value||'').trim();
-    btn.disabled = v.length < 3;
-  });
+<div class="box">
 
-  btn.addEventListener('click', ()=>{
-    const v = (input.value||'').trim();
-    if(!v || v.length < 3) return;
-    // Save username and hide modal
-    localStorage.setItem('np_username', v);
-    modal.style.display = 'none';
-    app.style.display = 'grid';
-    // optional: focus login button so user can sign in
-    const login = document.getElementById('loginBtn');
-    if(login) login.focus();
-  });
-})();
-</script>
+<h3>Заявки</h3>
 
-<script>
-/* ==========================
-   Config (provided)
-   ========================== */
+<div id="requests"></div>
+
+</div>
+
+<div class="box">
+
+<h3>Друзья</h3>
+
+<div id="friends"></div>
+
+</div>
+
+<div class="box">
+
+<h3>Звонок</h3>
+
+<button onclick="startCall()">Начать звонок</button>
+<button onclick="hangup()">Завершить</button>
+
+<audio id="remoteAudio" autoplay></audio>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"
+
+import {
+getAuth,
+GoogleAuthProvider,
+signInWithPopup,
+createUserWithEmailAndPassword,
+signInWithEmailAndPassword,
+onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"
+
+import {
+getFirestore,
+doc,
+setDoc,
+getDoc,
+collection,
+addDoc,
+query,
+where,
+getDocs,
+onSnapshot,
+updateDoc
+}
+from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+
 const firebaseConfig = {
-  apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
-  authDomain: "nova-prospect-chat.firebaseapp.com",
-  projectId: "nova-prospect-chat",
-  storageBucket: "nova-prospect-chat.firebasestorage.app",
-  messagingSenderId: "256806164650",
-  appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
-  measurementId: "G-9V0Q2E2FNB"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
 
-/* ==========================
-   DOM
-   ========================== */
-const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const authArea = document.getElementById('authArea');
-const userArea = document.getElementById('userArea');
-const meAvatar = document.getElementById('meAvatar');
-const meName = document.getElementById('meName');
-const meEmail = document.getElementById('meEmail');
+apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
+authDomain: "nova-prospect-chat.firebaseapp.com",
+projectId: "nova-prospect-chat",
+storageBucket: "nova-prospect-chat.firebasestorage.app",
+messagingSenderId: "256806164650",
+appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
+measurementId: "G-9V0Q2E2FNB"
 
-const usernameSearch = document.getElementById('usernameSearch');
-const addBtn = document.getElementById('addBtn');
-const contactsList = document.getElementById('contactsList');
-
-const chatHeader = document.getElementById('chatHeader');
-const chatBody = document.getElementById('chatBody');
-const msgInput = document.getElementById('msgInput');
-const sendBtn = document.getElementById('sendBtn');
-const attachBtn = document.getElementById('attachBtn');
-const fileInput = document.getElementById('fileInput');
-const rightContent = document.getElementById('rightContent');
-
-const toastEl = document.getElementById('toast');
-const stickersRow = document.getElementById('stickersRow');
-
-/* Mobile contacts modal elements (ADDED) */
-const openContactsBtn = document.getElementById('openContactsBtn');
-const mobileContactsModal = document.getElementById('mobileContactsModal');
-const closeContactsBtn = document.getElementById('closeContactsBtn');
-const tabAdd = document.getElementById('tabAdd');
-const tabList = document.getElementById('tabList');
-const mobileAddArea = document.getElementById('mobileAddArea');
-const mobileContactsListWrap = document.getElementById('mobileContactsListWrap');
-const mobileContactsList = document.getElementById('mobileContactsList');
-const mobileUsernameSearch = document.getElementById('mobileUsernameSearch');
-const mobileAddBtn = document.getElementById('mobileAddBtn');
-
-/* ==========================
-   State
-   ========================== */
-let me = null; // firebase user
-let myDoc = null; // users/{uid} doc
-let userUnsub = null;
-let messagesUnsub = null;
-let selected = null; // selected friend doc object
-
-const STICKERS = ['😊','👍','🔥','🎉','😅','🤘'];
-STICKERS.forEach(s=>{
-  const b = document.createElement('button'); b.className='stickerBtn'; b.textContent=s;
-  b.onclick = ()=>sendSticker(s);
-  stickersRow.appendChild(b);
-});
-
-/* ==========================
-   Helpers
-   ========================== */
-function toast(msg, ms=4000){
-  toastEl.textContent = msg; toastEl.style.display='block';
-  clearTimeout(toastEl._t); toastEl._t = setTimeout(()=> toastEl.style.display='none', ms);
-}
-function safeLog(){ console.log.apply(console, arguments); }
-
-/* ==========================
-   Auth
-   ========================== */
-loginBtn.onclick = async ()=>{
-  const provider = new firebase.auth.GoogleAuthProvider();
-  try {
-    await auth.signInWithPopup(provider);
-  } catch(err){
-    // popup closed by user or other auth error
-    toast('Ошибка входа: ' + (err.message||err.code));
-    console.error('auth err', err);
-  }
-};
-logoutBtn.onclick = async ()=>{
-  await auth.signOut();
-  location.reload();
-};
-
-auth.onAuthStateChanged(async user=>{
-  if(user){
-    me = user;
-    authArea.style.display = 'none';
-    userArea.style.display = 'flex';
-    meAvatar.src = user.photoURL || '';
-    meName.textContent = user.displayName || '';
-    meEmail.textContent = user.email || '';
-    await ensureUserDoc(user);
-    startUserListener(user.uid);
-    renderContacts();
-  } else {
-    authArea.style.display = 'flex';
-    userArea.style.display = 'none';
-  }
-});
-
-/* ==========================
-   Ensure users/{uid} doc
-   ========================== */
-async function ensureUserDoc(user){
-  const ref = db.collection('users').doc(user.uid);
-  const doc = await ref.get();
-  if(!doc.exists){
-    // create basic doc with temporary username (email prefix) and empty friends
-    // <-- MODIFICATION: prefer username entered at startup (localStorage 'np_username') if available
-    const storedUsername = localStorage.getItem('np_username');
-    const basic = {
-      uid: user.uid,
-      username: storedUsername ? storedUsername : (user.email||'user').split('@')[0] + '_' + Math.floor(Math.random()*900),
-      email: user.email||'',
-      photoURL: user.photoURL||'',
-      friends: []
-    };
-    await ref.set(basic);
-    myDoc = basic;
-  } else {
-    myDoc = doc.data();
-  }
 }
 
-/* ==========================
-   User doc listener
-   ========================== */
-function startUserListener(uid){
-  if(userUnsub) userUnsub();
-  userUnsub = db.collection('users').doc(uid).onSnapshot(doc=>{
-    if(doc.exists) { myDoc = doc.data(); renderContacts(); }
-  }, err=>{
-    console.error('user listener err', err);
-    toast('Ошибка listeners: ' + (err.message||err.code));
-  });
+const app = initializeApp(firebaseConfig)
+
+const auth = getAuth()
+
+const db = getFirestore()
+
+let me = null
+
+window.register = async function(){
+
+let email = email.value
+let pass = password.value
+
+await createUserWithEmailAndPassword(auth,email,pass)
+
 }
 
-/* ==========================
-   Render contacts (MODIFIED to also update mobile list)
-   ========================== */
-async function renderContacts(){
-  contactsList.innerHTML = '';
-  if(!myDoc) return;
-  const friends = myDoc.friends || [];
-  if(friends.length === 0){
-    contactsList.innerHTML = `<div class="small">Список пуст — добавь по username</div>`;
-    // also update mobile list
-    if(mobileContactsList) mobileContactsList.innerHTML = contactsList.innerHTML;
-    return;
-  }
-  // fetch each friend doc in parallel
-  const promises = friends.map(uid => db.collection('users').doc(uid).get().then(d=>d.exists?d.data():null));
-  const results = await Promise.all(promises);
-  results.filter(Boolean).forEach(f=>{
-    const el = document.createElement('div'); el.className='contact';
-    el.innerHTML = `<img src="${f.photoURL||''}" class="avatar" style="width:44px;height:44px;border-radius:8px"/><div><div class="name">${f.username||f.email}</div><div class="small">${f.email||''}</div></div>`;
-    el.onclick = ()=>selectContact(f);
-    contactsList.appendChild(el);
-  });
-  // Clone the contacts list HTML into mobile view (keep both in sync)
-  if(mobileContactsList) {
-    mobileContactsList.innerHTML = contactsList.innerHTML;
-    // rewire mobile contacts click handlers (because clones don't have listeners)
-    const mobileItems = mobileContactsList.querySelectorAll('.contact');
-    const desktopItems = contactsList.querySelectorAll('.contact');
-    mobileItems.forEach((mi, idx) => {
-      const desktopHandler = desktopItems[idx] ? desktopItems[idx].onclick : null;
-      mi.onclick = function(e){
-        if(desktopHandler) desktopHandler.call(desktopItems[idx], e);
-        // close modal on mobile after selecting
-        if(mobileContactsModal){
-          mobileContactsModal.style.display = 'none';
-          mobileContactsModal.setAttribute('aria-hidden','true');
-        }
-      };
-    });
-  }
+window.login = async function(){
+
+let email = email.value
+let pass = password.value
+
+await signInWithEmailAndPassword(auth,email,pass)
+
 }
 
-/* ==========================
-   Add friend by username (desktop)
-   ========================== */
-addBtn.onclick = async ()=>{
-  const username = (usernameSearch.value||'').trim();
-  if(!username){ toast('Введите username'); return; }
-  if(!me){ toast('Сначала войдите'); return; }
-  try {
-    const q = await db.collection('users').where('username','==',username).get();
-    if(q.empty){ toast('Пользователь не найден'); return; }
-    const target = q.docs[0].data();
-    if(target.uid === me.uid){ toast('Нельзя добавить себя'); return; }
-    if((myDoc.friends||[]).includes(target.uid)){ toast('Уже в друзьях'); return; }
-    await db.collection('users').doc(me.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(target.uid) });
-    usernameSearch.value = '';
-    toast('Добавлен: ' + (target.username||target.email));
-  } catch(err){
-    console.error('add friend err', err);
-    toast('Ошибка добавления: ' + (err.message||err.code));
-  }
-};
+window.googleLogin = async function(){
 
-/* ==========================
-   Add friend by username (mobile) (ADDED)
-   - Reuses same logic as desktop addBtn but with mobile inputs
-   ========================== */
-mobileAddBtn && mobileAddBtn.addEventListener('click', async ()=>{
-  const username = (mobileUsernameSearch.value||'').trim();
-  if(!username){ toast('Введите username'); return; }
-  if(!me){ toast('Сначала войдите'); return; }
-  try {
-    const q = await db.collection('users').where('username','==',username).get();
-    if(q.empty){ toast('Пользователь не найден'); return; }
-    const target = q.docs[0].data();
-    if(target.uid === me.uid){ toast('Нельзя добавить себя'); return; }
-    if((myDoc.friends||[]).includes(target.uid)){ toast('Уже в друзьях'); return; }
-    await db.collection('users').doc(me.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(target.uid) });
-    mobileUsernameSearch.value = '';
-    toast('Добавлен: ' + (target.username||target.email));
-    // update lists (renderContacts listener will update both)
-    renderContacts();
-  } catch(err){
-    console.error('add friend err', err);
-    toast('Ошибка добавления: ' + (err.message||err.code));
-  }
-});
+let provider = new GoogleAuthProvider()
 
-/* ==========================
-   Select contact: subscribe messages
-   ========================== */
-function selectContact(friend){
-  selected = friend;
-  chatHeader.innerHTML = `<img src="${friend.photoURL||''}" class="avatar" style="width:44px;height:44px;margin-right:10px"/> <div style="font-weight:700">${friend.username||friend.email}</div>`;
-  rightContent.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><img src="${friend.photoURL||''}" class="avatar" style="width:72px;height:72px;border-radius:10px"/><div><div style="font-weight:700">${friend.username}</div><div class="small">${friend.email||''}</div></div></div>`;
-  // unsubscribe previous
-  if(messagesUnsub) messagesUnsub();
-  // subscribe to ANY message where current user participates (no orderBy to avoid index requirement)
-  messagesUnsub = db.collection('messages')
-    .where('participants','array-contains', me.uid)
-    .onSnapshot(snap=>{
-      const msgs = [];
-      snap.forEach(d=>{
-        const data = d.data();
-        // filter only messages that include selected.uid
-        if(!data.participants || !data.participants.includes(selected.uid)) return;
-        msgs.push(Object.assign({id:d.id}, data));
-      });
-      // client-side sort by timestamp (serverTimestamp might be null briefly)
-      msgs.sort((a,b)=>{
-        const ta = (a.timestamp && a.timestamp.toDate) ? a.timestamp.toDate().getTime() : (a._localTime||0);
-        const tb = (b.timestamp && b.timestamp.toDate) ? b.timestamp.toDate().getTime() : (b._localTime||0);
-        return ta - tb;
-      });
-      renderMessages(msgs);
-    }, err=>{
-      console.error('messages listener err', err);
-      // If the error mentions index, give link (no waiting instruction)
-      if(err && err.message && err.message.toLowerCase().includes('index')){
-        toast('Firestore: query requires an index. Можно создать индекс в Console (см. лог).');
-        console.info('Index link (from error): open your Firebase Console → Firestore → Indexes');
-      } else {
-        toast('Ошибка подписки на сообщения: ' + (err.message||err.code));
-      }
-    });
+await signInWithPopup(auth,provider)
+
 }
 
-/* ==========================
-   Render messages
-   ========================== */
-function renderMessages(msgs){
-  chatBody.innerHTML = '';
-  if(msgs.length === 0){
-    chatBody.innerHTML = `<div class="small">История пуста — напишите первое сообщение</div>`;
-    return;
-  }
-  for(const m of msgs){
-    const row = document.createElement('div'); row.className='msgRow ' + (m.senderId===me.uid ? 'me':'');
-    const bubble = document.createElement('div'); bubble.className='bubble';
-    if(m.type === 'image' && m.mediaURL){
-      const img = document.createElement('img'); img.src = m.mediaURL; img.style.maxWidth='360px'; img.style.borderRadius='8px';
-      bubble.appendChild(img);
-      if(m.text) { const t = document.createElement('div'); t.className='small'; t.textContent = m.text; bubble.appendChild(t); }
-    } else if(m.type === 'sticker'){
-      const s = document.createElement('div'); s.style.fontSize='28px'; s.textContent = m.text; bubble.appendChild(s);
-    } else {
-      bubble.textContent = m.text || '';
-    }
-    const time = document.createElement('div'); time.className='time';
-    const ts = (m.timestamp && m.timestamp.toDate) ? m.timestamp.toDate() : null;
-    time.textContent = ts ? ts.toLocaleString() : '';
-    row.appendChild(bubble);
-    row.appendChild(time);
-    chatBody.appendChild(row);
-  }
-  // scroll to bottom
-  chatBody.scrollTop = chatBody.scrollHeight;
+window.setUsername = async function(){
+
+let name = username.value
+
+await setDoc(doc(db,"users",me.uid),{
+
+username:name
+
+})
+
 }
 
-/* ==========================
-   Sending messages
-   ========================== */
-sendBtn.onclick = async ()=>{
-  const text = (msgInput.value||'').trim();
-  if(!selected){ toast('Выберите контакт'); return; }
-  if(!text) return;
-  await sendMessage({ text, type: 'text' });
-  msgInput.value = '';
-};
+onAuthStateChanged(auth,async user=>{
 
-/* ==========================
-   Send on Enter key (ADDED)
-   - Works for desktop and mobile keyboards
-   - If Shift+Enter, allow line breaks (input is single-line; keep consistent: prevent default only when Enter and not Shift)
-   ========================== */
-msgInput && msgInput.addEventListener('keydown', async (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    // emulate click on send button
-    sendBtn.click();
-  }
-});
+if(!user)return
 
-async function sendSticker(s){
-  if(!selected){ toast('Выберите контакт'); return; }
-  await sendMessage({ text: s, type: 'sticker' });
+me=user
+
+meText()
+
+loadRequests()
+
+loadFriends()
+
+})
+
+function meText(){
+
+getDoc(doc(db,"users",me.uid)).then(d=>{
+
+if(d.exists()){
+
+me.innerText="Вы: "+d.data().username
+
 }
 
-attachBtn.onclick = ()=> fileInput.click();
+})
 
-fileInput.onchange = async (e)=>{
-  const file = e.target.files && e.target.files[0];
-  if(!file) return;
-  if(!selected){ toast('Выберите контакт'); return; }
-  const path = `chat_images/${Date.now()}_${me.uid}_${file.name.replace(/\s/g,'_')}`;
-  try {
-    const ref = storage.ref().child(path);
-    const snap = await ref.put(file);
-    const url = await snap.ref.getDownloadURL();
-    await sendMessage({ text: '', type: 'image', mediaURL: url });
-    fileInput.value = '';
-  } catch(err){
-    console.error('upload err', err);
-    toast('Ошибка загрузки: ' + (err.message||err.code));
-  }
-};
-
-async function sendMessage({ text='', type='text', mediaURL=null }){
-  const payload = {
-    text,
-    senderId: me.uid,
-    receiverId: selected.uid,
-    participants: [me.uid, selected.uid],
-    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-    type,
-    mediaURL: mediaURL || null
-  };
-  try {
-    await db.collection('messages').add(payload);
-  } catch(err){
-    console.error('sendMessage err', err);
-    // If requires index (shouldn't for our query), inform user
-    if(err && err.message && err.message.toLowerCase().includes('index')){
-      toast('Ошибка: запрос требует индекса. Откройте Firestore → Indexes и создайте индекс.');
-      console.info('Index error:', err);
-    } else if (err && err.code && err.code.includes('permission')){
-      toast('Проблема с правилами Firestore: проверьте security rules.');
-    } else {
-      toast('Ошибка отправки: ' + (err.message||err.code));
-    }
-  }
 }
 
-/* ==========================
-   Mobile contacts modal behavior (ADDED)
-   - openContactsBtn visible only on small screens
-   - opens modal with two tabs: Добавить and Контакты
-   - modal is dismissible via close button or backdrop click
-   - when selecting a contact from the mobile list, modal closes (mobile-only UX)
-   ========================== */
-(function(){
-  // show/hide mobile open button based on viewport
-  function updateMobileBtnVisibility(){
-    const btn = openContactsBtn;
-    if(!btn) return;
-    if(window.matchMedia && window.matchMedia('(max-width:1000px)').matches){
-      btn.style.display = 'inline-flex';
-    } else {
-      btn.style.display = 'none';
-      // ensure modal hidden on desktop
-      if(mobileContactsModal) mobileContactsModal.style.display = 'none';
-    }
-  }
-  updateMobileBtnVisibility();
-  window.addEventListener('resize', updateMobileBtnVisibility);
+window.sendRequest = async function(){
 
-  // open modal
-  openContactsBtn && openContactsBtn.addEventListener('click', ()=>{
-    if(mobileContactsModal) {
-      mobileContactsModal.style.display = 'flex';
-      mobileContactsModal.setAttribute('aria-hidden','false');
-      // ensure mobile list is synced
-      if(mobileContactsList) mobileContactsList.innerHTML = contactsList.innerHTML || `<div class="small">Список пуст — добавь по username</div>`;
-    }
-  });
-  // close modal
-  closeContactsBtn && closeContactsBtn.addEventListener('click', ()=>{
-    if(mobileContactsModal) {
-      mobileContactsModal.style.display = 'none';
-      mobileContactsModal.setAttribute('aria-hidden','true');
-    }
-  });
-  // backdrop click closes modal
-  mobileContactsModal && mobileContactsModal.addEventListener('click', (e)=>{
-    if(e.target === mobileContactsModal){
-      mobileContactsModal.style.display = 'none';
-      mobileContactsModal.setAttribute('aria-hidden','true');
-    }
-  });
+let name = addFriendName.value
 
-  // tabs
-  tabAdd && tabAdd.addEventListener('click', ()=>{
-    tabAdd.classList.add('active'); tabAdd.setAttribute('aria-selected','true');
-    tabList.classList.remove('active'); tabList.setAttribute('aria-selected','false');
-    mobileAddArea.style.display = 'block';
-    mobileContactsListWrap.style.display = 'none';
-  });
-  tabList && tabList.addEventListener('click', ()=>{
-    tabList.classList.add('active'); tabList.setAttribute('aria-selected','true');
-    tabAdd.classList.remove('active'); tabAdd.setAttribute('aria-selected','false');
-    mobileAddArea.style.display = 'none';
-    mobileContactsListWrap.style.display = 'block';
-    // sync the contacts list just in case
-    if(mobileContactsList) mobileContactsList.innerHTML = contactsList.innerHTML || `<div class="small">Список пуст — добавь по username</div>`;
-    // rewire click handlers for mobile list items (after cloning)
-    if(mobileContactsList){
-      const mobileItems = mobileContactsList.querySelectorAll('.contact');
-      const desktopItems = contactsList.querySelectorAll('.contact');
-      mobileItems.forEach((mi, idx) => {
-        const desktopHandler = desktopItems[idx] ? desktopItems[idx].onclick : null;
-        mi.onclick = function(e){
-          if(desktopHandler) desktopHandler.call(desktopItems[idx], e);
-          if(mobileContactsModal){
-            mobileContactsModal.style.display = 'none';
-            mobileContactsModal.setAttribute('aria-hidden','true');
-          }
-        };
-      });
-    }
-  });
-})();
+let q=query(collection(db,"users"),where("username","==",name))
 
-/* ==========================
-   Clean up on unload
-   ========================== */
-window.addEventListener('beforeunload', ()=>{
-  if(userUnsub) userUnsub();
-  if(messagesUnsub) messagesUnsub();
-});
+let snap=await getDocs(q)
+
+snap.forEach(async docu=>{
+
+await addDoc(collection(db,"requests"),{
+
+from:me.uid,
+to:docu.id
+
+})
+
+})
+
+}
+
+function loadRequests(){
+
+let q=query(collection(db,"requests"),where("to","==",me.uid))
+
+onSnapshot(q,snap=>{
+
+requests.innerHTML=""
+
+snap.forEach(docu=>{
+
+let d=docu.data()
+
+let btn=document.createElement("button")
+
+btn.innerText="Принять"
+
+btn.onclick=async()=>{
+
+await addDoc(collection(db,"friends"),{
+
+a:me.uid,
+b:d.from
+
+})
+
+}
+
+requests.appendChild(btn)
+
+})
+
+})
+
+}
+
+function loadFriends(){
+
+let q=query(collection(db,"friends"),where("a","==",me.uid))
+
+onSnapshot(q,snap=>{
+
+friends.innerHTML=""
+
+snap.forEach(docu=>{
+
+let d=docu.data()
+
+let div=document.createElement("div")
+
+div.innerText="друг: "+d.b
+
+friends.appendChild(div)
+
+})
+
+})
+
+}
+
+let pc=null
+let stream=null
+
+window.startCall=async function(){
+
+stream=await navigator.mediaDevices.getUserMedia({audio:true})
+
+pc=new RTCPeerConnection({
+
+iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+
+})
+
+stream.getTracks().forEach(t=>pc.addTrack(t,stream))
+
+pc.ontrack=e=>{
+
+remoteAudio.srcObject=e.streams[0]
+
+}
+
+}
+
+window.hangup=function(){
+
+if(pc)pc.close()
+
+if(stream){
+
+stream.getTracks().forEach(t=>t.stop())
+
+}
+
+}
+
 </script>
 
-<!--
-  ПРИМЕЧАНИЯ / УСТРАНЕНИЕ ПРОБЛЕМ
-
-  1) "The query requires an index" — в старой версии мы делали .where(...).orderBy('timestamp'),
-     это требовало создания композитного индекса. В этом файле я убрал orderBy на сервере
-     и сортирую результаты на клиенте, чтобы обойти потребность в композитном индексе.
-     Если ты предпочитаешь серверную сортировку — создай индекс в Firebase Console:
-     Firestore -> Indexes -> Add index:
-       collection: messages
-       fields: participants (array), timestamp (asc)
-
-  2) Если ты всё же видишь ошибку индекса в консоли — щёлкни по ссылке из сообщения об ошибке
-     (в консоли браузера/в логах) — она укажет на точную страницу в Firebase Console.
-
-  3) Если сообщения не доставляются из-за правил безопасности (Missing or insufficient permissions),
-     убедись, что правила Firestore и Storage соответствуют примеру, который я прислал ранее.
-     Минимальные рабочие правила (пример):
-
-     Firestore rules:
-     rules_version = '2';
-     service cloud.firestore {
-       match /databases/{database}/documents {
-         function isSignedIn(){ return request.auth != null; }
-         match /users/{userId} {
-           allow read: if isSignedIn();
-           allow create: if isSignedIn() && request.auth.uid == userId;
-           allow update: if isSignedIn() && request.auth.uid == userId;
-         }
-         match /messages/{msgId} {
-           allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants
-                         && request.resource.data.senderId == request.auth.uid;
-           allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
-           allow update, delete: if isSignedIn() && request.auth.uid in resource.data.participants;
-         }
-       }
-     }
-
-     Storage rules (пример):
-     rules_version = '2';
-     service firebase.storage {
-       match /b/{bucket}/o {
-         match /{allPaths=**} {
-           allow read, write: if request.auth != null;
-         }
-       }
-     }
-
-  4) Авторизация: если получаешь `auth/popup-closed-by-user`, это означает, что popup был закрыт
-     до завершения — попробуй снова, либо проверь Authorized domains в Firebase Console (добавь localhost и домен github.io если используешь Pages).
-
-  5) Дизайн: интерфейс ориентирован под настольный вид. На мобильных экранах теперь чат разворачивается почти на весь экран,
-     контакты открываются в модальном окне, как в мессенджерах типа Telegram.
-
-  Если хочешь — могу:
-    • добавить server-side orderBy обратно и дать exact JSON для создания индекса автоматически;
-    • улучшить хранение разговоров (threads/{threadId}/messages) — это избавит от многих индексов и упростит правила;
-    • сделать компактный режим или дополнительные mobile gestures (swipe to go back).
--->
 </body>
-<!-- =======================================
-     ДОБАВЛЕНИЯ (только добавлено, ничего существующее не заменено)
-     - Небольшой toggle светлой/тёмной темы
-     - Горячие клавиши: Ctrl+K для поиска, C (на мобиле) открывает контакты, Esc убирает фокус
-     - "Избранное": звезда у каждого контакта (локально, в localStorage)
-     - Стили для звезды и светлой темы
-     - Мобильный стиль: чат занимает почти весь экран (telegram-like)
-     ======================================= -->
-<style id="extraStyles">
-  /* light theme overrides */
-  body.light {
-    --bg: #f6f8fb;
-    --panel: #ffffff;
-    --muted: #475569;
-    --accent: #1557ff;
-    --bubble: #ffffff;
-    color: #0b1220;
-  }
-  body.light .input { background: #f3f6fb; color: #0b1220; border-color: rgba(0,0,0,0.06); }
-  body.light .header { background: #ffffff; }
-  body.light .chatPanel { background: linear-gradient(180deg,#ffffff 0%, #f6f9ff 100%); color: #0b1220; }
-  body.light .btn { border-color: rgba(0,0,0,0.06); color: var(--muted); }
-  /* favorite star */
-  .fav-star {
-    background:transparent;
-    border:0;
-    font-size:16px;
-    margin-right:8px;
-    cursor:pointer;
-    color:var(--muted);
-    width:28px;
-    height:28px;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .fav-star:hover { transform:scale(1.05); }
-
-  /* ===== MOBILE (telegram-like) ===== */
-  @media (max-width:1000px){
-    /* hide side panels */
-    .sidebar { display: none !important; }
-    .rightPanel { display: none !important; }
-
-    /* header: compact */
-    .header { height:56px; border-radius:0; padding:8px 10px; }
-    .brand { display:none; } /* keep change only for mobile */
-
-    /* chat panel stretches to full screen area below header */
-    .chatPanel {
-      position: fixed;
-      top: 56px;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      margin: 0;
-      border-radius: 0;
-      z-index: 50;
-      display:flex;
-      flex-direction:column;
-      background: linear-gradient(180deg,#071018 0%, #08121a 100%);
-    }
-
-    /* header inside chat stays sticky */
-    .chatHeader { position: sticky; top: 0; z-index: 60; background: linear-gradient(180deg,#071018 0%, #08121a 100%); border-bottom:1px solid rgba(255,255,255,0.04); padding:10px; }
-
-    /* chat body adjustments */
-    .chatBody {
-      padding: 12px;
-      gap: 10px;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    .msgRow { max-width: 85%; }
-    .msgRow.me { align-self: flex-end; }
-
-    /* composer pinned to bottom visually */
-    .composer {
-      position: sticky;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 60;
-      padding:8px;
-      background: linear-gradient(180deg, rgba(7,16,24,0.98), rgba(8,18,26,0.98));
-      border-top: 1px solid rgba(255,255,255,0.03);
-    }
-
-    /* mobile contacts button visible */
-    .mobile-contacts-button { display: inline-flex !important; }
-    #openContactsBtn { display: inline-flex !important; }
-
-    /* make avatars a bit smaller on mobile */
-    img.avatar { width:36px; height:36px; }
-
-    /* make stickers row scrollable horizontally if needed */
-    #stickersRow { overflow-x:auto; white-space:nowrap; }
-
-    /* slightly larger touch targets */
-    .btn, .stickerBtn, .fav-star { min-height:36px; }
-  }
-</style>
-
-<script>
-(function(){
-  try{
-    // Theme toggle button (appended, does not modify existing HTML)
-    const actions = document.querySelector('.header .actions');
-    if(actions){
-      const themeBtn = document.createElement('button');
-      themeBtn.className = 'btn';
-      themeBtn.id = 'themeToggle';
-      themeBtn.setAttribute('title','Переключить свет/тёмную тему (сохраняется)');
-      // emoji as icon
-      themeBtn.textContent = '🌗';
-      actions.insertBefore(themeBtn, actions.firstChild || null);
-
-      const applyTheme = (t) => {
-        if(t === 'light'){ document.body.classList.add('light'); localStorage.setItem('np_theme','light'); }
-        else { document.body.classList.remove('light'); localStorage.setItem('np_theme','dark'); }
-      };
-      const saved = localStorage.getItem('np_theme') || 'dark';
-      applyTheme(saved);
-      themeBtn.addEventListener('click', ()=>{
-        applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
-        toast('Тема переключена');
-      });
-    }
-
-    // Keyboard shortcuts
-    window.addEventListener('keydown', (e)=>{
-      // Ctrl/Cmd + K focuses usernameSearch
-      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){
-        e.preventDefault();
-        if(window.usernameSearch) { usernameSearch.focus(); usernameSearch.select(); toast('Поиск: введите username'); }
-      }
-      // 'c' to open mobile contacts (for convenience)
-      if(e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey){
-        if(window.matchMedia && window.matchMedia('(max-width:1000px)').matches){
-          const modal = document.getElementById('mobileContactsModal');
-          if(modal){ modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false'); toast('Контакты (мобильный)'); }
-        }
-      }
-      // Esc to blur focused inputs
-      if(e.key === 'Escape'){
-        const active = document.activeElement;
-        if(active && (active === usernameSearch || active === mobileUsernameSearch || active === msgInput)){
-          active.blur();
-          toast('Фокус снят');
-        }
-      }
-    });
-
-    // Favorites: inject star buttons into contacts (local only)
-    function updateFavorites(){
-      try{
-        const favs = JSON.parse(localStorage.getItem('np_favs') || '[]');
-        const items = contactsList ? contactsList.querySelectorAll('.contact') : [];
-        items.forEach((el)=>{
-          // ensure we don't inject twice
-          if(el.querySelector('.fav-star')) return;
-          const nameEl = el.querySelector('.name');
-          const name = nameEl ? nameEl.textContent : '';
-          const star = document.createElement('button');
-          star.className = 'fav-star';
-          star.setAttribute('aria-label','Добавить в избранное');
-          star.textContent = favs.includes(name) ? '★' : '☆';
-          star.addEventListener('click', (ev)=>{
-            ev.stopPropagation();
-            const cur = JSON.parse(localStorage.getItem('np_favs') || '[]');
-            const has = cur.includes(name);
-            if(has){
-              const nf = cur.filter(x=>x !== name);
-              localStorage.setItem('np_favs', JSON.stringify(nf));
-              star.textContent = '☆';
-              toast('Удалено из избранного');
-            } else {
-              cur.push(name);
-              localStorage.setItem('np_favs', JSON.stringify(cur));
-              star.textContent = '★';
-              toast('Добавлено в избранное');
-            }
-          });
-          el.insertBefore(star, el.firstChild);
-        });
-        // update existing
-        const stars = contactsList ? contactsList.querySelectorAll('.fav-star') : [];
-        stars.forEach(s=>{
-          const el = s.parentElement;
-          const nameEl = el ? el.querySelector('.name') : null;
-          const name = nameEl ? nameEl.textContent : '';
-          const cur = JSON.parse(localStorage.getItem('np_favs') || '[]');
-          s.textContent = cur.includes(name) ? '★' : '☆';
-        });
-      }catch(err){ console.error('fav err', err); }
-    }
-
-    // Hook renderContacts to run updateFavorites after run (non-destructive)
-    if(typeof renderContacts === 'function'){
-      const orig = renderContacts;
-      window.renderContacts = async function(){
-        await orig();
-        updateFavorites();
-      };
-      // call once to initialize favorites if contacts already rendered
-      setTimeout(()=>{ try{ updateFavorites(); }catch(e){} }, 600);
-    }
-
-    // Debounced local search helper (client-only filter of current contact list names)
-    (function(){
-      let timer = null;
-      usernameSearch && usernameSearch.addEventListener('input', (e)=>{
-        if(timer) clearTimeout(timer);
-        timer = setTimeout(()=>{
-          const q = (usernameSearch.value||'').trim().toLowerCase();
-          if(!contactsList) return;
-          const items = contactsList.querySelectorAll('.contact');
-          items.forEach(it=>{
-            const name = (it.querySelector('.name') ? it.querySelector('.name').textContent : '').toLowerCase();
-            it.style.display = (q === '' || name.includes(q)) ? '' : 'none';
-          });
-        }, 200);
-      });
-    })();
-
-    // Small hint toast on load (non-intrusive)
-    setTimeout(()=>{ toast('Мелкие улучшения: Ctrl+K — поиск, звезда — избранное, C — мобильные контакты'); }, 1200);
-
-    // Ensure mobile contact clicks close modal even when contacts are re-rendered later
-    const observer = new MutationObserver(()=>{
-      try{
-        if(window.matchMedia && window.matchMedia('(max-width:1000px)').matches && mobileContactsList){
-          const mobileItems = mobileContactsList.querySelectorAll('.contact');
-          const desktopItems = contactsList ? contactsList.querySelectorAll('.contact') : [];
-          mobileItems.forEach((mi, idx)=>{
-            const desktopHandler = desktopItems[idx] ? desktopItems[idx].onclick : null;
-            mi.onclick = function(e){
-              if(desktopHandler) desktopHandler.call(desktopItems[idx], e);
-              if(mobileContactsModal){
-                mobileContactsModal.style.display = 'none';
-                mobileContactsModal.setAttribute('aria-hidden','true');
-              }
-            };
-          });
-        }
-      }catch(e){}
-    });
-    observer.observe(document.getElementById('mobileContactsList') || document.body, { childList:true, subtree:true });
-
-  }catch(e){
-    console.error('extras init error', e);
-  }
-})();
-</script>
 </html>
-```
