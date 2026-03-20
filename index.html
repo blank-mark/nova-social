@@ -220,6 +220,7 @@
       border-radius: 14px;
       padding: 10px 12px;
       background: #fff;
+      position: relative;
     }
 
     .msg.me {
@@ -291,15 +292,6 @@
       color: var(--danger);
     }
 
-    @media (max-width: 900px) {
-      main { grid-template-columns: 1fr; }
-      aside { border-right: 0; border-bottom: 1px solid var(--line); }
-    }
-
-    .msg {
-      position: relative;
-    }
-
     .msg .delete-btn {
       position: absolute;
       top: 6px;
@@ -323,6 +315,11 @@
       border-radius: 8px;
       display: block;
       margin: 6px 0 0;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      aside { border-right: 0; border-bottom: 1px solid var(--line); }
     }
   </style>
 </head>
@@ -381,9 +378,13 @@
           <div class="muted" style="margin-top:10px;">Сначала собеседник должен тоже зайти и занять ник.</div>
         </div>
 
-        <div class="card hidden" id="chatListCard">
-          <h2>Диалоги</h2>
-          <div class="chat-list" id="chatList"></div>
+        <div class="card hidden" id="contactsCard">
+          <h2>Контакты</h2>
+          <label for="addContactInput">Username контакта</label>
+          <input id="addContactInput" type="text" placeholder="например: ivan_777" />
+          <button class="btn primary" id="addContactBtn" style="margin-top:10px; width:100%;">Добавить в контакты</button>
+          <div class="muted" style="margin-top:10px;">Добавленные контакты появятся здесь. Кликни чтобы открыть чат.</div>
+          <div class="chat-list" id="contactsList"></div>
         </div>
       </aside>
 
@@ -394,7 +395,6 @@
             <div class="muted" id="chatSubtitle">Выбери собеседника по username</div>
           </div>
           <div class="muted" id="chatState"></div>
-          <button id="clearChatBtn" class="btn danger hidden">Очистить чат</button>
         </div>
 
         <div id="messages" class="messages">
@@ -433,7 +433,6 @@
       addDoc,
       collection,
       query,
-      where,
       orderBy,
       limit,
       onSnapshot,
@@ -441,8 +440,7 @@
       runTransaction,
       updateDoc,
       deleteDoc,
-      writeBatch,
-      getDocs
+      arrayUnion
     } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -466,8 +464,7 @@
       profile: null,
       currentChatId: null,
       currentChatPeer: null,
-      unsubMessages: null,
-      unsubChats: null
+      unsubMessages: null
     };
 
     const els = {
@@ -477,7 +474,7 @@
       authCard: $('authCard'),
       profileCard: $('profileCard'),
       newChatCard: $('newChatCard'),
-      chatListCard: $('chatListCard'),
+      contactsCard: $('contactsCard'),
       email: $('email'),
       password: $('password'),
       googleBtn: $('googleBtn'),
@@ -496,8 +493,9 @@
       composerStatus: $('composerStatus'),
       messageText: $('messageText'),
       sendBtn: $('sendBtn'),
-      chatList: $('chatList'),
-      clearChatBtn: $('clearChatBtn'),
+      contactsList: $('contactsList'),
+      addContactInput: $('addContactInput'),
+      addContactBtn: $('addContactBtn'),
       sendImageBtn: $('sendImageBtn')
     };
 
@@ -531,14 +529,13 @@
       els.authCard.classList.remove('hidden');
       els.profileCard.classList.add('hidden');
       els.newChatCard.classList.add('hidden');
-      els.chatListCard.classList.add('hidden');
+      els.contactsCard.classList.add('hidden');
       els.logoutBtn.classList.add('hidden');
       els.composer.classList.add('hidden');
       els.chatTitle.textContent = 'Чат не выбран';
       els.chatSubtitle.textContent = 'Сначала войди в аккаунт';
       els.chatState.textContent = '';
       els.messages.innerHTML = '<div class="status">Сначала войди в аккаунт, потом задай username.</div>';
-      if (els.clearChatBtn) els.clearChatBtn.classList.add('hidden');
     }
 
     async function ensureUserDoc(user) {
@@ -550,6 +547,7 @@
           email: user.email || '',
           displayName: user.displayName || '',
           username: '',
+          contacts: [],
           createdAt: serverTimestamp()
         });
       }
@@ -560,7 +558,7 @@
       els.authCard.classList.add('hidden');
       els.profileCard.classList.remove('hidden');
       els.newChatCard.classList.remove('hidden');
-      els.chatListCard.classList.remove('hidden');
+      els.contactsCard.classList.remove('hidden');
       els.logoutBtn.classList.remove('hidden');
       els.headerMe.textContent = profile?.username ? `@${profile.username}` : (user.email || user.displayName || user.uid);
       els.profileInfo.textContent = `UID: ${user.uid}`;
@@ -590,6 +588,7 @@
               email: state.user.email || '',
               displayName: state.user.displayName || '',
               username: raw,
+              contacts: [],
               createdAt: serverTimestamp()
             });
           } else {
@@ -611,8 +610,7 @@
       }
     }
 
-    async function openChatByUsername() {
-      const targetUsername = normUsername(els.findUser.value);
+    async function openChatWithUsername(targetUsername) {
       if (!state.user || !state.profile?.username) {
         setStatus('Сначала войди и займи свой username.', true);
         return;
@@ -648,7 +646,68 @@
       }, { merge: true });
 
       attachChat(chatId, targetProfile.username || targetUsername, targetUid);
+    }
+
+    async function openChatByUsername() {
+      const targetUsername = normUsername(els.findUser.value);
+      await openChatWithUsername(targetUsername);
       els.findUser.value = '';
+    }
+
+    async function addContact() {
+      const raw = normUsername(els.addContactInput.value);
+      if (!validUsername(raw)) {
+        setStatus('Username должен быть 3–20 символов: a-z, 0-9 и _', true);
+        return;
+      }
+      if (!state.user || !state.profile) return;
+      if (state.profile.username === raw) {
+        setStatus('Нельзя добавить себя', true);
+        return;
+      }
+      if (state.profile.contacts && state.profile.contacts.includes(raw)) {
+        setStatus('Уже в контактах');
+        return;
+      }
+
+      const targetSnap = await getDoc(doc(db, 'usernames', raw));
+      if (!targetSnap.exists()) {
+        setStatus('Пользователь с таким username не найден.', true);
+        return;
+      }
+
+      const userRef = doc(db, 'users', state.user.uid);
+      await updateDoc(userRef, {
+        contacts: arrayUnion(raw)
+      });
+
+      if (!state.profile.contacts) state.profile.contacts = [];
+      state.profile.contacts.push(raw);
+      state.profile.contacts = [...new Set(state.profile.contacts)];
+
+      renderContacts();
+      els.addContactInput.value = '';
+      setStatus('Контакт добавлен! Кликни на него чтобы открыть чат.');
+    }
+
+    function renderContacts() {
+      if (!state.profile?.contacts || state.profile.contacts.length === 0) {
+        els.contactsList.innerHTML = '<div class="muted">Контактов пока нет. Добавь по username.</div>';
+        return;
+      }
+      els.contactsList.innerHTML = state.profile.contacts.map((name) => {
+        return `
+          <div class="chat-item" data-username="${name}">
+            <div class="top"><div class="name">@${name}</div></div>
+          </div>
+        `;
+      }).join('');
+
+      [...els.contactsList.querySelectorAll('.chat-item')].forEach((el) => {
+        el.addEventListener('click', () => {
+          openChatWithUsername(el.dataset.username);
+        });
+      });
     }
 
     function renderMessages(items) {
@@ -698,42 +757,11 @@
       els.messages.scrollTop = els.messages.scrollHeight;
     }
 
-    function renderChatList(chats) {
-      if (!chats.length) {
-        els.chatList.innerHTML = '<div class="muted">Пока нет диалогов.</div>';
-        return;
-      }
-      els.chatList.innerHTML = chats.map((c) => {
-        const active = c.id === state.currentChatId ? 'active' : '';
-        const title = c.peerName || 'Чат';
-        const preview = c.lastMessage || 'Без сообщений';
-        const time = c.updatedAt ? fmtTime(c.updatedAt) : '';
-        return `
-          <div class="chat-item ${active}" data-chatid="${c.id}" data-peername="${title}" data-peeruid="${c.peerUid || ''}">
-            <div class="top"><div class="name">@${title}</div><div class="time">${time}</div></div>
-            <div class="preview"></div>
-          </div>
-        `;
-      }).join('');
-
-      chats.forEach((c, idx) => {
-        const node = els.chatList.children[idx]?.querySelector('.preview');
-        if (node) node.textContent = c.lastMessage || 'Без сообщений';
-      });
-
-      [...els.chatList.querySelectorAll('.chat-item')].forEach((el) => {
-        el.addEventListener('click', () => {
-          attachChat(el.dataset.chatid, el.dataset.peername, el.dataset.peeruid);
-        });
-      });
-    }
-
     function detachChat() {
       if (state.unsubMessages) {
         state.unsubMessages();
         state.unsubMessages = null;
       }
-      if (els.clearChatBtn) els.clearChatBtn.classList.add('hidden');
     }
 
     function attachChat(chatId, peerName, peerUid) {
@@ -744,7 +772,6 @@
       els.chatSubtitle.textContent = peerUid ? `UID: ${peerUid}` : '';
       els.chatState.textContent = `Чат: ${chatId}`;
       els.composer.classList.remove('hidden');
-      if (els.clearChatBtn) els.clearChatBtn.classList.remove('hidden');
       setStatus('');
 
       const q = query(
@@ -758,14 +785,6 @@
         renderMessages(items);
       }, (err) => {
         els.messages.innerHTML = `<div class="status error">${err.message}</div>`;
-      });
-
-      updateChatListSelection();
-    }
-
-    function updateChatListSelection() {
-      [...els.chatList.querySelectorAll('.chat-item')].forEach((el) => {
-        el.classList.toggle('active', el.dataset.chatid === state.currentChatId);
       });
     }
 
@@ -833,73 +852,16 @@
       }
     }
 
-    async function clearCurrentChat() {
-      if (!state.currentChatId) {
-        setStatus('Чат не выбран.', true);
-        return;
-      }
-      if (!confirm('Очистить чат полностью? Все сообщения удалятся сразу и безвозвратно!')) return;
-      try {
-        const batch = writeBatch(db);
-        const messagesRef = collection(db, 'chats', state.currentChatId, 'messages');
-        const q = query(messagesRef, limit(200));
-        const snapshot = await getDocs(q);
-        snapshot.forEach((docSnap) => {
-          batch.delete(docSnap.ref);
-        });
-        await batch.commit();
-        await updateDoc(doc(db, 'chats', state.currentChatId), {
-          lastMessage: '',
-          updatedAt: serverTimestamp()
-        });
-        setStatus('Чат успешно очищен!');
-      } catch (err) {
-        setStatus('Ошибка очистки: ' + (err.message || 'неизвестно'), true);
-      }
-    }
-
-    async function refreshChats() {
-      if (!state.user) return;
-      if (state.unsubChats) {
-        state.unsubChats();
-        state.unsubChats = null;
-      }
-
-      const q = query(
-        collection(db, 'chats'),
-        where('members', 'array-contains', state.user.uid)
-      );
-
-      state.unsubChats = onSnapshot(q, async (snap) => {
-        const chats = await Promise.all(snap.docs.map(async (d) => {
-          const data = d.data();
-          const peerUid = (data.members || []).find((x) => x !== state.user.uid);
-          let peerName = peerUid;
-          if (data.memberNames && peerUid && data.memberNames[peerUid]) {
-            peerName = data.memberNames[peerUid];
-          } else if (peerUid) {
-            const userSnap = await getDoc(doc(db, 'users', peerUid));
-            if (userSnap.exists() && userSnap.data().username) peerName = userSnap.data().username;
-          }
-          return {
-            id: d.id,
-            peerUid,
-            peerName,
-            lastMessage: data.lastMessage || '',
-            updatedAt: data.updatedAt || null
-          };
-        }));
-        renderChatList(chats);
-        updateChatListSelection();
-      }, (err) => {
-        els.chatList.innerHTML = `<div class="status error">${err.message}</div>`;
-      });
+    async function refreshContacts() {
+      // просто перерисовываем текущий список (на случай если где-то обновилось)
+      renderContacts();
     }
 
     async function bootProfile(user) {
       const snap = await ensureUserDoc(user);
       const data = snap.data() || {};
       state.profile = data;
+      state.profile.contacts = data.contacts || [];
       setLoggedInShell(user, data);
       if (!data.username) {
         els.profileInfo.textContent = `UID: ${user.uid}. Сейчас username не занят.`;
@@ -907,7 +869,7 @@
         els.profileInfo.textContent = `Твой username: @${data.username}`;
         els.username.value = data.username;
       }
-      await refreshChats();
+      renderContacts();
     }
 
     async function signUp() {
@@ -945,14 +907,14 @@
 
     els.claimUsernameBtn.addEventListener('click', claimUsername);
     els.openChatBtn.addEventListener('click', openChatByUsername);
+    els.addContactBtn.addEventListener('click', addContact);
     els.sendBtn.addEventListener('click', sendMessage);
+    els.sendImageBtn.addEventListener('click', sendImage);
     els.signUpBtn.addEventListener('click', signUp);
     els.signInBtn.addEventListener('click', signIn);
     els.googleBtn.addEventListener('click', signInGoogle);
     els.logoutBtn.addEventListener('click', doLogout);
-    els.refreshBtn.addEventListener('click', refreshChats);
-    els.clearChatBtn.addEventListener('click', clearCurrentChat);
-    els.sendImageBtn.addEventListener('click', sendImage);
+    els.refreshBtn.addEventListener('click', refreshContacts);
     els.messageText.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -962,10 +924,6 @@
 
     onAuthStateChanged(auth, async (user) => {
       detachChat();
-      if (state.unsubChats) {
-        state.unsubChats();
-        state.unsubChats = null;
-      }
       state.user = user || null;
       state.profile = null;
       state.currentChatId = null;
@@ -975,7 +933,6 @@
       els.chatState.textContent = '';
       els.messages.innerHTML = '<div class="status">Сначала войди в аккаунт, потом задай username.</div>';
       els.composer.classList.add('hidden');
-      if (els.clearChatBtn) els.clearChatBtn.classList.add('hidden');
 
       if (!user) {
         showOnlyAuth();
