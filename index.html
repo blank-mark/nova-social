@@ -439,6 +439,7 @@
           </div>
           <div class="chat-actions">
             <div class="muted" id="chatState"></div>
+            <button class="btn small-btn hidden" id="editSelectedBtn">Редактировать</button>
             <button class="btn small-btn danger hidden" id="deleteSelectedBtn">Удалить выбранные</button>
             <button class="btn small-btn danger hidden" id="clearChatBtn">Очистить чат</button>
           </div>
@@ -512,8 +513,10 @@
       profile: null,
       currentChatId: null,
       currentChatPeer: null,
+      currentMessages: [],
       unsubMessages: null,
-      unsubChats: null
+      unsubChats: null,
+      unsubPeer: null
     };
 
     const els = {
@@ -537,6 +540,7 @@
       chatTitle: $('chatTitle'),
       chatSubtitle: $('chatSubtitle'),
       chatState: $('chatState'),
+      editSelectedBtn: $('editSelectedBtn'),
       deleteSelectedBtn: $('deleteSelectedBtn'),
       clearChatBtn: $('clearChatBtn'),
       messages: $('messages'),
@@ -624,41 +628,50 @@
       return [a, b].sort().join('__');
     }
 
-    function localUpsertChat(chatId, memberA, memberB, memberNameA, memberNameB) {
-      const store = loadLocalStore();
-      if (!store.chats[chatId]) {
-        store.chats[chatId] = {
-          id: chatId,
-          members: [memberA, memberB],
-          memberNames: { [memberA]: memberNameA, [memberB]: memberNameB },
-          updatedAt: localNow(),
-          lastMessage: ''
-        };
-      } else {
-        store.chats[chatId].members = [memberA, memberB];
-        store.chats[chatId].memberNames = { ...(store.chats[chatId].memberNames || {}), [memberA]: memberNameA, [memberB]: memberNameB };
-      }
-      saveLocalStore(store);
-      return store.chats[chatId];
-    }
+    function localUpsertChat(chatId, members, memberUsernames, memberNames, extra = {}) {
+  const store = loadLocalStore();
+  if (!store.chats[chatId]) {
+    store.chats[chatId] = {
+      id: chatId,
+      members: members.slice(),
+      memberUsernames: memberUsernames.slice(),
+      memberNames: { ...memberNames },
+      updatedAt: localNow(),
+      lastMessage: '',
+      ...extra
+    };
+  } else {
+    store.chats[chatId].members = members.slice();
+    store.chats[chatId].memberUsernames = memberUsernames.slice();
+    store.chats[chatId].memberNames = { ...(store.chats[chatId].memberNames || {}), ...memberNames };
+    Object.assign(store.chats[chatId], extra);
+  }
+  saveLocalStore(store);
+  return store.chats[chatId];
+}
 
-    function localGetChatsFor(uid) {
-      const store = loadLocalStore();
-      return Object.values(store.chats)
-        .filter((c) => (c.members || []).includes(uid))
-        .map((c) => {
-          const peerUid = (c.members || []).find((x) => x !== uid);
-          const peerName = c.memberNames?.[peerUid] || localGetUser(peerUid)?.username || peerUid;
-          return {
-            id: c.id,
-            peerUid,
-            peerName,
-            lastMessage: c.lastMessage || '',
-            updatedAt: c.updatedAt || null
-          };
-        })
-        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
-    }
+    function localGetChatsFor(user) {
+  const store = loadLocalStore();
+  const username = user?.username || '';
+  const uid = user?.uid || '';
+  return Object.values(store.chats)
+    .filter((c) => (c.members || []).includes(uid) || (c.memberUsernames || []).includes(username))
+    .map((c) => {
+      const peerUid = (c.members || []).find((x) => x !== uid && x !== username) || '';
+      const peerUsername = (c.memberUsernames || []).find((x) => x !== username) || '';
+      const peerName = c.memberNames?.[peerUid] || c.memberNames?.[peerUsername] || localGetUser(peerUid)?.username || peerUsername || peerUid;
+      return {
+        id: c.id,
+        peerUid: peerUid || null,
+        peerUsername: peerUsername || null,
+        peerName,
+        lastMessage: c.lastMessage || '',
+        updatedAt: c.updatedAt || null,
+        peerStatus: c.peerStatus || ''
+      };
+    })
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+}
 
     function localGetMessages(chatId) {
       const store = loadLocalStore();
@@ -691,6 +704,23 @@
       saveLocalStore(store);
     }
 
+    function localEditMessage(chatId, messageId, newText) {
+      const store = loadLocalStore();
+      const list = store.messages[chatId] || [];
+      const item = list.find((m) => m.id === messageId);
+      if (!item) return false;
+      item.text = newText;
+      item.type = isImageUrl(newText) ? 'image' : 'text';
+      item.updatedAt = localNow();
+      if (store.chats[chatId]) {
+        const last = list[list.length - 1];
+        store.chats[chatId].lastMessage = last ? (last.type === 'image' ? '[Картинка]' : String(last.text || '').slice(0, 140)) : '';
+        store.chats[chatId].updatedAt = last ? last.updatedAt || last.createdAt || localNow() : localNow();
+      }
+      saveLocalStore(store);
+      return true;
+    }
+
     function localClearChat(chatId) {
       const store = loadLocalStore();
       delete store.messages[chatId];
@@ -714,26 +744,118 @@
     }
 
     function chatIdFor(a, b) {
-      return [a, b].sort().join('__');
+      return [String(a || '').trim().toLowerCase(), String(b || '').trim().toLowerCase()].sort().join('__');
     }
 
     function fmtTime(ts) {
       if (!ts) return '';
       const d = ts.toDate ? ts.toDate() : new Date(ts);
       return new Intl.DateTimeFormat('ru-RU', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+        hour: '2-digit', minute: '2-digit'
       }).format(d);
     }
 
     function updateActionButtons() {
       const visible = Boolean(state.currentChatId);
+      const selected = [...state.selectedMessageIds];
+      const editable = selected.length === 1 && state.currentMessages.find((m) => m.id === selected[0] && state.user && m.senderId === state.user.uid);
+      els.editSelectedBtn.classList.toggle('hidden', !visible || !editable);
       els.deleteSelectedBtn.classList.toggle('hidden', !visible || !state.selectedMessageIds.size);
       els.clearChatBtn.classList.toggle('hidden', !visible);
+    }
+
+
+    function isChatOnline(userData) {
+      return Boolean(userData && userData.online);
+    }
+
+    function peerStatusText(userData, fallback = '') {
+      if (!fallback && !userData) return '⚪ оффлайн';
+      if (userData && userData.online) return '🟢 онлайн';
+      if (userData && userData.lastSeen) {
+        const ts = userData.lastSeen?.toDate ? userData.lastSeen.toDate() : new Date(userData.lastSeen);
+        if (!Number.isNaN(ts.getTime())) return `⚪ был(а) ${fmtTime(ts)}`;
+      }
+      return fallback || '⚪ оффлайн';
+    }
+
+    async function setPresence(online) {
+      if (!state.user || state.useLocal) return;
+      try {
+        await setDoc(doc(db, 'users', state.user.uid), {
+          online,
+          lastSeen: serverTimestamp()
+        }, { merge: true });
+      } catch {}
+    }
+
+    function detachPeer() {
+      if (state.unsubPeer) {
+        state.unsubPeer();
+        state.unsubPeer = null;
+      }
+    }
+
+    function watchPeerStatus(peerUid, peerUsername) {
+      detachPeer();
+      if (state.useLocal) return;
+
+      if (peerUid) {
+        state.unsubPeer = onSnapshot(doc(db, 'users', peerUid), (snap) => {
+          const data = snap.exists() ? snap.data() : null;
+          state.currentChatPeer = { ...(state.currentChatPeer || {}), uid: peerUid };
+          const status = peerStatusText(data);
+          els.chatSubtitle.textContent = `UID: ${peerUid} • ${status}`;
+          updateChatListSelection();
+        }, () => {
+          els.chatSubtitle.textContent = `UID: ${peerUid} • ⚪ оффлайн`;
+        });
+        return;
+      }
+
+      if (peerUsername) {
+        els.chatSubtitle.textContent = `${peerUsername} • ожидает регистрации`;
+        state.unsubPeer = onSnapshot(doc(db, 'usernames', peerUsername), (snap) => {
+          if (snap.exists()) {
+            const uid = snap.data().uid;
+            state.currentChatPeer = { ...(state.currentChatPeer || {}), uid };
+            watchPeerStatus(uid, peerUsername);
+          }
+        });
+      }
     }
 
     function selectedCountText() {
       const n = state.selectedMessageIds.size;
       return n ? `Выбрано: ${n}` : '';
+    }
+
+
+    function summarizeMessageForPreview(message) {
+      if (!message) return '';
+      const value = String(message.text || '').trim();
+      if (!value) return '';
+      return (message.type === 'image' || isImageUrl(value) ? '[Картинка]' : value).slice(0, 140);
+    }
+
+    async function syncChatPreviewAfterMutation(remainingMessages, chatId = state.currentChatId) {
+      const last = remainingMessages && remainingMessages.length ? remainingMessages[remainingMessages.length - 1] : null;
+      const summary = summarizeMessageForPreview(last);
+      if (state.useLocal) {
+        const store = loadLocalStore();
+        if (store.chats[chatId]) {
+          store.chats[chatId].lastMessage = summary;
+          store.chats[chatId].updatedAt = last?.createdAt || localNow();
+          saveLocalStore(store);
+        }
+        return;
+      }
+      try {
+        await updateDoc(doc(db, 'chats', chatId), {
+          lastMessage: summary,
+          updatedAt: serverTimestamp()
+        });
+      } catch {}
     }
 
     function renderLocalCurrentChat() {
@@ -743,7 +865,7 @@
 
     function renderLocalChats() {
       if (!state.user) return;
-      renderChatList(localGetChatsFor(state.user.uid));
+      renderChatList(localGetChatsFor(state.user));
     }
 
     function setStatus(message, isError = false) {
@@ -864,29 +986,28 @@
 
       try {
         if (state.useLocal) throw new Error('local-mode');
-        const targetSnap = await getDoc(doc(db, 'usernames', targetUsername));
-        if (!targetSnap.exists()) {
-          setStatus('Пользователь с таким username не найден.', true);
-          return;
-        }
 
-        const targetUid = targetSnap.data().uid;
-        const targetUserSnap = await getDoc(doc(db, 'users', targetUid));
-        const targetProfile = targetUserSnap.exists() ? targetUserSnap.data() : { username: targetUsername };
-        const chatId = chatIdFor(state.user.uid, targetUid);
+        const chatId = chatIdFor(state.profile.username, targetUsername);
+        const targetSnap = await getDoc(doc(db, 'usernames', targetUsername));
+        const targetUid = targetSnap.exists() ? targetSnap.data().uid : null;
+        const targetUserSnap = targetUid ? await getDoc(doc(db, 'users', targetUid)) : null;
+        const targetProfile = targetUserSnap && targetUserSnap.exists() ? targetUserSnap.data() : { username: targetUsername };
 
         await setDoc(doc(db, 'chats', chatId), {
-          members: [state.user.uid, targetUid],
+          members: targetUid ? [state.user.uid, targetUid] : [state.user.uid],
+          memberUsernames: [state.profile.username, targetUsername],
           memberNames: {
             [state.user.uid]: state.profile.username,
-            [targetUid]: targetProfile.username || targetUsername
+            ...(targetUid ? { [targetUid]: targetProfile.username || targetUsername } : {})
           },
+          pendingPeerUsername: targetUid ? '' : targetUsername,
           updatedAt: serverTimestamp(),
           lastMessage: ''
         }, { merge: true });
 
-        attachChat(chatId, targetProfile.username || targetUsername, targetUid);
+        attachChat(chatId, targetProfile.username || targetUsername, targetUid || null, targetUsername);
         els.findUser.value = '';
+        setStatus(targetUid ? '' : 'Чат создан. Собеседник появится, когда зайдёт.');
       } catch (err) {
         if (!isPermissionError(err) && String(err?.message || '') !== 'local-mode') {
           setStatus(err.message || 'Не удалось открыть чат', true);
@@ -894,19 +1015,26 @@
         }
         state.useLocal = true;
         const targetUid = localFindUidByUsername(targetUsername);
-        if (!targetUid) {
-          setStatus('Пользователь с таким username не найден.', true);
-          return;
-        }
-        const chatId = localChatIdFor(state.user.uid, targetUid);
-        localUpsertChat(chatId, state.user.uid, targetUid, state.profile.username, targetUsername);
-        attachChat(chatId, targetUsername, targetUid);
+        const chatId = localChatIdFor(state.profile.username, targetUsername);
+        localUpsertChat(
+          chatId,
+          [state.user.uid].concat(targetUid ? [targetUid] : []),
+          [state.profile.username, targetUsername],
+          {
+            [state.user.uid]: state.profile.username,
+            ...(targetUid ? { [targetUid]: targetUsername } : {})
+          },
+          { pendingPeerUsername: targetUsername }
+        );
+        attachChat(chatId, targetUsername, targetUid || null, targetUsername);
         els.findUser.value = '';
         renderLocalChats();
+        setStatus(targetUid ? '' : 'Чат создан в локальном режиме. Собеседник появится, когда зайдёт.');
       }
     }
 
     function renderMessages(items) {
+      state.currentMessages = items.slice();
       state.selectedMessageIds = new Set([...state.selectedMessageIds].filter((id) => items.some((m) => m.id === id)));
       updateActionButtons();
       if (!items.length) {
@@ -959,8 +1087,9 @@
         const title = c.peerName || 'Чат';
         const preview = c.lastMessage || 'Без сообщений';
         const time = c.updatedAt ? fmtTime(c.updatedAt) : '';
+        const status = c.peerStatus ? ` • ${c.peerStatus}` : '';
         return `
-          <div class="chat-item ${active}" data-chatid="${c.id}" data-peername="${title}" data-peeruid="${c.peerUid || ''}">
+          <div class="chat-item ${active}" data-chatid="${c.id}" data-peername="${title}" data-peeruid="${c.peerUid || ''}" data-peerusername="${c.peerUsername || ''}">
             <button class="clear-chat-btn" type="button" title="Очистить чат">×</button>
             <div class="top"><div class="name">@${title}</div><div class="time">${time}</div></div>
             <div class="preview"></div>
@@ -970,18 +1099,18 @@
 
       chats.forEach((c, idx) => {
         const node = els.chatList.children[idx]?.querySelector('.preview');
-        if (node) node.textContent = c.lastMessage || 'Без сообщений';
+        if (node) node.textContent = `${c.lastMessage || 'Без сообщений'}${c.peerStatus ? ' • ' + c.peerStatus : ''}`;
       });
 
       [...els.chatList.querySelectorAll('.chat-item')].forEach((el) => {
         el.addEventListener('click', () => {
-          attachChat(el.dataset.chatid, el.dataset.peername, el.dataset.peeruid);
+          attachChat(el.dataset.chatid, el.dataset.peername, el.dataset.peeruid || null, el.dataset.peerusername || '');
         });
         const clearBtn = el.querySelector('.clear-chat-btn');
         if (clearBtn) {
           clearBtn.addEventListener('click', async (ev) => {
             ev.stopPropagation();
-            await clearChat(el.dataset.chatid, el.dataset.peername, el.dataset.peeruid);
+            await clearChat(el.dataset.chatid, el.dataset.peername, el.dataset.peeruid || null, el.dataset.peerusername || '');
           });
         }
       });
@@ -993,19 +1122,23 @@
         state.unsubMessages();
         state.unsubMessages = null;
       }
+      detachPeer();
     }
 
-    function attachChat(chatId, peerName, peerUid) {
+    function attachChat(chatId, peerName, peerUid, peerUsername = '') {
       detachChat();
       state.currentChatId = chatId;
-      state.currentChatPeer = { name: peerName, uid: peerUid };
+      state.currentChatPeer = { name: peerName, uid: peerUid, username: peerUsername };
       state.selectedMessageIds = new Set();
+      state.currentMessages = [];
       els.chatTitle.textContent = `@${peerName}`;
-      els.chatSubtitle.textContent = peerUid ? `UID: ${peerUid}` : '';
+      els.chatSubtitle.textContent = peerUid ? `UID: ${peerUid} • проверяю статус...` : `${peerUsername || peerName} • ожидает регистрации`;
       els.chatState.textContent = `Чат: ${chatId}`;
       els.composer.classList.remove('hidden');
       setStatus('');
       updateActionButtons();
+
+      watchPeerStatus(peerUid, peerUsername);
 
       if (state.useLocal) {
         renderLocalCurrentChat();
@@ -1052,12 +1185,12 @@
           senderId: state.user.uid,
           senderName: state.profile.username,
           text,
-          type: 'text',
+          type: isImageUrl(text) ? 'image' : 'text',
           createdAt: serverTimestamp()
         });
 
         await updateDoc(chatRef, {
-          lastMessage: text.slice(0, 140),
+          lastMessage: (isImageUrl(text) ? '[Картинка]' : text).slice(0, 140),
           updatedAt: serverTimestamp()
         });
 
@@ -1073,7 +1206,7 @@
           senderId: state.user.uid,
           senderName: state.profile.username,
           text,
-          type: 'text'
+          type: isImageUrl(text) ? 'image' : 'text'
         });
         els.messageText.value = '';
         setStatus('');
@@ -1082,49 +1215,64 @@
       }
     }
 
-    async function sendImageMessage() {
-      const url = prompt('Вставь ссылку на картинку (https://...)');
-      if (!url) return;
-      const clean = String(url).trim();
-      if (!/^https?:\/\//i.test(clean)) {
-        setStatus('Нужна ссылка, начинающаяся с http:// или https://', true);
+    async function editSelectedMessage() {
+      if (!state.currentChatId) return;
+      const ids = [...state.selectedMessageIds];
+      if (ids.length !== 1) {
+        setStatus('Выбери ровно одно своё сообщение для редактирования.', true);
         return;
       }
-      if (!state.user || !state.profile?.username || !state.currentChatId) {
-        setStatus('Сначала открой чат и займи username.', true);
+      const messageId = ids[0];
+      const msg = state.currentMessages.find((m) => m.id === messageId);
+      if (!msg || msg.senderId !== state.user?.uid) {
+        setStatus('Редактировать можно только своё сообщение.', true);
         return;
       }
-      const chatRef = doc(db, 'chats', state.currentChatId);
-      const msgRef = collection(db, 'chats', state.currentChatId, 'messages');
-      try {
-        if (state.useLocal) throw new Error('local-mode');
-        await addDoc(msgRef, {
-          senderId: state.user.uid,
-          senderName: state.profile.username,
-          text: clean,
-          type: 'image',
-          createdAt: serverTimestamp()
-        });
-        await updateDoc(chatRef, {
-          lastMessage: '[Картинка]',
-          updatedAt: serverTimestamp()
-        });
-      } catch (err) {
-        if (!isPermissionError(err) && String(err?.message || '') !== 'local-mode') {
-          setStatus(err.message || 'Не удалось отправить картинку', true);
+      const currentText = msg.text || '';
+      const nextText = prompt('Новое сообщение или ссылка на картинку', currentText);
+      if (nextText === null) return;
+      const clean = String(nextText).trim();
+      if (!clean) return;
+
+      if (state.useLocal) {
+        const ok = localEditMessage(state.currentChatId, messageId, clean);
+        if (!ok) {
+          setStatus('Не удалось отредактировать сообщение.', true);
           return;
         }
-        state.useLocal = true;
-        localAddMessage(state.currentChatId, {
-          senderId: state.user.uid,
-          senderName: state.profile.username,
-          text: clean,
-          type: 'image'
-        });
+        renderLocalChats();
+        renderLocalCurrentChat();
+        state.selectedMessageIds.clear();
+        updateActionButtons();
+        return;
       }
-      setStatus('');
-      renderLocalChats();
-      renderLocalCurrentChat();
+
+      try {
+        await updateDoc(doc(db, 'chats', state.currentChatId, 'messages', messageId), {
+          text: clean,
+          type: isImageUrl(clean) ? 'image' : 'text',
+          updatedAt: serverTimestamp()
+        });
+        await updateDoc(doc(db, 'chats', state.currentChatId), {
+          lastMessage: (isImageUrl(clean) ? '[Картинка]' : clean).slice(0, 140),
+          updatedAt: serverTimestamp()
+        });
+        state.selectedMessageIds.clear();
+        updateActionButtons();
+      } catch (err) {
+        if (isPermissionError(err)) {
+          state.useLocal = true;
+          const ok = localEditMessage(state.currentChatId, messageId, clean);
+          if (ok) {
+            renderLocalChats();
+            renderLocalCurrentChat();
+            state.selectedMessageIds.clear();
+            updateActionButtons();
+          }
+        } else {
+          setStatus(err.message || 'Не удалось отредактировать сообщение', true);
+        }
+      }
     }
 
     async function deleteMessageById(messageId) {
@@ -1153,15 +1301,18 @@
     async function deleteSelectedMessages() {
       if (!state.currentChatId || !state.selectedMessageIds.size) return;
       const ids = [...state.selectedMessageIds];
+      const remaining = state.currentMessages.filter((m) => !ids.includes(m.id));
       state.selectedMessageIds.clear();
       if (state.useLocal) {
         localDeleteMessages(state.currentChatId, ids);
         renderLocalChats();
         renderLocalCurrentChat();
+        updateActionButtons();
         return;
       }
       try {
         await Promise.all(ids.map((id) => deleteDoc(doc(db, 'chats', state.currentChatId, 'messages', id))));
+        await syncChatPreviewAfterMutation(remaining);
       } catch (err) {
         if (isPermissionError(err)) {
           state.useLocal = true;
@@ -1184,6 +1335,7 @@
         localClearChat(chatId);
         if (state.currentChatId === chatId) renderLocalCurrentChat();
         renderLocalChats();
+        updateActionButtons();
         return;
       }
       try {
@@ -1216,32 +1368,50 @@
         return;
       }
 
-      const q = query(
-        collection(db, 'chats'),
-        where('members', 'array-contains', state.user.uid)
-      );
-
       try {
-        state.unsubChats = onSnapshot(q, async (snap) => {
+        state.unsubChats = onSnapshot(collection(db, 'chats'), async (snap) => {
           const chats = await Promise.all(snap.docs.map(async (d) => {
-            const data = d.data();
-            const peerUid = (data.members || []).find((x) => x !== state.user.uid);
-            let peerName = peerUid;
-            if (data.memberNames && peerUid && data.memberNames[peerUid]) {
-              peerName = data.memberNames[peerUid];
-            } else if (peerUid) {
-              const userSnap = await getDoc(doc(db, 'users', peerUid));
-              if (userSnap.exists() && userSnap.data().username) peerName = userSnap.data().username;
+            const data = d.data() || {};
+            const memberUsernames = data.memberUsernames || [];
+            const members = data.members || [];
+            const currentUsername = state.profile?.username || '';
+            const visible = members.includes(state.user.uid) || memberUsernames.includes(currentUsername);
+            if (!visible) return null;
+
+            let peerUid = members.find((x) => x !== state.user.uid && !(String(x).startsWith('pending:'))) || null;
+            const peerUsername = memberUsernames.find((x) => x !== currentUsername) || data.pendingPeerUsername || '';
+
+            if (!peerUid && peerUsername) {
+              const usernameSnap = await getDoc(doc(db, 'usernames', peerUsername));
+              if (usernameSnap.exists()) peerUid = usernameSnap.data().uid || null;
             }
+
+            let peerName = data.memberNames?.[peerUid] || peerUsername || peerUid || 'Чат';
+            let peerStatus = '⚪ оффлайн';
+
+            if (peerUid) {
+              const userSnap = await getDoc(doc(db, 'users', peerUid));
+              if (userSnap.exists()) {
+                const userData = userSnap.data() || {};
+                if (userData.username && !data.memberNames?.[peerUid]) peerName = userData.username;
+                peerStatus = peerStatusText(userData);
+              }
+            } else if (peerUsername) {
+              peerStatus = '🟡 ожидает регистрации';
+            }
+
             return {
               id: d.id,
               peerUid,
+              peerUsername,
               peerName,
               lastMessage: data.lastMessage || '',
-              updatedAt: data.updatedAt || null
+              updatedAt: data.updatedAt || null,
+              peerStatus
             };
           }));
-          renderChatList(chats);
+
+          renderChatList(chats.filter(Boolean).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))));
           updateChatListSelection();
         }, (err) => {
           if (isPermissionError(err)) {
@@ -1288,6 +1458,7 @@
           els.username.value = data.username;
         }
       }
+      await setPresence(true);
       await refreshChats();
     }
 
@@ -1322,6 +1493,7 @@
     }
 
     async function doLogout() {
+      await setPresence(false);
       await signOut(auth);
     }
 
@@ -1329,6 +1501,7 @@
     els.openChatBtn.addEventListener('click', openChatByUsername);
     els.sendBtn.addEventListener('click', sendMessage);
     els.imageBtn.addEventListener('click', sendImageMessage);
+    els.editSelectedBtn.addEventListener('click', editSelectedMessage);
     els.deleteSelectedBtn.addEventListener('click', deleteSelectedMessages);
     els.clearChatBtn.addEventListener('click', () => clearChat());
     els.signUpBtn.addEventListener('click', signUp);
@@ -1336,6 +1509,18 @@
     els.googleBtn.addEventListener('click', signInGoogle);
     els.logoutBtn.addEventListener('click', doLogout);
     els.refreshBtn.addEventListener('click', refreshChats);
+    window.addEventListener('beforeunload', () => {
+      if (state.user && !state.useLocal) {
+        try {
+          setDoc(doc(db, 'users', state.user.uid), { online: false, lastSeen: serverTimestamp() }, { merge: true });
+        } catch {}
+      }
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (state.user && !state.useLocal && document.visibilityState === 'visible') {
+        setPresence(true);
+      }
+    });
     els.messageText.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -1353,6 +1538,7 @@
       state.profile = null;
       state.currentChatId = null;
       state.currentChatPeer = null;
+      state.currentMessages = [];
       state.selectedMessageIds = new Set();
       els.chatTitle.textContent = 'Чат не выбран';
       els.chatSubtitle.textContent = 'Выбери собеседника по username';
