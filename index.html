@@ -6,14 +6,14 @@
   <title>Nova Prospect Chat</title>
   <style>
     :root {
-      --bg: #f4f4f4;
+      --bg: #f3e8ff;
       --panel: #ffffff;
-      --text: #111111;
-      --muted: #666666;
-      --line: #d9d9d9;
-      --accent: #2f6fed;
-      --accent2: #2458bd;
-      --danger: #b42318;
+      --text: #1e2937;
+      --muted: #64748b;
+      --line: #e0d9f0;
+      --accent: #7c3aed;
+      --accent2: #6d28d9;
+      --danger: #ef4444;
     }
 
     * { box-sizing: border-box; }
@@ -160,7 +160,7 @@
 
     .chat-item.active {
       border-color: var(--accent);
-      background: #f7faff;
+      background: #f3e8ff;
     }
 
     .chat-item .top {
@@ -217,16 +217,21 @@
     .msg {
       max-width: min(680px, 100%);
       border: 1px solid var(--line);
-      border-radius: 14px;
+      border-radius: 18px;
       padding: 10px 12px;
       background: #fff;
       position: relative;
     }
 
+    .msg:not(.me) {
+      border-bottom-left-radius: 4px;
+    }
+
     .msg.me {
       margin-left: auto;
-      background: #f4f8ff;
-      border-color: #c8d8ff;
+      background: #ede9fe;
+      border-color: #c4b5fd;
+      border-bottom-right-radius: 4px;
     }
 
     .msg .meta {
@@ -280,9 +285,9 @@
       font-size: 13px;
       padding: 10px 12px;
       border-radius: 10px;
-      background: #f1f5ff;
-      border: 1px solid #d6e0ff;
-      color: #234;
+      background: #f3e8ff;
+      border: 1px solid #c4b5fd;
+      color: #4338ca;
       margin-bottom: 12px;
     }
 
@@ -320,6 +325,39 @@
     @media (max-width: 900px) {
       main { grid-template-columns: 1fr; }
       aside { border-right: 0; border-bottom: 1px solid var(--line); }
+      
+      /* Telegram-подобный мобильный дизайн: больше пространства, крупные элементы для тача, чистый чат */
+      header {
+        padding: 10px 16px;
+      }
+      header h1 {
+        font-size: 17px;
+      }
+      .chat-top {
+        padding: 12px 16px;
+      }
+      .messages {
+        padding: 12px 16px;
+        gap: 8px;
+      }
+      .composer {
+        padding: 10px 12px;
+      }
+      .msg {
+        padding: 11px 14px;
+        font-size: 15px;
+      }
+      .btn, button {
+        padding: 12px 14px;
+        min-height: 44px;
+      }
+      .chat-item {
+        padding: 14px;
+      }
+      .card {
+        padding: 16px;
+        margin-bottom: 10px;
+      }
     }
   </style>
 </head>
