@@ -261,6 +261,76 @@
       flex: 1;
     }
 
+    .chat-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .chat-actions .btn {
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
+    .icon-btn {
+      width: 42px;
+      padding: 10px 0;
+      font-size: 16px;
+      flex: 0 0 auto;
+    }
+
+    .image-row {
+      margin-top: 0;
+    }
+
+    .image-row input {
+      width: 100%;
+    }
+
+    .msg {
+      position: relative;
+    }
+
+    .msg.selected {
+      outline: 2px solid var(--accent);
+    }
+
+    .msg-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .msg-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      font-size: 12px;
+      padding: 4px 8px;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .msg-image {
+      display: block;
+      max-width: 100%;
+      border-radius: 12px;
+      margin-top: 8px;
+      border: 1px solid var(--line);
+    }
+
+    .msg.deleted .text {
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    .msg.deleted .msg-image {
+      opacity: 0.35;
+      filter: grayscale(1);
+    }
+
     .primary {
       background: var(--accent);
       color: #fff;
@@ -364,7 +434,12 @@
             <h2 id="chatTitle">Чат не выбран</h2>
             <div class="muted" id="chatSubtitle">Выбери собеседника по username</div>
           </div>
-          <div class="muted" id="chatState"></div>
+          <div class="chat-actions">
+            <button class="btn" id="deselectBtn" type="button">Снять выбор</button>
+            <button class="btn" id="forwardSelectedBtn" type="button">Переслать</button>
+            <button class="btn" id="deleteSelectedBtn" type="button">Удалить выбранные</button>
+            <button class="btn danger" id="clearChatBtn" type="button">Очистить чат</button>
+          </div>
         </div>
 
         <div id="messages" class="messages">
@@ -374,8 +449,13 @@
         <div class="composer hidden" id="composer">
           <div class="status hidden" id="composerStatus"></div>
           <div class="send-row">
+            <button class="btn icon-btn" id="toggleImageBtn" type="button" title="Отправить картинку">🖼</button>
             <textarea id="messageText" placeholder="Напиши сообщение..."></textarea>
             <button class="btn primary" id="sendBtn">Отправить</button>
+          </div>
+          <div class="image-row hidden" id="imageRow">
+            <label for="imageUrl">Ссылка на картинку</label>
+            <input id="imageUrl" type="url" placeholder="https://..." />
           </div>
         </div>
       </section>
@@ -408,18 +488,20 @@
       onSnapshot,
       serverTimestamp,
       runTransaction,
-      updateDoc
+      updateDoc,
+      deleteDoc
     } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
     const firebaseConfig = {
-  apiKey: "AIzaSyATSubLFyQuItEzMfW50X_05yPcJKCfXZM",
-  authDomain: "nova-prospect-chat-2-1cb83.firebaseapp.com",
-  projectId: "nova-prospect-chat-2-1cb83",
-  storageBucket: "nova-prospect-chat-2-1cb83.firebasestorage.app",
-  messagingSenderId: "460219250813",
-  appId: "1:460219250813:web:9043a9ae9b76d077b19914"
-};
-    
+      apiKey: "AIzaSyC54igVqsMXIRriBZwiq1w6knBTnkfKIe4",
+      authDomain: "nova-prospect-chat.firebaseapp.com",
+      projectId: "nova-prospect-chat",
+      storageBucket: "nova-prospect-chat.firebasestorage.app",
+      messagingSenderId: "256806164650",
+      appId: "1:256806164650:web:dd8faf7b8f11b68001d8d3",
+      measurementId: "G-9V0Q2E2FNB"
+    };
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -431,8 +513,13 @@
       profile: null,
       currentChatId: null,
       currentChatPeer: null,
+      chatMeta: null,
+      messagesCache: [],
+      selectedMessageIds: new Set(),
       unsubMessages: null,
-      unsubChats: null
+      unsubChats: null,
+      unsubChatDoc: null,
+      imageMode: false
     };
 
     const els = {
@@ -461,7 +548,14 @@
       composerStatus: $('composerStatus'),
       messageText: $('messageText'),
       sendBtn: $('sendBtn'),
-      chatList: $('chatList')
+      chatList: $('chatList'),
+      imageRow: $('imageRow'),
+      imageUrl: $('imageUrl'),
+      toggleImageBtn: $('toggleImageBtn'),
+      clearChatBtn: $('clearChatBtn'),
+      deleteSelectedBtn: $('deleteSelectedBtn'),
+      forwardSelectedBtn: $('forwardSelectedBtn'),
+      deselectBtn: $('deselectBtn')
     };
 
     function normUsername(value) {
@@ -476,11 +570,19 @@
       return [a, b].sort().join('__');
     }
 
+    function tsToMillis(ts, fallback = 0) {
+      if (!ts) return fallback;
+      if (typeof ts.toMillis === 'function') return ts.toMillis();
+      if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+      const d = new Date(ts);
+      return Number.isNaN(d.getTime()) ? fallback : d.getTime();
+    }
+
     function fmtTime(ts) {
       if (!ts) return '';
       const d = ts.toDate ? ts.toDate() : new Date(ts);
       return new Intl.DateTimeFormat('ru-RU', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+        hour: '2-digit', minute: '2-digit'
       }).format(d);
     }
 
@@ -488,6 +590,41 @@
       els.composerStatus.textContent = message;
       els.composerStatus.classList.toggle('hidden', !message);
       els.composerStatus.classList.toggle('error', isError);
+    }
+
+    function toggleImageMode(force) {
+      state.imageMode = typeof force === 'boolean' ? force : !state.imageMode;
+      els.imageRow.classList.toggle('hidden', !state.imageMode);
+      els.toggleImageBtn.classList.toggle('primary', state.imageMode);
+      if (state.imageMode) {
+        els.imageUrl.focus();
+      } else {
+        els.imageUrl.value = '';
+      }
+    }
+
+    function clearSelection() {
+      state.selectedMessageIds.clear();
+      refreshHeaderState();
+      if (state.messagesCache.length) renderMessages(state.messagesCache);
+    }
+
+    function refreshHeaderState() {
+      if (!state.currentChatId) {
+        els.chatState.textContent = '';
+        els.deleteSelectedBtn.disabled = true;
+        els.forwardSelectedBtn.disabled = true;
+        els.deselectBtn.disabled = true;
+        els.clearChatBtn.disabled = true;
+        return;
+      }
+      const count = state.selectedMessageIds.size;
+      els.chatState.textContent = count ? `${count} выбрано` : `Чат: ${state.currentChatId}`;
+      const disabled = count === 0;
+      els.deleteSelectedBtn.disabled = disabled;
+      els.forwardSelectedBtn.disabled = disabled;
+      els.deselectBtn.disabled = disabled;
+      els.clearChatBtn.disabled = false;
     }
 
     function showOnlyAuth() {
@@ -501,6 +638,10 @@
       els.chatSubtitle.textContent = 'Сначала войди в аккаунт';
       els.chatState.textContent = '';
       els.messages.innerHTML = '<div class="status">Сначала войди в аккаунт, потом задай username.</div>';
+      els.deleteSelectedBtn.disabled = true;
+      els.forwardSelectedBtn.disabled = true;
+      els.deselectBtn.disabled = true;
+      els.clearChatBtn.disabled = true;
     }
 
     async function ensureUserDoc(user) {
@@ -527,6 +668,7 @@
       els.headerMe.textContent = profile?.username ? `@${profile.username}` : (user.email || user.displayName || user.uid);
       els.profileInfo.textContent = `UID: ${user.uid}`;
       els.composer.classList.toggle('hidden', !state.currentChatId);
+      refreshHeaderState();
     }
 
     async function claimUsername() {
@@ -613,29 +755,98 @@
       els.findUser.value = '';
     }
 
-    function renderMessages(items) {
-      if (!items.length) {
-        els.messages.innerHTML = '<div class="status">Тут пока пусто. Напиши первое сообщение.</div>';
-        return;
-      }
-      els.messages.innerHTML = items.map((m) => {
-        const mine = state.user && m.senderId === state.user.uid;
-        const sender = m.senderName || (mine ? 'Вы' : 'Пользователь');
-        const time = fmtTime(m.createdAt);
-        return `
-          <div class="msg ${mine ? 'me' : ''}">
-            <div class="meta"><span>${sender}</span><span>${time}</span></div>
-            <div class="text"></div>
-          </div>
-        `;
-      }).join('');
+    function makeMessageNode(m) {
+      const mine = state.user && m.senderId === state.user.uid;
+      const selected = state.selectedMessageIds.has(m.id);
+      const deleted = !!m.deleted;
+      const card = document.createElement('article');
+      card.className = `msg ${mine ? 'me' : ''} ${selected ? 'selected' : ''} ${deleted ? 'deleted' : ''}`;
+      card.dataset.messageid = m.id;
 
-      items.forEach((m, i) => {
-        const node = els.messages.children[i]?.querySelector('.text');
-        if (node) node.textContent = m.text || '';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+
+      const sender = document.createElement('span');
+      sender.textContent = deleted ? 'Сообщение' : (m.senderName || (mine ? 'Вы' : 'Пользователь'));
+
+      const actions = document.createElement('div');
+      actions.className = 'msg-actions';
+
+      const time = document.createElement('span');
+      time.textContent = fmtTime(m.createdAt);
+
+      const selectBtn = document.createElement('button');
+      selectBtn.className = 'msg-btn';
+      selectBtn.type = 'button';
+      selectBtn.textContent = selected ? '☑' : '☐';
+      selectBtn.title = 'Выбрать сообщение';
+      selectBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMessageSelection(m.id);
       });
 
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'msg-btn';
+      deleteBtn.type = 'button';
+      deleteBtn.textContent = 'Удалить';
+      deleteBtn.title = 'Удалить сообщение';
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await deleteSingleMessage(m.id);
+      });
+
+      actions.appendChild(time);
+      actions.appendChild(selectBtn);
+      actions.appendChild(deleteBtn);
+      meta.appendChild(sender);
+      meta.appendChild(actions);
+
+      const body = document.createElement('div');
+      body.className = 'text';
+      body.textContent = deleted ? 'Сообщение удалено' : (m.text || (m.imageUrl ? '' : ''));
+
+      card.appendChild(meta);
+      if (m.imageUrl && !deleted) {
+        const img = document.createElement('img');
+        img.className = 'msg-image';
+        img.alt = 'Картинка';
+        img.src = m.imageUrl;
+        img.loading = 'lazy';
+        card.appendChild(img);
+      }
+      card.appendChild(body);
+
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        toggleMessageSelection(m.id);
+      });
+
+      return card;
+    }
+
+    function renderMessages(items) {
+      state.messagesCache = items || [];
+      const clearedAt = tsToMillis(state.chatMeta?.clearedAt, 0);
+      const visible = state.messagesCache.filter((m) => {
+        const created = tsToMillis(m.createdAt, Date.now());
+        return !clearedAt || created > clearedAt;
+      });
+
+      els.messages.innerHTML = '';
+      if (!visible.length) {
+        const empty = document.createElement('div');
+        empty.className = 'status';
+        empty.textContent = 'Тут пока пусто. Напиши первое сообщение.';
+        els.messages.appendChild(empty);
+        refreshHeaderState();
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      visible.forEach((m) => frag.appendChild(makeMessageNode(m)));
+      els.messages.appendChild(frag);
       els.messages.scrollTop = els.messages.scrollHeight;
+      refreshHeaderState();
     }
 
     function renderChatList(chats) {
@@ -673,17 +884,35 @@
         state.unsubMessages();
         state.unsubMessages = null;
       }
+      if (state.unsubChatDoc) {
+        state.unsubChatDoc();
+        state.unsubChatDoc = null;
+      }
+    }
+
+    function setCurrentChat(chatId, peerName, peerUid) {
+      state.currentChatId = chatId;
+      state.currentChatPeer = { name: peerName, uid: peerUid };
+      state.selectedMessageIds.clear();
+      state.messagesCache = [];
+      els.chatTitle.textContent = `@${peerName}`;
+      els.chatSubtitle.textContent = peerUid ? `UID: ${peerUid}` : '';
+      els.composer.classList.remove('hidden');
+      els.messages.innerHTML = '<div class="status">Загрузка...</div>';
+      refreshHeaderState();
     }
 
     function attachChat(chatId, peerName, peerUid) {
       detachChat();
-      state.currentChatId = chatId;
-      state.currentChatPeer = { name: peerName, uid: peerUid };
-      els.chatTitle.textContent = `@${peerName}`;
-      els.chatSubtitle.textContent = peerUid ? `UID: ${peerUid}` : '';
-      els.chatState.textContent = `Чат: ${chatId}`;
-      els.composer.classList.remove('hidden');
-      setStatus('');
+      setCurrentChat(chatId, peerName, peerUid);
+
+      state.unsubChatDoc = onSnapshot(doc(db, 'chats', chatId), (snap) => {
+        state.chatMeta = snap.exists() ? snap.data() : null;
+        refreshHeaderState();
+        renderMessages(state.messagesCache);
+      }, (err) => {
+        els.messages.innerHTML = `<div class="status error">${err.message}</div>`;
+      });
 
       const q = query(
         collection(db, 'chats', chatId, 'messages'),
@@ -707,9 +936,138 @@
       });
     }
 
+    function toggleMessageSelection(messageId) {
+      if (!messageId) return;
+      if (state.selectedMessageIds.has(messageId)) {
+        state.selectedMessageIds.delete(messageId);
+      } else {
+        state.selectedMessageIds.add(messageId);
+      }
+      renderMessages(state.messagesCache);
+    }
+
+    async function deleteSingleMessage(messageId) {
+      if (!state.currentChatId) return;
+      const ok = confirm('Удалить это сообщение?');
+      if (!ok) return;
+      try {
+        await deleteDoc(doc(db, 'chats', state.currentChatId, 'messages', messageId));
+        state.selectedMessageIds.delete(messageId);
+        setStatus('Сообщение удалено.');
+      } catch (err) {
+        setStatus(err.message || 'Не удалось удалить сообщение', true);
+      }
+    }
+
+    async function deleteSelectedMessages() {
+      if (!state.currentChatId || !state.selectedMessageIds.size) return;
+      const ok = confirm(`Удалить выбранные сообщения: ${state.selectedMessageIds.size}?`);
+      if (!ok) return;
+      const ids = [...state.selectedMessageIds];
+      try {
+        for (const id of ids) {
+          await deleteDoc(doc(db, 'chats', state.currentChatId, 'messages', id));
+        }
+        state.selectedMessageIds.clear();
+        setStatus('Выбранные сообщения удалены.');
+      } catch (err) {
+        setStatus(err.message || 'Не удалось удалить выбранные сообщения', true);
+      }
+    }
+
+    async function clearChat() {
+      if (!state.currentChatId || !state.user) return;
+      const ok = confirm('Очистить весь чат? Сообщения пропадут у тебя сразу.');
+      if (!ok) return;
+      try {
+        await updateDoc(doc(db, 'chats', state.currentChatId), {
+          clearedAt: serverTimestamp(),
+          clearedBy: state.user.uid,
+          updatedAt: serverTimestamp(),
+          lastMessage: ''
+        });
+        state.selectedMessageIds.clear();
+        setStatus('Чат очищен.');
+      } catch (err) {
+        setStatus(err.message || 'Не удалось очистить чат', true);
+      }
+    }
+
+    async function forwardSelectedMessages() {
+      if (!state.currentChatId || !state.selectedMessageIds.size) return;
+      const targetUsername = normUsername(prompt('Кому переслать? Введи username:', '') || '');
+      if (!targetUsername) return;
+      if (!state.user || !state.profile?.username) {
+        setStatus('Сначала займи username.', true);
+        return;
+      }
+      try {
+        const targetUserSnap = await getDoc(doc(db, 'usernames', targetUsername));
+        if (!targetUserSnap.exists()) {
+          setStatus('Такой username не найден.', true);
+          return;
+        }
+        const targetUid = targetUserSnap.data().uid;
+        if (targetUid === state.user.uid) {
+          setStatus('Пересылать самому себе можно, но это странно.', true);
+          return;
+        }
+        const targetProfileSnap = await getDoc(doc(db, 'users', targetUid));
+        const targetProfile = targetProfileSnap.exists() ? targetProfileSnap.data() : { username: targetUsername };
+        const targetChatId = chatIdFor(state.user.uid, targetUid);
+
+        await setDoc(doc(db, 'chats', targetChatId), {
+          members: [state.user.uid, targetUid],
+          memberNames: {
+            [state.user.uid]: state.profile.username,
+            [targetUid]: targetProfile.username || targetUsername
+          },
+          updatedAt: serverTimestamp(),
+          lastMessage: ''
+        }, { merge: true });
+
+        const selected = state.messagesCache
+          .filter((m) => state.selectedMessageIds.has(m.id))
+          .sort((a, b) => tsToMillis(a.createdAt, 0) - tsToMillis(b.createdAt, 0));
+
+        let lastPreview = '';
+        for (const m of selected) {
+          if (tsToMillis(m.createdAt, Date.now()) <= tsToMillis(state.chatMeta?.clearedAt, 0)) continue;
+          const payload = {
+            senderId: state.user.uid,
+            senderName: state.profile.username,
+            text: m.deleted ? 'Сообщение удалено' : (m.text || ''),
+            imageUrl: m.deleted ? '' : (m.imageUrl || ''),
+            forwardedFrom: m.senderName || m.senderId || '',
+            createdAt: serverTimestamp()
+          };
+          await addDoc(collection(db, 'chats', targetChatId, 'messages'), payload);
+          lastPreview = payload.imageUrl ? '🖼 Картинка' : (payload.text || lastPreview);
+        }
+
+        await updateDoc(doc(db, 'chats', targetChatId), {
+          updatedAt: serverTimestamp(),
+          lastMessage: (lastPreview || 'Сообщения пересланы').slice(0, 140)
+        });
+
+        state.selectedMessageIds.clear();
+        setStatus('Сообщения пересланы.');
+      } catch (err) {
+        setStatus(err.message || 'Не удалось переслать сообщения', true);
+      }
+    }
+
+    function sanitizeImageUrl(value) {
+      const v = String(value || '').trim();
+      if (!v) return '';
+      if (!/^https?:\/\//i.test(v)) return '';
+      return v;
+    }
+
     async function sendMessage() {
       const text = els.messageText.value.trim();
-      if (!text) return;
+      const imageUrl = state.imageMode ? sanitizeImageUrl(els.imageUrl.value) : '';
+      if (!text && !imageUrl) return;
       if (!state.user || !state.profile?.username || !state.currentChatId) {
         setStatus('Сначала открой чат и займи username.', true);
         return;
@@ -723,15 +1081,18 @@
           senderId: state.user.uid,
           senderName: state.profile.username,
           text,
+          imageUrl,
           createdAt: serverTimestamp()
         });
 
         await updateDoc(chatRef, {
-          lastMessage: text.slice(0, 140),
+          lastMessage: imageUrl && !text ? '🖼 Картинка' : (text || '🖼 Картинка').slice(0, 140),
           updatedAt: serverTimestamp()
         });
 
         els.messageText.value = '';
+        els.imageUrl.value = '';
+        if (state.imageMode) toggleImageMode(false);
         setStatus('');
       } catch (err) {
         setStatus(err.message || 'Не удалось отправить сообщение', true);
@@ -831,6 +1192,11 @@
     els.googleBtn.addEventListener('click', signInGoogle);
     els.logoutBtn.addEventListener('click', doLogout);
     els.refreshBtn.addEventListener('click', refreshChats);
+    els.toggleImageBtn.addEventListener('click', () => toggleImageMode());
+    els.clearChatBtn.addEventListener('click', clearChat);
+    els.deleteSelectedBtn.addEventListener('click', deleteSelectedMessages);
+    els.forwardSelectedBtn.addEventListener('click', forwardSelectedMessages);
+    els.deselectBtn.addEventListener('click', clearSelection);
     els.messageText.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -848,11 +1214,16 @@
       state.profile = null;
       state.currentChatId = null;
       state.currentChatPeer = null;
+      state.chatMeta = null;
+      state.messagesCache = [];
+      state.selectedMessageIds.clear();
       els.chatTitle.textContent = 'Чат не выбран';
       els.chatSubtitle.textContent = 'Выбери собеседника по username';
       els.chatState.textContent = '';
       els.messages.innerHTML = '<div class="status">Сначала войди в аккаунт, потом задай username.</div>';
       els.composer.classList.add('hidden');
+      toggleImageMode(false);
+      refreshHeaderState();
 
       if (!user) {
         showOnlyAuth();
