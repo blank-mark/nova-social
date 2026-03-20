@@ -220,12 +220,18 @@
       border-radius: 14px;
       padding: 10px 12px;
       background: #fff;
+      position: relative;
     }
 
     .msg.me {
       margin-left: auto;
       background: #f4f8ff;
       border-color: #c8d8ff;
+    }
+
+    .msg.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(47, 111, 237, 0.12);
     }
 
     .msg .meta {
@@ -235,6 +241,23 @@
       margin-bottom: 6px;
       font-size: 12px;
       color: var(--muted);
+      align-items: center;
+    }
+
+    .msg .meta-left {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .msg .select-msg {
+      margin: 0;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      accent-color: var(--accent);
+      cursor: pointer;
     }
 
     .msg .text {
@@ -242,6 +265,13 @@
       word-break: break-word;
       font-size: 14px;
       line-height: 1.35;
+    }
+
+    .msg img {
+      display: block;
+      max-width: 100%;
+      border-radius: 10px;
+      margin-top: 8px;
     }
 
     .composer {
@@ -364,6 +394,10 @@
             <h2 id="chatTitle">Чат не выбран</h2>
             <div class="muted" id="chatSubtitle">Выбери собеседника по username</div>
           </div>
+          <div class="row" id="chatActions" style="gap:8px; flex:0 0 auto;">
+            <button class="btn" id="deleteSelectedBtn" title="Удалить выбранные сообщения">Удалить выбранные</button>
+            <button class="btn danger" id="clearChatBtn" title="Очистить чат полностью">Очистить чат</button>
+          </div>
           <div class="muted" id="chatState"></div>
         </div>
 
@@ -375,7 +409,13 @@
           <div class="status hidden" id="composerStatus"></div>
           <div class="send-row">
             <textarea id="messageText" placeholder="Напиши сообщение..."></textarea>
+            <button class="btn" id="imageBtn" title="Отправить картинку по ссылке">🖼</button>
             <button class="btn primary" id="sendBtn">Отправить</button>
+          </div>
+          <div class="hidden" id="imageUrlRow">
+            <label for="imageUrl">Ссылка на картинку</label>
+            <input id="imageUrl" type="url" placeholder="https://example.com/image.jpg" />
+            <div class="muted" style="margin-top:6px;">Можно вставить обычную ссылку на изображение.</div>
           </div>
         </div>
       </section>
@@ -398,6 +438,7 @@
       getFirestore,
       doc,
       getDoc,
+      getDocs,
       setDoc,
       addDoc,
       collection,
@@ -408,7 +449,8 @@
       onSnapshot,
       serverTimestamp,
       runTransaction,
-      updateDoc
+      updateDoc,
+      deleteDoc
     } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -432,6 +474,7 @@
       profile: null,
       currentChatId: null,
       currentChatPeer: null,
+      selectedMessageIds: new Set(),
       unsubMessages: null,
       unsubChats: null
     };
@@ -456,11 +499,17 @@
       openChatBtn: $('openChatBtn'),
       chatTitle: $('chatTitle'),
       chatSubtitle: $('chatSubtitle'),
+      chatActions: $('chatActions'),
+      deleteSelectedBtn: $('deleteSelectedBtn'),
+      clearChatBtn: $('clearChatBtn'),
       chatState: $('chatState'),
       messages: $('messages'),
       composer: $('composer'),
       composerStatus: $('composerStatus'),
       messageText: $('messageText'),
+      imageBtn: $('imageBtn'),
+      imageUrlRow: $('imageUrlRow'),
+      imageUrl: $('imageUrl'),
       sendBtn: $('sendBtn'),
       chatList: $('chatList')
     };
@@ -481,7 +530,7 @@
       if (!ts) return '';
       const d = ts.toDate ? ts.toDate() : new Date(ts);
       return new Intl.DateTimeFormat('ru-RU', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+        hour: '2-digit', minute: '2-digit'
       }).format(d);
     }
 
@@ -497,7 +546,11 @@
       els.newChatCard.classList.add('hidden');
       els.chatListCard.classList.add('hidden');
       els.logoutBtn.classList.add('hidden');
+      els.chatActions.classList.add('hidden');
       els.composer.classList.add('hidden');
+      els.imageUrlRow.classList.add('hidden');
+      els.imageUrl.value = '';
+      state.selectedMessageIds = new Set();
       els.chatTitle.textContent = 'Чат не выбран';
       els.chatSubtitle.textContent = 'Сначала войди в аккаунт';
       els.chatState.textContent = '';
@@ -525,6 +578,7 @@
       els.newChatCard.classList.remove('hidden');
       els.chatListCard.classList.remove('hidden');
       els.logoutBtn.classList.remove('hidden');
+      els.chatActions.classList.toggle('hidden', !state.currentChatId);
       els.headerMe.textContent = profile?.username ? `@${profile.username}` : (user.email || user.displayName || user.uid);
       els.profileInfo.textContent = `UID: ${user.uid}`;
       els.composer.classList.toggle('hidden', !state.currentChatId);
@@ -615,27 +669,74 @@
     }
 
     function renderMessages(items) {
+      els.messages.innerHTML = '';
       if (!items.length) {
         els.messages.innerHTML = '<div class="status">Тут пока пусто. Напиши первое сообщение.</div>';
         return;
       }
-      els.messages.innerHTML = items.map((m) => {
+
+      const fragment = document.createDocumentFragment();
+
+      items.forEach((m) => {
         const mine = state.user && m.senderId === state.user.uid;
         const sender = m.senderName || (mine ? 'Вы' : 'Пользователь');
         const time = fmtTime(m.createdAt);
-        return `
-          <div class="msg ${mine ? 'me' : ''}">
-            <div class="meta"><span>${sender}</span><span>${time}</span></div>
-            <div class="text"></div>
-          </div>
-        `;
-      }).join('');
 
-      items.forEach((m, i) => {
-        const node = els.messages.children[i]?.querySelector('.text');
-        if (node) node.textContent = m.text || '';
+        const msg = document.createElement('div');
+        msg.className = `msg${mine ? ' me' : ''}${state.selectedMessageIds.has(m.id) ? ' selected' : ''}`;
+        msg.dataset.msgid = m.id;
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+
+        const left = document.createElement('div');
+        left.className = 'meta-left';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'select-msg';
+        checkbox.checked = state.selectedMessageIds.has(m.id);
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            state.selectedMessageIds.add(m.id);
+            msg.classList.add('selected');
+          } else {
+            state.selectedMessageIds.delete(m.id);
+            msg.classList.remove('selected');
+          }
+        });
+
+        const senderSpan = document.createElement('span');
+        senderSpan.textContent = sender;
+
+        left.appendChild(checkbox);
+        left.appendChild(senderSpan);
+
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = time || '';
+
+        meta.appendChild(left);
+        meta.appendChild(timeSpan);
+
+        const text = document.createElement('div');
+        text.className = 'text';
+        text.textContent = m.text || '';
+
+        msg.appendChild(meta);
+        if (m.text) msg.appendChild(text);
+
+        if (m.imageUrl) {
+          const img = document.createElement('img');
+          img.src = m.imageUrl;
+          img.alt = m.text || 'Картинка';
+          img.loading = 'lazy';
+          msg.appendChild(img);
+        }
+
+        fragment.appendChild(msg);
       });
 
+      els.messages.appendChild(fragment);
       els.messages.scrollTop = els.messages.scrollHeight;
     }
 
@@ -674,16 +775,42 @@
         state.unsubMessages();
         state.unsubMessages = null;
       }
+      state.selectedMessageIds = new Set();
+    }
+
+    async function refreshChatMeta(chatId) {
+      const msgSnap = await getDocs(query(
+        collection(db, 'chats', chatId, 'messages'),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      ));
+
+      const last = msgSnap.docs[0]?.data();
+      if (!last) {
+        await updateDoc(doc(db, 'chats', chatId), {
+          lastMessage: '',
+          updatedAt: serverTimestamp()
+        });
+        return;
+      }
+
+      const preview = last.imageUrl ? (last.text ? `${last.text.slice(0, 140)} [Картинка]` : '[Картинка]') : (last.text || '');
+      await updateDoc(doc(db, 'chats', chatId), {
+        lastMessage: preview.slice(0, 140),
+        updatedAt: serverTimestamp()
+      });
     }
 
     function attachChat(chatId, peerName, peerUid) {
       detachChat();
       state.currentChatId = chatId;
       state.currentChatPeer = { name: peerName, uid: peerUid };
+      state.selectedMessageIds = new Set();
       els.chatTitle.textContent = `@${peerName}`;
       els.chatSubtitle.textContent = peerUid ? `UID: ${peerUid}` : '';
       els.chatState.textContent = `Чат: ${chatId}`;
       els.composer.classList.remove('hidden');
+      els.chatActions.classList.remove('hidden');
       setStatus('');
 
       const q = query(
@@ -710,7 +837,8 @@
 
     async function sendMessage() {
       const text = els.messageText.value.trim();
-      if (!text) return;
+      const imageUrl = els.imageUrl.value.trim();
+      if (!text && !imageUrl) return;
       if (!state.user || !state.profile?.username || !state.currentChatId) {
         setStatus('Сначала открой чат и займи username.', true);
         return;
@@ -724,18 +852,64 @@
           senderId: state.user.uid,
           senderName: state.profile.username,
           text,
+          imageUrl,
           createdAt: serverTimestamp()
         });
 
+        const preview = imageUrl ? (text ? `${text.slice(0, 120)} [Картинка]` : '[Картинка]') : text.slice(0, 140);
         await updateDoc(chatRef, {
-          lastMessage: text.slice(0, 140),
+          lastMessage: preview.slice(0, 140),
           updatedAt: serverTimestamp()
         });
 
         els.messageText.value = '';
+        els.imageUrl.value = '';
+        els.imageUrlRow.classList.add('hidden');
         setStatus('');
       } catch (err) {
         setStatus(err.message || 'Не удалось отправить сообщение', true);
+      }
+    }
+
+    async function deleteSelectedMessages() {
+      if (!state.currentChatId || !state.selectedMessageIds.size) return;
+      if (!confirm('Удалить выбранные сообщения?')) return;
+
+      const chatId = state.currentChatId;
+      const ids = [...state.selectedMessageIds];
+
+      try {
+        await Promise.all(ids.map((id) => deleteDoc(doc(db, 'chats', chatId, 'messages', id))));
+        state.selectedMessageIds = new Set();
+        await refreshChatMeta(chatId);
+        setStatus('Выбранные сообщения удалены.');
+      } catch (err) {
+        setStatus(err.message || 'Не удалось удалить сообщения', true);
+      }
+    }
+
+    async function clearCurrentChat() {
+      if (!state.currentChatId) return;
+      if (!confirm('Очистить этот чат полностью? Это удалит все сообщения.')) return;
+
+      const chatId = state.currentChatId;
+
+      try {
+        const snap = await getDocs(collection(db, 'chats', chatId, 'messages'));
+        await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+        await deleteDoc(doc(db, 'chats', chatId));
+        state.selectedMessageIds = new Set();
+        detachChat();
+        state.currentChatId = null;
+        state.currentChatPeer = null;
+        els.chatTitle.textContent = 'Чат не выбран';
+        els.chatSubtitle.textContent = 'Выбери собеседника по username';
+        els.chatState.textContent = '';
+        els.messages.innerHTML = '<div class="status">Чат очищен.</div>';
+        els.composer.classList.add('hidden');
+        setStatus('Чат очищен.');
+      } catch (err) {
+        setStatus(err.message || 'Не удалось очистить чат', true);
       }
     }
 
@@ -827,6 +1001,14 @@
     els.claimUsernameBtn.addEventListener('click', claimUsername);
     els.openChatBtn.addEventListener('click', openChatByUsername);
     els.sendBtn.addEventListener('click', sendMessage);
+    els.imageBtn.addEventListener('click', () => {
+      els.imageUrlRow.classList.toggle('hidden');
+      if (!els.imageUrlRow.classList.contains('hidden')) {
+        els.imageUrl.focus();
+      }
+    });
+    els.deleteSelectedBtn.addEventListener('click', deleteSelectedMessages);
+    els.clearChatBtn.addEventListener('click', clearCurrentChat);
     els.signUpBtn.addEventListener('click', signUp);
     els.signInBtn.addEventListener('click', signIn);
     els.googleBtn.addEventListener('click', signInGoogle);
@@ -853,6 +1035,9 @@
       els.chatSubtitle.textContent = 'Выбери собеседника по username';
       els.chatState.textContent = '';
       els.messages.innerHTML = '<div class="status">Сначала войди в аккаунт, потом задай username.</div>';
+      els.chatActions.classList.add('hidden');
+      els.imageUrlRow.classList.add('hidden');
+      els.imageUrl.value = '';
       els.composer.classList.add('hidden');
 
       if (!user) {
@@ -867,4 +1052,5 @@
   </script>
 </body>
 </html>
+
 
